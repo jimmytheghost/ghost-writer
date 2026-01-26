@@ -4,7 +4,8 @@ const DEFAULT_TEXT = `Welcome to Wraider.
 
 Start writing here. Use Ctrl+Shift+A to open AI commands (placeholder for now).`
 
-function Editor({ value, onChange }) {
+function Editor() {
+  const [content, setContent] = useState(DEFAULT_TEXT)
   const textareaRef = useRef(null)
 
   useEffect(() => {
@@ -35,8 +36,8 @@ function Editor({ value, onChange }) {
       <textarea
         ref={textareaRef}
         className="editor__textarea"
-        value={value ?? DEFAULT_TEXT}
-        onChange={(event) => onChange(event.target.value)}
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
         spellCheck="true"
       />
       <div className="editor__hint">
