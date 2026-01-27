@@ -16,6 +16,7 @@ function App() {
   const [promptError, setPromptError] = useState('')
   const [models, setModels] = useState([])
   const [selectedModel, setSelectedModel] = useState('')
+  const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelError, setModelError] = useState('')
@@ -111,6 +112,12 @@ function App() {
   }
 
   const handlePromptOpen = (payload = {}) => {
+    if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
+      setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
+    }
+  }
+
+  const handleSelectionChange = (payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
     }
@@ -261,6 +268,9 @@ function App() {
           value={content}
           onChange={setContent}
           onPromptOpen={handlePromptOpen}
+          onSelectionChange={handleSelectionChange}
+          selectionRange={selectionRange}
+          showSelectionOverlay={isPromptFocused}
         />
         <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
           <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
@@ -269,6 +279,8 @@ function App() {
               className="prompt-panel__textarea"
               value={promptText}
               onChange={(event) => setPromptText(event.target.value)}
+              onFocus={() => setIsPromptFocused(true)}
+              onBlur={() => setIsPromptFocused(false)}
               placeholder="Ask the AI to help with your writing..."
               rows={4}
             />

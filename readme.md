@@ -4,11 +4,16 @@ Wraider is an open-source web-based writing tool designed to leverage the power 
 
 **Core Concept:**
 
-Wraider features an intentionally simple and intuitive interface, resembling Ollama's existing chat or Byword's markdown friendly interface for ease of use.  The primary interaction model centers around keyboard shortcuts that summon AI assistance directly within the writing area.
+Wraider features an intentionally simple and intuitive interface, resembling Ollama's existing chat or Byword's markdown friendly interface for ease of use. The primary interaction model centers around a focused editor with a permanent prompt box below it for AI assistance.
 
 **How it Works:**
 
-Users can write freely within the Wraider text editor. At any point during the writing process, a predefined keyboard shortcut (e.g., Ctrl+Shift+A) will activate a prompt box. This box requests a specific instruction from the user.
+Users can write freely within the Wraider text editor. The prompt box is always available beneath the editor, so users can type an instruction at any time.
+
+When submitting a prompt, Wraider uses the current cursor or selection in the editor as the insertion point:
+
+- If text is highlighted, the AI output replaces the highlighted selection.
+- If there is no selection, the AI output inserts at the current cursor position.
 
 The user can then enter a natural language prompt directing the LLM (powered by Ollama) to perform actions on the existing text or generate new content.  Examples of prompts include:
 
@@ -19,14 +24,14 @@ The user can then enter a natural language prompt directing the LLM (powered by 
 *   "Summarize the entire document."
 *   "Create this character's backstory."
 
-Wraider then utilizes Ollama to process the prompt and either modify the existing text or insert new content directly into the editor.
+Wraider then utilizes Ollama to process the prompt and either replace the selection or insert new content at the cursor position.
 
 **Key Features & Goals:**
 
 *   **Simplicity:** Minimalist interface to avoid distractions.
 *   **Ollama Integration:** Leverages local LLMs via Ollama.
 *   **Contextual Assistance:** AI responds to prompts relative to the current document content.
-*   **Keyboard-Driven:** Efficient workflow using keyboard shortcuts.
+*   **Keyboard-Driven:** Efficient workflow using keyboard shortcuts. (Shortcut-based prompt invocation has been retired in favor of the permanent prompt box.)
 *   **Open Source:** Promotes community contribution and customization.
 
 ## Launching the App (macOS)

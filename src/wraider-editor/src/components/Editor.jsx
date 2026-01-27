@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const DEFAULT_TEXT = `Welcome to Wraider.
 
@@ -6,8 +6,25 @@ Start writing here. Use Ctrl+Shift+A to open AI commands (placeholder for now).`
 
 const PROMPT_FALLBACK_POSITION = { top: 120, left: 120 }
 
-function Editor({ value, onChange, onPromptOpen }) {
+function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRange, showSelectionOverlay }) {
   const textareaRef = useRef(null)
+  const [scrollTop, setScrollTop] = useState(0)
+
+  const selectionOverlay = useMemo(() => {
+    if (!showSelectionOverlay) return null
+    const text = value ?? ''
+    const start = Math.min(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
+    const end = Math.max(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
+    if (start === end) return null
+    const safeStart = Math.min(start, text.length)
+    const safeEnd = Math.min(end, text.length)
+    const selectionText = text.slice(safeStart, safeEnd)
+    return {
+      before: text.slice(0, safeStart),
+      selection: selectionText.length ? selectionText : ' ',
+      after: text.slice(safeEnd),
+    }
+  }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, value])
 
   const getCursorPosition = () => {
     const textarea = textareaRef.current
@@ -44,6 +61,15 @@ function Editor({ value, onChange, onPromptOpen }) {
   }
 
   useEffect(() => {
+    const handleSelectionUpdate = () => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      onSelectionChange?.({
+        selectionStart: textarea.selectionStart ?? 0,
+        selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
+      })
+    }
+
     const handleKeyDown = (event) => {
       if (event.metaKey && event.shiftKey && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -65,18 +91,52 @@ function Editor({ value, onChange, onPromptOpen }) {
 
     const textarea = textareaRef.current
     textarea?.addEventListener('keydown', handleKeyDown)
-    return () => textarea?.removeEventListener('keydown', handleKeyDown)
+    textarea?.addEventListener('mouseup', handleSelectionUpdate)
+    textarea?.addEventListener('keyup', handleSelectionUpdate)
+    textarea?.addEventListener('select', handleSelectionUpdate)
+    textarea?.addEventListener('focus', handleSelectionUpdate)
+    textarea?.addEventListener('blur', handleSelectionUpdate)
+
+    return () => {
+      textarea?.removeEventListener('keydown', handleKeyDown)
+      textarea?.removeEventListener('mouseup', handleSelectionUpdate)
+      textarea?.removeEventListener('keyup', handleSelectionUpdate)
+      textarea?.removeEventListener('select', handleSelectionUpdate)
+      textarea?.removeEventListener('focus', handleSelectionUpdate)
+      textarea?.removeEventListener('blur', handleSelectionUpdate)
+    }
   }, [])
 
   return (
     <section className="editor">
-      <textarea
-        ref={textareaRef}
-        className="editor__textarea"
-        value={value ?? DEFAULT_TEXT}
-        onChange={(event) => onChange(event.target.value)}
-        spellCheck="true"
-      />
+      <div className="editor__field">
+        {selectionOverlay && (
+          <div
+            className="editor__selection-overlay"
+            style={{ transform: `translateY(${-scrollTop}px)` }}
+            aria-hidden="true"
+          >
+            <span className="editor__selection-overlay-text">{selectionOverlay.before}</span>
+            <mark className="editor__selection-overlay-highlight">{selectionOverlay.selection}</mark>
+            <span className="editor__selection-overlay-text">{selectionOverlay.after}</span>
+          </div>
+        )}
+        <textarea
+          ref={textareaRef}
+          className="editor__textarea"
+          value={value ?? DEFAULT_TEXT}
+          onChange={(event) => onChange(event.target.value)}
+          onScroll={(event) => setScrollTop(event.target.scrollTop)}
+          onSelect={(event) => {
+            const target = event.target
+            onSelectionChange?.({
+              selectionStart: target.selectionStart ?? 0,
+              selectionEnd: target.selectionEnd ?? target.selectionStart ?? 0,
+            })
+          }}
+          spellCheck="true"
+        />
+      </div>
     </section>
   )
 }
