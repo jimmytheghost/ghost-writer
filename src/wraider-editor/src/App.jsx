@@ -227,42 +227,6 @@ function App() {
 
   return (
     <div className={`app${isDark ? ' app--dark' : ''}`}>
-      <header className="app__header">
-        <div className="app__header-row">
-          <div>
-            <h1>Wraider</h1>
-            <p className="app__subtitle">AI-assisted writing, powered by Ollama.</p>
-          </div>
-          <div className="app__controls">
-            <div className="doc-actions">
-              <button type="button" className="doc-actions__button" onClick={handleNew}>
-                New
-              </button>
-              <button type="button" className="doc-actions__button" onClick={handleSaveClick}>
-                Save
-              </button>
-              <button type="button" className="doc-actions__button" onClick={handleLoadClick}>
-                Load
-              </button>
-              <input
-                ref={fileInputRef}
-                className="doc-actions__file"
-                type="file"
-                accept=".md,text/markdown,text/plain"
-                onChange={handleLoadFile}
-              />
-            </div>
-            <button
-              type="button"
-              className="theme-toggle"
-              aria-pressed={isDark}
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            >
-              {isDark ? 'Light mode' : 'Dark mode'}
-            </button>
-          </div>
-        </div>
-      </header>
       <main className="app__main">
         <Editor
           value={content}
@@ -284,9 +248,54 @@ function App() {
               placeholder="Ask the AI to help with your writing..."
               rows={4}
             />
+            <div className="prompt-panel__row">
+              <div className="prompt-panel__actions">
+                <button
+                  type="button"
+                  className="prompt-panel__button"
+                  onClick={() => abortControllerRef.current?.abort()}
+                  disabled={!isLoadingPrompt}
+                >
+                  Stop
+                </button>
+                <button
+                  type="submit"
+                  className="prompt-panel__button prompt-panel__button--primary"
+                  disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
+                >
+                  {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
+                </button>
+              </div>
+            </div>
+            {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
+            {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
+          </form>
+        </section>
+      </main>
+      <footer className="app__footer">
+        <div className="app__footer-row">
+          <div className="doc-actions">
+            <button type="button" className="doc-actions__button" onClick={handleNew}>
+              New
+            </button>
+            <button type="button" className="doc-actions__button" onClick={handleSaveClick}>
+              Save
+            </button>
+            <button type="button" className="doc-actions__button" onClick={handleLoadClick}>
+              Load
+            </button>
+            <input
+              ref={fileInputRef}
+              className="doc-actions__file"
+              type="file"
+              accept={".md,text/markdown,text/plain"}
+              onChange={handleLoadFile}
+            />
+          </div>
+          <div className="footer-model">
             <select
               id="modelSelect"
-              className="prompt-panel__select"
+              className="footer-model__select"
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
               disabled={isLoadingModels || models.length === 0}
@@ -301,29 +310,17 @@ function App() {
                 ))
               )}
             </select>
-            {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
-            <div className="prompt-panel__actions">
-              <button
-                type="button"
-                className="prompt-panel__button"
-                onClick={() => abortControllerRef.current?.abort()}
-                disabled={!isLoadingPrompt}
-              >
-                Stop
-              </button>
-              <button
-                type="submit"
-                className="prompt-panel__button prompt-panel__button--primary"
-                disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
-              >
-                {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
-              </button>
-            </div>
-            {isLoadingPrompt && <div className="prompt-panel__status">Generating...</div>}
-            {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
-          </form>
-        </section>
-      </main>
+          </div>
+          <button
+            type="button"
+            className="theme-toggle"
+            aria-pressed={isDark}
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          >
+            {isDark ? 'Light mode' : 'Dark mode'}
+          </button>
+        </div>
+      </footer>
       {isSaveOpen && (
         <div className="modal-overlay" onClick={() => setIsSaveOpen(false)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
