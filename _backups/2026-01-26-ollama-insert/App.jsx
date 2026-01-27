@@ -4,7 +4,7 @@ import Editor from './components/Editor'
 
 const DEFAULT_TEXT = `Welcome to Wraider.
 
-Start writing here. Use Cmd+Shift+K to open AI commands.`
+Start writing here. Use Ctrl+Shift+A to open AI commands (placeholder for now).`
 
 function App() {
   const [theme, setTheme] = useState('light')
@@ -21,7 +21,6 @@ function App() {
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelError, setModelError] = useState('')
   const [promptPosition, setPromptPosition] = useState({ top: 120, left: 120 })
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const fileInputRef = useRef(null)
 
@@ -121,12 +120,9 @@ function App() {
     event.target.value = ''
   }
 
-  const handlePromptOpen = (payload = {}) => {
-    if (payload?.position) {
-      setPromptPosition(payload.position)
-    }
-    if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
-      setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
+  const handlePromptOpen = (position) => {
+    if (position) {
+      setPromptPosition(position)
     }
     setPromptError('')
     setPromptResponse('')
@@ -173,11 +169,6 @@ function App() {
       }
 
       setPromptResponse(generatedText)
-      setContent((current) => {
-        const safeStart = Math.min(selectionRange.start ?? 0, current.length)
-        const safeEnd = Math.min(selectionRange.end ?? safeStart, current.length)
-        return `${current.slice(0, safeStart)}${generatedText}${current.slice(safeEnd)}`
-      })
     } catch (error) {
       setPromptError(error?.message ?? 'Unable to reach Ollama.')
     } finally {
@@ -225,6 +216,28 @@ function App() {
       </header>
       <main className="app__main">
         <Editor value={content} onChange={setContent} onPromptOpen={handlePromptOpen} />
+        {(promptResponse || promptError) && (
+          <section className={`prompt-response${isDark ? ' prompt-response--dark' : ''}`}>
+            <div className="prompt-response__header">
+              <h2>Ollama Response</h2>
+              <button
+                type="button"
+                className="prompt-response__clear"
+                onClick={() => {
+                  setPromptResponse('')
+                  setPromptError('')
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            {promptError ? (
+              <p className="prompt-response__error">{promptError}</p>
+            ) : (
+              <pre className="prompt-response__content">{promptResponse}</pre>
+            )}
+          </section>
+        )}
       </main>
       {isPromptOpen && (
         <div

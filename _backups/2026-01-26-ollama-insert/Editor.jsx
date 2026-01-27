@@ -31,25 +31,12 @@ function Editor({ value, onChange, onPromptOpen }) {
     }
   }
 
-  const getSelectionRange = () => {
-    const textarea = textareaRef.current
-    if (!textarea) {
-      return { selectionStart: 0, selectionEnd: 0 }
-    }
-
-    return {
-      selectionStart: textarea.selectionStart ?? 0,
-      selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
-    }
-  }
-
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.metaKey && event.shiftKey && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         const position = getCursorPosition()
-        const selection = getSelectionRange()
-        onPromptOpen?.({ position, ...selection })
+        onPromptOpen?.(position)
       }
 
       if (event.ctrlKey && event.key.toLowerCase() === 'b') {
