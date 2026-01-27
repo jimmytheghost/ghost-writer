@@ -13,7 +13,7 @@ git pull
 cd /Users/jimmytheghost/AI-Local-Stack/wraider
 git status
 git add .
-git commit -m "your message"
+git commit -m "Streaming outputs, stop button and load circle added. Last version before prompt box removal."
 git push
 ```
 

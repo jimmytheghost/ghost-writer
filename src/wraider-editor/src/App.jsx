@@ -24,6 +24,10 @@ function App() {
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const fileInputRef = useRef(null)
+  const streamBaseRef = useRef('')
+  const streamSelectionRef = useRef({ start: 0, end: 0 })
+  const streamBufferRef = useRef('')
+  const abortControllerRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true
@@ -134,6 +138,7 @@ function App() {
   }
 
   const handlePromptClose = () => {
+    abortControllerRef.current?.abort()
     setIsPromptOpen(false)
   }
 
@@ -150,15 +155,26 @@ function App() {
         throw new Error('Please select a model to continue.')
       }
 
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      abortControllerRef.current = new AbortController()
+
+      streamBaseRef.current = content
+      streamSelectionRef.current = { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
+      streamBufferRef.current = ''
+
       const response = await fetch('http://localhost:11434/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           model: selectedModel,
           prompt: `${promptText}\n\n---\n\n${content}`,
-          stream: false,
+          stream: true,
         }),
       })
 
@@ -166,19 +182,62 @@ function App() {
         throw new Error('Ollama request failed. Is the server running?')
       }
 
-      const data = await response.json()
-      const generatedText = data?.response
-      if (!generatedText) {
-        throw new Error('No response received from Ollama.')
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Streaming response not available.')
       }
 
-      setPromptResponse(generatedText)
-      setContent((current) => {
-        const safeStart = Math.min(selectionRange.start ?? 0, current.length)
-        const safeEnd = Math.min(selectionRange.end ?? safeStart, current.length)
-        return `${current.slice(0, safeStart)}${generatedText}${current.slice(safeEnd)}`
-      })
+      const decoder = new TextDecoder()
+      let bufferedText = ''
+
+      const applyStreamChunk = (chunk) => {
+        if (!chunk) return
+        streamBufferRef.current += chunk
+        const base = streamBaseRef.current
+        const { start, end } = streamSelectionRef.current
+        const safeStart = Math.min(start, base.length)
+        const safeEnd = Math.min(end, base.length)
+        setPromptResponse(streamBufferRef.current)
+        setContent(`${base.slice(0, safeStart)}${streamBufferRef.current}${base.slice(safeEnd)}`)
+      }
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        bufferedText += decoder.decode(value, { stream: true })
+        const lines = bufferedText.split('\n')
+        bufferedText = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const payload = JSON.parse(trimmed)
+            if (payload?.response) {
+              applyStreamChunk(payload.response)
+            }
+          } catch (parseError) {
+            // Ignore malformed lines
+          }
+        }
+      }
+
+      const finalLine = bufferedText.trim()
+      if (finalLine) {
+        try {
+          const payload = JSON.parse(finalLine)
+          if (payload?.response) {
+            applyStreamChunk(payload.response)
+          }
+        } catch (parseError) {
+          // Ignore final parse errors
+        }
+      }
     } catch (error) {
+      if (error?.name === 'AbortError') {
+        setPromptError('Generation stopped.')
+        return
+      }
       setPromptError(error?.message ?? 'Unable to reach Ollama.')
     } finally {
       setIsLoadingPrompt(false)
@@ -277,11 +336,23 @@ function App() {
                 Close
               </button>
               <button
+                type="button"
+                className="prompt-overlay__button"
+                onClick={() => abortControllerRef.current?.abort()}
+                disabled={!isLoadingPrompt}
+              >
+                Stop
+              </button>
+              <button
                 type="submit"
                 className="prompt-overlay__button prompt-overlay__button--primary"
                 disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
               >
-                {isLoadingPrompt ? 'Sending...' : 'Send'}
+                {isLoadingPrompt ? (
+                  <span className="prompt-overlay__spinner" aria-label="Generating" />
+                ) : (
+                  'Send'
+                )}
               </button>
             </div>
             {promptError && (
