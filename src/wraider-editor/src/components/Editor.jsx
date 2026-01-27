@@ -77,9 +77,6 @@ function Editor({ value, onChange, onPromptOpen }) {
         onChange={(event) => onChange(event.target.value)}
         spellCheck="true"
       />
-      <div className="editor__hint">
-        Tip: Press <strong>Cmd+Shift+K</strong> to open the AI prompt box.
-      </div>
     </section>
   )
 }

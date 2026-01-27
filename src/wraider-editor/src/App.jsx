@@ -11,7 +11,6 @@ function App() {
   const [content, setContent] = useState(DEFAULT_TEXT)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
   const [fileName, setFileName] = useState('wraider-document.md')
-  const [isPromptOpen, setIsPromptOpen] = useState(false)
   const [promptText, setPromptText] = useState('')
   const [promptResponse, setPromptResponse] = useState('')
   const [promptError, setPromptError] = useState('')
@@ -20,7 +19,6 @@ function App() {
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelError, setModelError] = useState('')
-  const [promptPosition, setPromptPosition] = useState({ top: 120, left: 120 })
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const fileInputRef = useRef(null)
@@ -72,19 +70,6 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!isPromptOpen) return
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setIsPromptOpen(false)
-      }
-    }
-
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [isPromptOpen])
-
   const handleNew = () => {
     if (content.trim().length === 0 || window.confirm('Start a new document? Unsaved changes will be lost.')) {
       setContent('')
@@ -126,20 +111,9 @@ function App() {
   }
 
   const handlePromptOpen = (payload = {}) => {
-    if (payload?.position) {
-      setPromptPosition(payload.position)
-    }
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
     }
-    setPromptError('')
-    setPromptResponse('')
-    setIsPromptOpen(true)
-  }
-
-  const handlePromptClose = () => {
-    abortControllerRef.current?.abort()
-    setIsPromptOpen(false)
   }
 
   const handlePromptSubmit = async (event) => {
@@ -283,26 +257,24 @@ function App() {
         </div>
       </header>
       <main className="app__main">
-        <Editor value={content} onChange={setContent} onPromptOpen={handlePromptOpen} />
-      </main>
-      {isPromptOpen && (
-        <div
-          className={`prompt-overlay${isDark ? ' prompt-overlay--dark' : ''}`}
-          style={{ top: promptPosition.top, left: promptPosition.left }}
-        >
-          <div className="prompt-overlay__header">
-            <span className="prompt-overlay__title">Ask Wraider</span>
-            <button type="button" className="prompt-overlay__close" onClick={handlePromptClose}>
-              ×
-            </button>
-          </div>
-          <form className="prompt-overlay__form" onSubmit={handlePromptSubmit}>
-            <label className="prompt-overlay__label" htmlFor="modelSelect">
-              Model
-            </label>
+        <Editor
+          value={content}
+          onChange={setContent}
+          onPromptOpen={handlePromptOpen}
+        />
+        <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
+          <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
+            <textarea
+              id="promptText"
+              className="prompt-panel__textarea"
+              value={promptText}
+              onChange={(event) => setPromptText(event.target.value)}
+              placeholder="Ask the AI to help with your writing..."
+              rows={4}
+            />
             <select
               id="modelSelect"
-              className="prompt-overlay__select"
+              className="prompt-panel__select"
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
               disabled={isLoadingModels || models.length === 0}
@@ -317,27 +289,11 @@ function App() {
                 ))
               )}
             </select>
-            {modelError && (
-              <div className="prompt-overlay__status prompt-overlay__status--error">{modelError}</div>
-            )}
-            <label className="prompt-overlay__label" htmlFor="promptText">
-              Prompt
-            </label>
-            <textarea
-              id="promptText"
-              className="prompt-overlay__textarea"
-              value={promptText}
-              onChange={(event) => setPromptText(event.target.value)}
-              placeholder="Ask the AI to help with your writing..."
-              rows={4}
-            />
-            <div className="prompt-overlay__actions">
-              <button type="button" className="prompt-overlay__button" onClick={handlePromptClose}>
-                Close
-              </button>
+            {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
+            <div className="prompt-panel__actions">
               <button
                 type="button"
-                className="prompt-overlay__button"
+                className="prompt-panel__button"
                 onClick={() => abortControllerRef.current?.abort()}
                 disabled={!isLoadingPrompt}
               >
@@ -345,22 +301,17 @@ function App() {
               </button>
               <button
                 type="submit"
-                className="prompt-overlay__button prompt-overlay__button--primary"
+                className="prompt-panel__button prompt-panel__button--primary"
                 disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
               >
-                {isLoadingPrompt ? (
-                  <span className="prompt-overlay__spinner" aria-label="Generating" />
-                ) : (
-                  'Send'
-                )}
+                {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
               </button>
             </div>
-            {promptError && (
-              <div className="prompt-overlay__status prompt-overlay__status--error">{promptError}</div>
-            )}
+            {isLoadingPrompt && <div className="prompt-panel__status">Generating...</div>}
+            {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
           </form>
-        </div>
-      )}
+        </section>
+      </main>
       {isSaveOpen && (
         <div className="modal-overlay" onClick={() => setIsSaveOpen(false)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
