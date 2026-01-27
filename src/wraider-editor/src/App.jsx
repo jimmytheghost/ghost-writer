@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { marked } from 'marked'
 import './App.css'
 import Editor from './components/Editor'
 
@@ -32,6 +33,8 @@ function App() {
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
   const abortControllerRef = useRef(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const renderedMarkdown = useMemo(() => marked.parse(content ?? ''), [content])
 
   useEffect(() => {
     let isMounted = true
@@ -124,6 +127,21 @@ function App() {
     }
     reader.readAsText(file)
     event.target.value = ''
+  }
+
+  const handleCopyClick = async () => {
+    const rawSelection = document.getSelection()?.toString() ?? ''
+    const hasRangeSelection = selectionRange.start !== selectionRange.end
+    const editorSelection = hasRangeSelection
+      ? content.slice(selectionRange.start, selectionRange.end)
+      : ''
+    const textToCopy = rawSelection || editorSelection || content
+
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
   }
 
   const handleUndoGeneration = () => {
@@ -278,57 +296,70 @@ function App() {
   return (
     <div className={`app${isDark ? ' app--dark' : ''}`}>
       <main className="app__main">
-        <Editor
-          value={content}
-          onChange={setContent}
-          onPromptOpen={handlePromptOpen}
-          onSelectionChange={handleSelectionChange}
-          selectionRange={selectionRange}
-          showSelectionOverlay={isPromptFocused}
-        />
-        <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
-          <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
-            <div className="prompt-panel__row">
-              <textarea
-                id="promptText"
-                className="prompt-panel__textarea"
-                value={promptText}
-                onChange={(event) => setPromptText(event.target.value)}
-                onFocus={() => setIsPromptFocused(true)}
-                onBlur={() => setIsPromptFocused(false)}
-                placeholder="Ask the AI to help with your writing..."
-                rows={4}
-              />
-              <div className="prompt-panel__actions">
-                <button
-                  type="submit"
-                  className="prompt-panel__button prompt-panel__button--primary"
-                  disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
-                >
-                  {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
-                </button>
-                <button
-                  type="button"
-                  className="prompt-panel__button"
-                  onClick={() => abortControllerRef.current?.abort()}
-                  disabled={!isLoadingPrompt}
-                >
-                  Stop
-                </button>
-                <button
-                  type="button"
-                  className="prompt-panel__button"
-                  onClick={handleUndoToggle}
-                  disabled={!canUndoGeneration && !canRedoGeneration}
-                >
-                  {undoToggleState === 'redo' ? 'Redo' : 'Undo'}
-                </button>
+        <div className="editor-pane">
+          {isPreviewOpen ? (
+            <>
+              <h2 className="preview-title">Markdown preview</h2>
+              <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
+                <div className="preview__content" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
+              </section>
+            </>
+          ) : (
+            <Editor
+              value={content}
+              onChange={setContent}
+              onPromptOpen={handlePromptOpen}
+              onSelectionChange={handleSelectionChange}
+              selectionRange={selectionRange}
+              showSelectionOverlay={isPromptFocused}
+            />
+          )}
+        </div>
+        {!isPreviewOpen && (
+          <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
+            <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
+              <div className="prompt-panel__row">
+                <textarea
+                  id="promptText"
+                  className="prompt-panel__textarea"
+                  value={promptText}
+                  onChange={(event) => setPromptText(event.target.value)}
+                  onFocus={() => setIsPromptFocused(true)}
+                  onBlur={() => setIsPromptFocused(false)}
+                  placeholder="Ask the AI to help with your writing..."
+                  rows={4}
+                />
+                <div className="prompt-panel__actions">
+                  <button
+                    type="submit"
+                    className="prompt-panel__button prompt-panel__button--primary"
+                    disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
+                  >
+                    {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
+                  </button>
+                  <button
+                    type="button"
+                    className="prompt-panel__button"
+                    onClick={() => abortControllerRef.current?.abort()}
+                    disabled={!isLoadingPrompt}
+                  >
+                    Stop
+                  </button>
+                  <button
+                    type="button"
+                    className="prompt-panel__button"
+                    onClick={handleUndoToggle}
+                    disabled={!canUndoGeneration && !canRedoGeneration}
+                  >
+                    {undoToggleState === 'redo' ? 'Redo' : 'Undo'}
+                  </button>
+                </div>
               </div>
-            </div>
-            {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
-            {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
-          </form>
-        </section>
+              {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
+              {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
+            </form>
+          </section>
+        )}
       </main>
       <footer className="app__footer">
         <div className="app__footer-row">
@@ -348,6 +379,27 @@ function App() {
                 upload_file
               </span>
             </button>
+            <button
+              type="button"
+              className="doc-actions__button"
+              onClick={handleCopyClick}
+              aria-label="Copy to clipboard"
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">
+                content_copy
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`doc-actions__button${isPreviewOpen ? ' doc-actions__button--active' : ''}`}
+              onClick={() => setIsPreviewOpen((previous) => !previous)}
+              aria-label="Toggle markdown preview"
+              aria-pressed={isPreviewOpen}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">
+                preview
+              </span>
+            </button>
             <input
               ref={fileInputRef}
               className="doc-actions__file"
@@ -356,36 +408,38 @@ function App() {
               onChange={handleLoadFile}
             />
           </div>
-          <div className="footer-model">
-            <select
-              id="modelSelect"
-              className="footer-model__select"
-              value={selectedModel}
-              onChange={(event) => setSelectedModel(event.target.value)}
-              disabled={isLoadingModels || models.length === 0}
+          <div className="footer-controls">
+            <div className="footer-model">
+              <select
+                id="modelSelect"
+                className="footer-model__select"
+                value={selectedModel}
+                onChange={(event) => setSelectedModel(event.target.value)}
+                disabled={isLoadingModels || models.length === 0}
+              >
+                {models.length === 0 ? (
+                  <option value="">No models available</option>
+                ) : (
+                  models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-pressed={isDark}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
             >
-              {models.length === 0 ? (
-                <option value="">No models available</option>
-              ) : (
-                models.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))
-              )}
-            </select>
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {isDark ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
           </div>
-          <button
-            type="button"
-            className="theme-toggle"
-            aria-pressed={isDark}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          >
-            <span className="material-symbols-rounded" aria-hidden="true">
-              {isDark ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
         </div>
       </footer>
       {isSaveOpen && (
