@@ -85,8 +85,12 @@
   border: 1px solid #d1d1d1;
   background: #e3e3e3;
   color: #1f2937;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.7rem;
+  padding: 0.4rem;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -118,8 +122,12 @@
   border: 1px solid #d1d1d1;
   background: #f7f7f7;
   color: #1f2937;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.7rem;
+  padding: 0.4rem;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -434,9 +442,9 @@
 
 .prompt-panel__row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.6rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .prompt-panel__label {
@@ -460,7 +468,8 @@
 }
 
 .prompt-panel__textarea {
-  min-height: 110px;
+  min-height: 120px;
+  flex: 1 1 auto;
   resize: none;
 }
 
@@ -472,8 +481,10 @@
 
 .prompt-panel__actions {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  justify-content: flex-start;
   gap: 0.5rem;
+  width: 120px;
   margin-top: 0;
 }
 
@@ -482,10 +493,17 @@
   border: 1px solid #d1d1d1;
   background: #ffffff;
   color: #1f2937;
-  padding: 0.4rem 1rem;
+  padding: 0.45rem 0.75rem;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  width: 100%;
+}
+
+.material-symbols-rounded {
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .prompt-panel__button--primary {

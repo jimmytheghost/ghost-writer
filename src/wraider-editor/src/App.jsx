@@ -14,6 +14,11 @@ function App() {
   const [promptText, setPromptText] = useState('')
   const [promptResponse, setPromptResponse] = useState('')
   const [promptError, setPromptError] = useState('')
+  const [undoSnapshot, setUndoSnapshot] = useState('')
+  const [redoSnapshot, setRedoSnapshot] = useState('')
+  const [canUndoGeneration, setCanUndoGeneration] = useState(false)
+  const [canRedoGeneration, setCanRedoGeneration] = useState(false)
+  const [undoToggleState, setUndoToggleState] = useState('undo')
   const [models, setModels] = useState([])
   const [selectedModel, setSelectedModel] = useState('')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
@@ -74,6 +79,11 @@ function App() {
   const handleNew = () => {
     if (content.trim().length === 0 || window.confirm('Start a new document? Unsaved changes will be lost.')) {
       setContent('')
+      setUndoSnapshot('')
+      setRedoSnapshot('')
+      setCanUndoGeneration(false)
+      setCanRedoGeneration(false)
+      setUndoToggleState('undo')
     }
   }
 
@@ -106,9 +116,44 @@ function App() {
     const reader = new FileReader()
     reader.onload = (loadEvent) => {
       setContent(loadEvent.target?.result?.toString() ?? '')
+      setUndoSnapshot('')
+      setRedoSnapshot('')
+      setCanUndoGeneration(false)
+      setCanRedoGeneration(false)
+      setUndoToggleState('undo')
     }
     reader.readAsText(file)
     event.target.value = ''
+  }
+
+  const handleUndoGeneration = () => {
+    if (!canUndoGeneration) return
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    setRedoSnapshot(content)
+    setContent(undoSnapshot)
+    setPromptResponse('')
+    setPromptError('')
+    setCanUndoGeneration(false)
+    setCanRedoGeneration(true)
+    setUndoToggleState('redo')
+  }
+
+  const handleRedoGeneration = () => {
+    if (!canRedoGeneration) return
+    setContent(redoSnapshot)
+    setCanRedoGeneration(false)
+    setCanUndoGeneration(true)
+    setUndoToggleState('undo')
+  }
+
+  const handleUndoToggle = () => {
+    if (undoToggleState === 'redo') {
+      handleRedoGeneration()
+      return
+    }
+    handleUndoGeneration()
   }
 
   const handlePromptOpen = (payload = {}) => {
@@ -130,6 +175,11 @@ function App() {
     setIsLoadingPrompt(true)
     setPromptError('')
     setPromptResponse('')
+    setUndoSnapshot(content)
+    setCanUndoGeneration(true)
+    setRedoSnapshot('')
+    setCanRedoGeneration(false)
+    setUndoToggleState('undo')
 
     try {
       if (!selectedModel) {
@@ -238,18 +288,25 @@ function App() {
         />
         <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
           <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
-            <textarea
-              id="promptText"
-              className="prompt-panel__textarea"
-              value={promptText}
-              onChange={(event) => setPromptText(event.target.value)}
-              onFocus={() => setIsPromptFocused(true)}
-              onBlur={() => setIsPromptFocused(false)}
-              placeholder="Ask the AI to help with your writing..."
-              rows={4}
-            />
             <div className="prompt-panel__row">
+              <textarea
+                id="promptText"
+                className="prompt-panel__textarea"
+                value={promptText}
+                onChange={(event) => setPromptText(event.target.value)}
+                onFocus={() => setIsPromptFocused(true)}
+                onBlur={() => setIsPromptFocused(false)}
+                placeholder="Ask the AI to help with your writing..."
+                rows={4}
+              />
               <div className="prompt-panel__actions">
+                <button
+                  type="submit"
+                  className="prompt-panel__button prompt-panel__button--primary"
+                  disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
+                >
+                  {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
+                </button>
                 <button
                   type="button"
                   className="prompt-panel__button"
@@ -259,11 +316,12 @@ function App() {
                   Stop
                 </button>
                 <button
-                  type="submit"
-                  className="prompt-panel__button prompt-panel__button--primary"
-                  disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
+                  type="button"
+                  className="prompt-panel__button"
+                  onClick={handleUndoToggle}
+                  disabled={!canUndoGeneration && !canRedoGeneration}
                 >
-                  {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
+                  {undoToggleState === 'redo' ? 'Redo' : 'Undo'}
                 </button>
               </div>
             </div>
@@ -275,14 +333,20 @@ function App() {
       <footer className="app__footer">
         <div className="app__footer-row">
           <div className="doc-actions">
-            <button type="button" className="doc-actions__button" onClick={handleNew}>
-              New
+            <button type="button" className="doc-actions__button" onClick={handleNew} aria-label="New document">
+              <span className="material-symbols-rounded" aria-hidden="true">
+                note_add
+              </span>
             </button>
-            <button type="button" className="doc-actions__button" onClick={handleSaveClick}>
-              Save
+            <button type="button" className="doc-actions__button" onClick={handleSaveClick} aria-label="Save document">
+              <span className="material-symbols-rounded" aria-hidden="true">
+                save
+              </span>
             </button>
-            <button type="button" className="doc-actions__button" onClick={handleLoadClick}>
-              Load
+            <button type="button" className="doc-actions__button" onClick={handleLoadClick} aria-label="Load document">
+              <span className="material-symbols-rounded" aria-hidden="true">
+                upload_file
+              </span>
             </button>
             <input
               ref={fileInputRef}
@@ -315,9 +379,12 @@ function App() {
             type="button"
             className="theme-toggle"
             aria-pressed={isDark}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
           >
-            {isDark ? 'Light mode' : 'Dark mode'}
+            <span className="material-symbols-rounded" aria-hidden="true">
+              {isDark ? 'light_mode' : 'dark_mode'}
+            </span>
           </button>
         </div>
       </footer>
