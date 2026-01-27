@@ -2,24 +2,24 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  color: #111827;
-  background: #f9fafb;
+  color: #1f2937;
+  background: #f2f2f2;
 }
 
 .app--dark {
-  color: #f9fafb;
-  background: #0f172a;
+  color: #f5f5f5;
+  background: #0b1215;
 }
 
 .app__header {
   padding: 2.5rem 2.5rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-bottom: 1px solid #d1d1d1;
+  background: #f7f7f7;
 }
 
 .app--dark .app__header {
-  border-bottom: 1px solid #1f2937;
-  background: #111827;
+  border-bottom: 1px solid #1d1f21;
+  background: #101720;
 }
 
 .app__header-row {
@@ -38,14 +38,14 @@
   padding: 0 2rem;
   display: flex;
   align-items: center;
-  border-top: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-top: 1px solid #d1d1d1;
+  background: #f7f7f7;
   z-index: 5;
 }
 
 .app--dark .app__footer {
-  border-top: 1px solid #1f2937;
-  background: #111827;
+  border-top: 1px solid #1d1f21;
+  background: #101720;
 }
 
 .app__footer-row {
@@ -73,18 +73,18 @@
 
 .app__subtitle {
   margin: 0;
-  color: #6b7280;
+  color: #525252;
 }
 
 .app--dark .app__subtitle {
-  color: #94a3b8;
+  color: #a1a1a1;
 }
 
 .theme-toggle {
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
-  color: #111827;
+  border: 1px solid #d1d1d1;
+  background: #e3e3e3;
+  color: #1f2937;
   padding: 0.4rem 0.9rem;
   font-size: 0.7rem;
   font-weight: 600;
@@ -93,17 +93,17 @@
 }
 
 .theme-toggle:hover {
-  background: #e5e7eb;
+  background: #d6d6d6;
 }
 
 .app--dark .theme-toggle {
-  border-color: #374151;
-  background: #1f2937;
-  color: #f9fafb;
+  border-color: #232023;
+  background: #1d1f21;
+  color: #f5f5f5;
 }
 
 .app--dark .theme-toggle:hover {
-  background: #334155;
+  background: #232323;
 }
 
 .doc-actions {
@@ -115,9 +115,9 @@
 
 .doc-actions__button {
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #111827;
+  border: 1px solid #d1d1d1;
+  background: #f7f7f7;
+  color: #1f2937;
   padding: 0.35rem 0.75rem;
   font-size: 0.7rem;
   font-weight: 600;
@@ -126,17 +126,17 @@
 }
 
 .doc-actions__button:hover {
-  background: #f3f4f6;
+  background: #e6e6e6;
 }
 
 .app--dark .doc-actions__button {
-  border-color: #374151;
-  background: #0f172a;
-  color: #f9fafb;
+  border-color: #232023;
+  background: #0b1215;
+  color: #f5f5f5;
 }
 
 .app--dark .doc-actions__button:hover {
-  background: #1f2937;
+  background: #1d1f21;
 }
 
 .doc-actions__file {
@@ -151,10 +151,10 @@
 .footer-model__select {
   min-width: 190px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   padding: 0.4rem 0.85rem;
   font-size: 0.75rem;
-  background: #ffffff;
+  background: #f7f7f7;
   color: inherit;
   appearance: none;
   -webkit-appearance: none;
@@ -163,20 +163,20 @@
 }
 
 .footer-model__select:focus {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #8c8c8c;
   border-color: transparent;
 }
 
 .app--dark .footer-model__select {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f9fafb;
+  background: #0b1215;
+  border-color: #232023;
+  color: #f5f5f5;
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(25, 25, 25, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,11 +186,11 @@
 
 .modal {
   width: min(480px, 100%);
-  background: #ffffff;
+  background: #f7f7f7;
   border-radius: 20px;
   padding: 2rem;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 50px rgba(25, 25, 25, 0.2);
+  border: 1px solid #d1d1d1;
 }
 
 .modal__title {
@@ -200,7 +200,7 @@
 
 .modal__description {
   margin: 0 0 1.5rem;
-  color: #6b7280;
+  color: #525252;
 }
 
 .modal__label {
@@ -212,14 +212,15 @@
 .modal__input {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   padding: 0.75rem 1rem;
   font-size: 1rem;
   margin-bottom: 1.5rem;
+  background: #ffffff;
 }
 
 .modal__input:focus {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #8c8c8c;
   border-color: transparent;
 }
 
@@ -231,9 +232,9 @@
 
 .modal__button {
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   background: #ffffff;
-  color: #111827;
+  color: #1f2937;
   padding: 0.5rem 1.2rem;
   font-weight: 600;
   cursor: pointer;
@@ -241,7 +242,7 @@
 }
 
 .modal__button:hover {
-  background: #f3f4f6;
+  background: #e6e6e6;
 }
 
 .modal__button:disabled {
@@ -250,43 +251,43 @@
 }
 
 .modal__button--primary {
-  background: #4f46e5;
+  background: #6b7280;
   color: #ffffff;
   border-color: transparent;
 }
 
 .modal__button--primary:hover {
-  background: #4338ca;
+  background: #525252;
 }
 
 .app--dark .modal-overlay {
-  background: rgba(2, 6, 23, 0.7);
+  background: rgba(10, 10, 10, 0.75);
 }
 
 .app--dark .modal {
-  background: #111827;
-  border-color: #1f2937;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  background: #1b1b1b;
+  border-color: #232023;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
 }
 
 .app--dark .modal__description {
-  color: #94a3b8;
+  color: #b5b5b5;
 }
 
 .app--dark .modal__input {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f9fafb;
+  background: #101720;
+  border-color: #232023;
+  color: #f5f5f5;
 }
 
 .app--dark .modal__button {
-  border-color: #334155;
-  background: #0f172a;
-  color: #f9fafb;
+  border-color: #232023;
+  background: #101720;
+  color: #f5f5f5;
 }
 
 .app--dark .modal__button:hover {
-  background: #1f2937;
+  background: #1d1f21;
 }
 
 .app__main {
@@ -324,12 +325,12 @@
   padding: 1.5rem;
   font-size: 1rem;
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   background: #ffffff;
   resize: none;
   box-shadow: none;
   line-height: 1.6;
-  color: #111827;
+  color: #1f2937;
   position: relative;
   z-index: 1;
 }
@@ -361,32 +362,32 @@
 }
 
 .app--dark .editor__selection-overlay-highlight {
-  background: rgba(129, 140, 248, 0.35);
+  background: rgba(148, 163, 184, 0.35);
 }
 
 .app--dark .editor__textarea {
-  border-color: #334155;
-  background: #111827;
-  color: #f9fafb;
+  border-color: #232023;
+  background: #1b1b1b;
+  color: #f5f5f5;
   box-shadow: none;
 }
 
 .editor__textarea:focus {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #8c8c8c;
   border-color: transparent;
 }
 
 .app--dark .editor__textarea:focus {
-  outline: 2px solid #818cf8;
+  outline: 2px solid #5b6368;
 }
 
 .editor__hint {
-  color: #6b7280;
+  color: #525252;
   font-size: 0.9rem;
 }
 
 .app--dark .editor__hint {
-  color: #cbd5f5;
+  color: #9ca3af;
 }
 
 .prompt-panel {
@@ -447,7 +448,7 @@
 .prompt-panel__textarea {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   padding: 0.7rem 0.85rem;
   font-size: 0.95rem;
   background: #ffffff;
@@ -465,7 +466,7 @@
 
 .prompt-panel__select:focus,
 .prompt-panel__textarea:focus {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #8c8c8c;
   border-color: transparent;
 }
 
@@ -478,9 +479,9 @@
 
 .prompt-panel__button {
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d1d1;
   background: #ffffff;
-  color: #111827;
+  color: #1f2937;
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -488,7 +489,7 @@
 }
 
 .prompt-panel__button--primary {
-  background: #4f46e5;
+  background: #6b7280;
   color: #ffffff;
   border-color: transparent;
 }
@@ -508,36 +509,37 @@
   cursor: not-allowed;
 }
 
+
 .prompt-panel__status {
   font-size: 0.8rem;
   padding: 0.5rem 0.75rem;
   border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #ededed;
+  border: 1px solid #d1d1d1;
 }
 
 .prompt-panel__status--error {
-  background: #fee2e2;
-  border-color: #fecaca;
-  color: #b91c1c;
+  background: #f3d6d6;
+  border-color: #e5bcbc;
+  color: #a12a2a;
 }
 
 .prompt-panel--dark .prompt-panel__select,
 .prompt-panel--dark .prompt-panel__textarea {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f9fafb;
+  background: #101720;
+  border-color: #232023;
+  color: #f5f5f5;
 }
 
 
 .prompt-panel--dark .prompt-panel__button {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f9fafb;
+  background: #101720;
+  border-color: #232023;
+  color: #f5f5f5;
 }
 
 .prompt-panel--dark .prompt-panel__button--primary {
-  background: #6366f1;
+  background: #5b6368;
 }
 
 @keyframes spin {

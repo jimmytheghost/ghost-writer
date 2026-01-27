@@ -24,7 +24,6 @@ This document outlines the workflow for developing the `wraider` project.
     *   For individual file changes, log each file with a brief description of what was modified, rather than just a high-level summary.
     *   Explicitly log any new packages, dependencies, or external libraries added: "Added package X (version Y) for feature Z."
 4.  **Report Results:** I will run tests or review and report back actual results, bugs, or failures.
-    *   All images shared will be embedded in the dev log markdown file, especially those illustrating problems.
 5.  **Repeat:** Iterate through these steps as needed for refinement or additional tasks.
 6.  **Finalization:** When complete, make any final updates to the dev log.
 

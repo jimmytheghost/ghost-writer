@@ -13,7 +13,7 @@ git pull
 cd /Users/jimmytheghost/AI-Local-Stack/wraider
 git status
 git add .
-git commit -m "Highlights remain when user clicks on prompt box."
+git commit -m "Changed light mode color palettes."
 git push
 ```
 
