@@ -13,7 +13,7 @@ git pull
 cd /Users/jimmytheghost/AI-Local-Stack/wraider
 git status
 git add .
-git commit -m "Footer adjusted. Various changes. MD changes made then reverted."
+git commit -m "MD container consistent size. MD formatting."
 git push
 ```
 

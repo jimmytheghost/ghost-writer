@@ -7,6 +7,11 @@ const DEFAULT_TEXT = `Welcome to Wraider.
 
 Start writing here. Use Cmd+Shift+K to open AI commands.`
 
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+})
+
 function App() {
   const [theme, setTheme] = useState('light')
   const [content, setContent] = useState(DEFAULT_TEXT)

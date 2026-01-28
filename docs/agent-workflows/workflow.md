@@ -7,7 +7,7 @@ This document outlines the workflow for developing the `wraider` project.
 *   **Dev-Log:** `/Users/jimmytheghost/AI-Local-Stack/wraider/docs/dev-logs/2026` (latest version)
 *   **Backups:** `/Users/jimmytheghost/AI-Local-Stack/wraider/_backups`
 
-**Familiarization:** Before beginning work, please read the files above (including all Dev Logs) to understand the current state.
+**Familiarization:** Before beginning work, please read the files above to understand the current state.
 
 **Workflow Steps:**
 

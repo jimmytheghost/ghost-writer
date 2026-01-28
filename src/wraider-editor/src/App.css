@@ -330,12 +330,15 @@
   padding: 2.5rem 2.5rem calc(0.75rem + 50px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .editor-pane {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 
@@ -362,10 +365,16 @@
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+  height: calc(100vh - 50px - 2.5rem - 1.1rem - 1.25rem - 2.5rem);
+  max-height: calc(100vh - 50px - 2.5rem - 1.1rem - 1.25rem - 2.5rem);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .preview {
-  flex: 1 1 45%;
+  flex: 1 1 auto;
+  height: 100%;
   max-width: 900px;
   background: #f7f7f7;
   border-radius: 18px;
@@ -375,6 +384,7 @@
   flex-direction: column;
   gap: 1rem;
   overflow: hidden;
+  min-height: 0;
 }
 
 .preview--dark {
@@ -384,10 +394,29 @@
 
 .preview__content {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   font-size: 0.95rem;
   line-height: 1.6;
   color: inherit;
+}
+
+.preview__content > :first-child {
+  margin-top: 0;
+}
+
+.preview__content p {
+  margin: 0 0 0.85rem;
+}
+
+.preview__content ul,
+.preview__content ol {
+  margin: 0.75rem 0 0.9rem 1.25rem;
+  padding-left: 1.25rem;
+}
+
+.preview__content li {
+  margin-bottom: 0.4rem;
 }
 
 .preview__content h1,
@@ -424,6 +453,8 @@
   min-height: 72vh;
   flex: 1 1 auto;
   display: flex;
+  overflow: hidden;
+  border-radius: 16px;
 }
 
 .editor__textarea {
@@ -451,6 +482,7 @@
   padding: 1.5rem;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
   font-size: 1rem;
   line-height: 1.6;
   white-space: pre-wrap;
