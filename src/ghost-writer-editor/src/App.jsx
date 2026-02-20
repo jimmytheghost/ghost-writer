@@ -376,14 +376,11 @@ function App() {
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
       <main className="app__main">
-        <div className="editor-pane">
+        <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
-            <>
-              <h2 className="preview-title">Markdown preview</h2>
-              <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
-                <div className="preview__content" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
-              </section>
-            </>
+            <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
+              <div className="preview__content" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
+            </section>
           ) : (
             <Editor
               value={content}
