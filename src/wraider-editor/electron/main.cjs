@@ -38,8 +38,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 900,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 500,
+    minHeight: 500,
     maxWidth: 800,
     maxHeight: 900,
     title: 'Wraider',
