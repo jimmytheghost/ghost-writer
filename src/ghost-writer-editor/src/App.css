@@ -410,14 +410,16 @@
   min-width: 36px;
   height: 36px;
   padding: 0;
+  border: none;
 }
 
 .doc-actions__button:hover,
 .theme-toggle:hover,
 .prompt-panel__button:hover,
 .modal__button:hover {
-  background: var(--color-gray-50);
+  background: var(--color-gray-100);
   border-color: var(--color-gray-400);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
 .app--dark .doc-actions__button,
@@ -434,27 +436,23 @@
 .app--dark .prompt-panel__button:hover,
 .app--dark .modal__button:hover {
   background: var(--color-gray-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 24%, transparent);
 }
 
 .doc-actions__button--active,
 .prompt-panel__button--primary,
 .modal__button--primary {
-  background: var(--color-primary);
-  color: var(--color-white);
-  border-color: transparent;
-}
-
-.doc-actions__button--active:hover,
-.prompt-panel__button--primary:hover,
-.modal__button--primary:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-white);
+  color: var(--color-gray-700);
+  border-color: var(--color-gray-300);
 }
 
 .app--dark .doc-actions__button--active,
 .app--dark .prompt-panel__button--primary,
 .app--dark .modal__button--primary {
-  background: var(--color-primary);
-  color: var(--color-white);
+  background: var(--color-gray-800);
+  border-color: var(--color-gray-700);
+  color: var(--color-gray-100);
 }
 
 .prompt-panel__actions {
