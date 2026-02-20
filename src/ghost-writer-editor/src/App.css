@@ -42,14 +42,13 @@
   padding: var(--space-2) var(--space-4);
   display: flex;
   align-items: center;
-  border-top: 1px solid var(--color-gray-200);
+  border-top: none;
   background: var(--color-white);
   z-index: var(--z-fixed);
   box-shadow: var(--shadow-md);
 }
 
 .app--dark .app__footer {
-  border-top-color: var(--color-gray-700);
   background: var(--color-gray-800);
 }
 
@@ -224,7 +223,7 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
   border-radius: var(--radius-2xl);
-  border: 1px solid var(--color-gray-300);
+  border: none;
   background: var(--color-white);
   resize: none;
   line-height: var(--line-height-relaxed);
@@ -237,18 +236,16 @@
 
 .editor__textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .app--dark .editor__textarea {
-  border-color: var(--color-gray-700);
   background: var(--color-gray-800);
   color: var(--color-gray-100);
 }
 
 .app--dark .editor__textarea:focus {
-  border-color: var(--color-primary);
+  outline: none;
 }
 
 .editor__selection-overlay {
@@ -290,7 +287,7 @@
   flex-direction: column;
   gap: var(--space-2);
   background: var(--color-white);
-  border: 1px solid var(--color-gray-200);
+  border: none;
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
   padding: var(--space-4);
@@ -320,6 +317,7 @@
   min-height: 120px;
   font-family: var(--font-family-mono);
   font-weight: var(--font-weight-normal);
+  border: none;
   resize: none;
 }
 
@@ -340,18 +338,17 @@
 .app--dark .footer-model__select,
 .app--dark .modal__input {
   background: var(--color-gray-800);
-  border-color: var(--color-gray-700);
   color: var(--color-gray-100);
 }
 
 .app--dark .prompt-panel__form {
   background: var(--color-gray-800);
-  border-color: var(--color-gray-700);
 }
 
 .footer-model__select {
   font-family: var(--font-family-mono);
   min-width: 190px;
+  border: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
   background-position: right var(--space-3) center;
