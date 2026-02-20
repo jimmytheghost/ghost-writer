@@ -4,7 +4,7 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$PROJECT_ROOT/src/ghost-writer-editor"
-DEV_PORT=5173
+DEV_PORT=5174
 
 echo "Ghost Writer launcher: checking for processes on port $DEV_PORT..."
 EXISTING_PIDS=$(lsof -ti tcp:$DEV_PORT || true)

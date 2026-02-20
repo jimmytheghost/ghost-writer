@@ -39,8 +39,8 @@ Ghost Writer then utilizes Ollama to process the prompt and either replace the s
 ### Web Version
 Use the provided launchers from the project root:
 
-- **Start the app:** double-click `launch.command` to install dependencies, stop any process on port 5173, start the Vite dev server, and open the browser.
-- **Stop the app:** double-click `stop.command` to stop the Vite dev server running on port 5173.
+- **Start the app:** double-click `launch.command` to install dependencies, stop any process on port 5174, start the Vite dev server, and open the browser.
+- **Stop the app:** double-click `stop.command` to stop the Vite dev server running on port 5174.
 
 If macOS blocks the file the first time, right-click → **Open**. You can also verify permissions in Finder via **Get Info** → **Sharing & Permissions**.
 

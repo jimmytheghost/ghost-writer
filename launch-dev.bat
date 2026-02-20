@@ -40,7 +40,7 @@ echo Waiting for the dev server to start...
 timeout /t 3 /nobreak >nul
 
 echo Opening browser...
-start http://localhost:5173/
+start http://localhost:5174/
 
 echo Dev server is running in a separate window.
 pause

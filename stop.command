@@ -2,7 +2,7 @@
 
 set -e
 
-DEV_PORT=5173
+DEV_PORT=5174
 
 echo "Stopping Ghost Writer dev server on port $DEV_PORT..."
 EXISTING_PIDS=$(lsof -ti tcp:$DEV_PORT || true)
