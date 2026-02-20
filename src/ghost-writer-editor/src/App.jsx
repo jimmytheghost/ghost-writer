@@ -5,7 +5,51 @@ import Editor from './components/Editor'
 
 const DEFAULT_TEXT = `Welcome to Ghost Writer.
 
-Start writing here. Use Cmd+Shift+K to open AI commands.`
+Start writing here. Use the prompt panel below to ask AI for edits.`
+
+const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
+
+function isSafeUrl(rawUrl) {
+  if (!rawUrl) return false
+  const value = rawUrl.trim()
+  if (value.startsWith('#') || value.startsWith('/')) return true
+  if (value.startsWith('./') || value.startsWith('../')) return true
+
+  try {
+    const parsed = new URL(value, window.location.origin)
+    return SAFE_PROTOCOLS.has(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
+function sanitizeHtml(html) {
+  if (!html || typeof window === 'undefined') return html ?? ''
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  doc
+    .querySelectorAll('script, iframe, object, embed, form, input, button, textarea, select, link, meta, base')
+    .forEach((node) => node.remove())
+
+  doc.body.querySelectorAll('*').forEach((element) => {
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase()
+      const value = attribute.value
+
+      if (name.startsWith('on')) {
+        element.removeAttribute(attribute.name)
+        continue
+      }
+
+      if ((name === 'href' || name === 'src' || name === 'xlink:href') && !isSafeUrl(value)) {
+        element.removeAttribute(attribute.name)
+      }
+    }
+  })
+
+  return doc.body.innerHTML
+}
 
 marked.setOptions({
   breaks: true,
@@ -42,7 +86,7 @@ function App() {
   const streamBufferRef = useRef('')
   const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const renderedMarkdown = useMemo(() => marked.parse(content ?? ''), [content])
+  const renderedMarkdown = useMemo(() => sanitizeHtml(marked.parse(content ?? '')), [content])
 
   useEffect(() => {
     let isMounted = true

@@ -12,6 +12,7 @@
     "electron:dev": "vite build && electron .",
     "electron:build": "vite build && electron-builder",
     "electron:build:mac": "vite build && electron-builder --mac",
+    "electron:build:mac:dir": "vite build && electron-builder --mac dir",
     "electron:build:win": "vite build && electron-builder --win",
     "electron:build:linux": "vite build && electron-builder --linux"
   },
@@ -30,11 +31,15 @@
       "category": "public.app-category.productivity",
       "target": [
         {
+          "target": "dir",
+          "arch": ["x64", "arm64"]
+        },
+        {
           "target": "dmg",
           "arch": ["x64", "arm64"]
         }
       ],
-      "icon": "build/icon.icns"
+      "icon": "build/icon.png"
     },
     "win": {
       "target": [

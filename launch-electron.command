@@ -10,6 +10,16 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Build and run Electron app
-echo "Starting Ghost Writer desktop app..."
-npm run electron:dev
+# Build and open a proper macOS app bundle so Dock/Menu name is "Ghost Writer"
+echo "Building Ghost Writer macOS app bundle..."
+npm run electron:build:mac:dir
+
+APP_BUNDLE_PATH="$(find release -maxdepth 2 -name 'Ghost Writer.app' -print -quit)"
+
+if [ -z "$APP_BUNDLE_PATH" ]; then
+  echo "Could not find Ghost Writer.app in release/"
+  exit 1
+fi
+
+echo "Opening $APP_BUNDLE_PATH..."
+open "$APP_BUNDLE_PATH"

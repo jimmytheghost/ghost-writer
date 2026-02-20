@@ -2,6 +2,11 @@ const { app, BrowserWindow, Menu } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
+const APP_DISPLAY_NAME = 'Ghost Writer'
+
+// Ensure the runtime app name is correct in macOS dock/menu while developing.
+app.setName(APP_DISPLAY_NAME)
+
 // Keep a global reference to prevent garbage collection
 let mainWindow = null
 
@@ -22,7 +27,6 @@ function resolveLogoPath() {
 
 function createWindow() {
   // Get the path to the built Vite app
-  const isDev = !app.isPackaged
   const distPath = path.join(__dirname, '..', 'dist')
   const indexPath = path.join(distPath, 'index.html')
   const logoPath = resolveLogoPath()
@@ -59,91 +63,30 @@ function createWindow() {
     show: false,
   })
 
-  // Create application menu
+  // Use standard Electron menus and shortcuts only.
   const menuTemplate = [
-    ...(process.platform === 'darwin' ? [{
-      label: app.name,
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    }] : []),
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New Document',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => {
-            mainWindow.webContents.send('menu-new')
-          }
-        },
-        {
-          label: 'Save Document',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => {
-            mainWindow.webContents.send('menu-save')
-          }
-        },
-        {
-          label: 'Open Document',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => {
-            mainWindow.webContents.send('menu-open')
-          }
-        },
-        { type: 'separator' },
-        process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' }
-      ]
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' }
-      ]
-    },
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        ...(process.platform === 'darwin' ? [
-          { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' }
-        ] : [
-          { role: 'close' }
-        ])
-      ]
-    }
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: APP_DISPLAY_NAME,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
+      : []),
+    { role: 'fileMenu' },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
   ]
 
   const menu = Menu.buildFromTemplate(menuTemplate)
