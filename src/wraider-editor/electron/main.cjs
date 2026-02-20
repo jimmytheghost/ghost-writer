@@ -36,10 +36,12 @@ function createWindow() {
 
   // Create the browser window
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 800,
+    height: 900,
     minWidth: 800,
     minHeight: 600,
+    maxWidth: 800,
+    maxHeight: 900,
     title: 'Wraider',
     backgroundColor: '#f9fafb',
     ...(logoPath ? { icon: logoPath } : {}),

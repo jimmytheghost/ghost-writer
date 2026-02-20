@@ -33,6 +33,10 @@ function App() {
   const [modelError, setModelError] = useState('')
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
+  const showDragRegion =
+    typeof navigator !== 'undefined' &&
+    /Electron/.test(navigator.userAgent) &&
+    /Mac/.test(navigator.platform)
   const fileInputRef = useRef(null)
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
@@ -300,6 +304,7 @@ function App() {
 
   return (
     <div className={`app${isDark ? ' app--dark' : ''}`}>
+      {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
       <main className="app__main">
         <div className="editor-pane">
           {isPreviewOpen ? (

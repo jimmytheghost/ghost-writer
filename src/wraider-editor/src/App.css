@@ -8,8 +8,26 @@
 }
 
 .app--dark {
+  --color-gray-700: #2f2f35;
+  --color-gray-800: #1f1f24;
+  --color-gray-900: #141418;
+  --color-primary: #52525b;
+  --color-primary-hover: #3f3f46;
+  --color-primary-light: rgba(161, 161, 170, 0.28);
+  --color-secondary: #71717a;
+  --color-secondary-hover: #52525b;
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, var(--color-gray-900) 0%, #0b1220 100%);
+  background: linear-gradient(180deg, #09090b 0%, #18181b 100%);
+}
+
+.app__drag-region {
+  position: fixed;
+  top: 0;
+  left: 84px;
+  right: 0;
+  height: calc(var(--space-4) + 2rem);
+  -webkit-app-region: drag;
+  z-index: var(--z-fixed);
 }
 
 .app__footer {
@@ -518,6 +536,11 @@
 }
 
 @media (max-width: 767px) {
+  .app__drag-region {
+    left: 84px;
+    height: calc(var(--space-3) + 1.5rem);
+  }
+
   .app__main {
     padding: calc(var(--space-3) + 1.5rem) var(--space-3) calc(var(--space-3) + 56px);
   }
