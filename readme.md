@@ -34,7 +34,7 @@ Ghost Writer then utilizes Ollama to process the prompt and either replace the s
 *   **Keyboard-Driven:** Efficient workflow using keyboard shortcuts. (Shortcut-based prompt invocation has been retired in favor of the permanent prompt box.)
 *   **Open Source:** Promotes community contribution and customization.
 
-## Launching the App (macOS)
+## Launching the App (Localhost)
 
 ### Web Version
 Use the provided launchers from the project root:
@@ -44,31 +44,11 @@ Use the provided launchers from the project root:
 
 If macOS blocks the file the first time, right-click → **Open**. You can also verify permissions in Finder via **Get Info** → **Sharing & Permissions**.
 
-### Desktop App (Electron)
-You can also run Ghost Writer as a standalone desktop application:
+### Manual start
+You can also run Ghost Writer from Terminal:
 
 ```bash
 cd src/ghost-writer-editor
-npm run electron:dev
+npm install
+npm run dev
 ```
-
-### Building Desktop App
-To build distributable desktop apps:
-
-```bash
-cd src/ghost-writer-editor
-
-# Build for current platform
-npm run electron:build
-
-# Build specifically for macOS
-npm run electron:build:mac
-
-# Build for Windows
-npm run electron:build:win
-
-# Build for Linux
-npm run electron:build:linux
-```
-
-The built desktop app will be in `src/ghost-writer-editor/release/`.
