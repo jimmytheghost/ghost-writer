@@ -4,13 +4,13 @@ Here’s the **exact, specific commands** for this project on each machine.
 # ✅ On your **Mac** (project lives here)
 **Before you start work:**
 ```bash
-cd /Users/jimmytheghost/AI-Local-Stack/wraider
+cd /Users/jimmytheghost/AI-Local-Stack/ghost-writer
 git pull
 ```
 
 **After you finish work:**
 ```bash
-cd /Users/jimmytheghost/AI-Local-Stack/wraider
+cd /Users/jimmytheghost/AI-Local-Stack/ghost-writer
 git status
 git add .
 git commit -m "MD container consistent size. MD formatting."
@@ -21,13 +21,13 @@ git push
 # ✅ On your **PC** (project on B: drive)
 **Before you start work:**
 ```powershell
-cd B:\wraider
+cd B:\ghost-writer
 git pull
 ```
 
 **After you finish work:**
 ```powershell
-cd B:\wraider
+cd B:\ghost-writer
 git status
 git add .
 git commit -m "your message"

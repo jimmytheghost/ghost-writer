@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { marked } from 'marked'
 import './App.css'
 import Editor from './components/Editor'
 
-const DEFAULT_TEXT = `Welcome to Wraider.
+const DEFAULT_TEXT = `Welcome to Ghost Writer.
 
 Start writing here. Use Cmd+Shift+K to open AI commands.`
 
@@ -16,9 +16,8 @@ function App() {
   const [theme, setTheme] = useState('light')
   const [content, setContent] = useState(DEFAULT_TEXT)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
-  const [fileName, setFileName] = useState('wraider-document.md')
+  const [fileName, setFileName] = useState('ghost-writer-document.md')
   const [promptText, setPromptText] = useState('')
-  const [promptResponse, setPromptResponse] = useState('')
   const [promptError, setPromptError] = useState('')
   const [undoSnapshot, setUndoSnapshot] = useState('')
   const [redoSnapshot, setRedoSnapshot] = useState('')
@@ -160,7 +159,6 @@ function App() {
     }
     setRedoSnapshot(content)
     setContent(undoSnapshot)
-    setPromptResponse('')
     setPromptError('')
     setCanUndoGeneration(false)
     setCanRedoGeneration(true)
@@ -183,17 +181,17 @@ function App() {
     handleUndoGeneration()
   }
 
-  const handlePromptOpen = (payload = {}) => {
+  const handlePromptOpen = useCallback((payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
     }
-  }
+  }, [])
 
-  const handleSelectionChange = (payload = {}) => {
+  const handleSelectionChange = useCallback((payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
     }
-  }
+  }, [])
 
   const handlePromptSubmit = async (event) => {
     event.preventDefault()
@@ -201,7 +199,6 @@ function App() {
 
     setIsLoadingPrompt(true)
     setPromptError('')
-    setPromptResponse('')
     setUndoSnapshot(content)
     setCanUndoGeneration(true)
     setRedoSnapshot('')
@@ -255,7 +252,6 @@ function App() {
         const { start, end } = streamSelectionRef.current
         const safeStart = Math.min(start, base.length)
         const safeEnd = Math.min(end, base.length)
-        setPromptResponse(streamBufferRef.current)
         setContent(`${base.slice(0, safeStart)}${streamBufferRef.current}${base.slice(safeEnd)}`)
       }
 
@@ -274,7 +270,7 @@ function App() {
             if (payload?.response) {
               applyStreamChunk(payload.response)
             }
-          } catch (parseError) {
+          } catch {
             // Ignore malformed lines
           }
         }
@@ -287,7 +283,7 @@ function App() {
           if (payload?.response) {
             applyStreamChunk(payload.response)
           }
-        } catch (parseError) {
+        } catch {
           // Ignore final parse errors
         }
       }
@@ -465,7 +461,7 @@ function App() {
               className="modal__input"
               value={fileName}
               onChange={(event) => setFileName(event.target.value)}
-              placeholder="wraider-document.md"
+              placeholder="ghost-writer-document.md"
             />
             <div className="modal__actions">
               <button type="button" className="modal__button" onClick={() => setIsSaveOpen(false)}>

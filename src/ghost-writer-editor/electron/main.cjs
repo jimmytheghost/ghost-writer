@@ -7,8 +7,8 @@ let mainWindow = null
 
 function resolveLogoPath() {
   const candidates = [
-    path.join(__dirname, '..', 'build', 'wraider-logo.png'),
-    path.join(process.resourcesPath, 'build', 'wraider-logo.png'),
+    path.join(__dirname, '..', 'build', 'ghost-writer-logo.png'),
+    path.join(process.resourcesPath, 'build', 'ghost-writer-logo.png'),
   ]
 
   for (const candidate of candidates) {
@@ -42,7 +42,7 @@ function createWindow() {
     minHeight: 500,
     maxWidth: 800,
     maxHeight: 900,
-    title: 'Wraider',
+    title: 'Ghost Writer',
     backgroundColor: '#f9fafb',
     ...(logoPath ? { icon: logoPath } : {}),
     webPreferences: {

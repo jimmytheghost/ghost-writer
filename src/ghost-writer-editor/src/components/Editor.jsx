@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-const DEFAULT_TEXT = `Welcome to Wraider.
+const DEFAULT_TEXT = `Welcome to Ghost Writer.
 
 Start writing here. Use Ctrl+Shift+A to open AI commands (placeholder for now).`
 
@@ -124,7 +124,7 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       textarea?.removeEventListener('blur', handleSelectionUpdate)
       textarea?.removeEventListener('scroll', handleScroll)
     }
-  }, [])
+  }, [onPromptOpen, onSelectionChange])
 
   return (
     <section className="editor">

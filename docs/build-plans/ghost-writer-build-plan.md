@@ -1,6 +1,6 @@
 ## High-Level Development Plan
 
-This outlines the key phases and steps for building Wraider.
+This outlines the key phases and steps for building Ghost Writer.
 
 **Phase 1: Core Editor & UI (Estimated: 1-2 days)**
 

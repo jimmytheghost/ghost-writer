@@ -5,7 +5,7 @@
 **Tasks:**
 
 1.  **Project Setup (Estimated: 30 mins):**
-    *   Initialize a new React project using Vite: `npm create vite@latest wraider-editor --template react` within `/Users/jimmytheghost/AI-Local-Stack/wraider/src`.
+    *   Initialize a new React project using Vite: `npm create vite@latest ghost-writer-editor --template react` within `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/src`.
     *   Install necessary dependencies (initially just React and ReactDOM, provided by Vite).
     *   Configure Vite for development (port, base URL, etc.).
     *   Create a basic `.gitignore` file.

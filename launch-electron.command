@@ -2,7 +2,7 @@
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR/src/wraider-editor"
+cd "$SCRIPT_DIR/src/ghost-writer-editor"
 
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
@@ -11,5 +11,5 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Build and run Electron app
-echo "Starting Wraider desktop app..."
+echo "Starting Ghost Writer desktop app..."
 npm run electron:dev

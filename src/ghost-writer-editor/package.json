@@ -1,5 +1,5 @@
 {
-  "name": "wraider-editor",
+  "name": "ghost-writer-editor",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -16,8 +16,8 @@
     "electron:build:linux": "vite build && electron-builder --linux"
   },
   "build": {
-    "appId": "com.wraider.editor",
-    "productName": "Wraider",
+    "appId": "com.ghostwriter.editor",
+    "productName": "Ghost Writer",
     "directories": {
       "output": "release",
       "buildResources": "build"

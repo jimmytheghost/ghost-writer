@@ -1,16 +1,16 @@
-## Wraider: AI-Assisted Writing with Ollama
+## Ghost Writer: AI-Assisted Writing with Ollama
 
-Wraider is an open-source web-based writing tool designed to leverage the power of Large Language Models (LLMs) through Ollama. It aims to provide a streamlined writing experience for creating articles, essays, novels, and various other content types.
+Ghost Writer is an open-source web-based writing tool designed to leverage the power of Large Language Models (LLMs) through Ollama. It aims to provide a streamlined writing experience for creating articles, essays, novels, and various other content types.
 
 **Core Concept:**
 
-Wraider features an intentionally simple and intuitive interface, resembling Ollama's existing chat or Byword's markdown friendly interface for ease of use. The primary interaction model centers around a focused editor with a permanent prompt box below it for AI assistance.
+Ghost Writer features an intentionally simple and intuitive interface, resembling Ollama's existing chat or Byword's markdown friendly interface for ease of use. The primary interaction model centers around a focused editor with a permanent prompt box below it for AI assistance.
 
 **How it Works:**
 
-Users can write freely within the Wraider text editor. The prompt box is always available beneath the editor, so users can type an instruction at any time.
+Users can write freely within the Ghost Writer text editor. The prompt box is always available beneath the editor, so users can type an instruction at any time.
 
-When submitting a prompt, Wraider uses the current cursor or selection in the editor as the insertion point:
+When submitting a prompt, Ghost Writer uses the current cursor or selection in the editor as the insertion point:
 
 - If text is highlighted, the AI output replaces the highlighted selection.
 - If there is no selection, the AI output inserts at the current cursor position.
@@ -24,7 +24,7 @@ The user can then enter a natural language prompt directing the LLM (powered by 
 *   "Summarize the entire document."
 *   "Create this character's backstory."
 
-Wraider then utilizes Ollama to process the prompt and either replace the selection or insert new content at the cursor position.
+Ghost Writer then utilizes Ollama to process the prompt and either replace the selection or insert new content at the cursor position.
 
 **Key Features & Goals:**
 
@@ -45,10 +45,10 @@ Use the provided launchers from the project root:
 If macOS blocks the file the first time, right-click → **Open**. You can also verify permissions in Finder via **Get Info** → **Sharing & Permissions**.
 
 ### Desktop App (Electron)
-You can also run Wraider as a standalone desktop application:
+You can also run Ghost Writer as a standalone desktop application:
 
 ```bash
-cd src/wraider-editor
+cd src/ghost-writer-editor
 npm run electron:dev
 ```
 
@@ -56,7 +56,7 @@ npm run electron:dev
 To build distributable desktop apps:
 
 ```bash
-cd src/wraider-editor
+cd src/ghost-writer-editor
 
 # Build for current platform
 npm run electron:build
@@ -71,4 +71,4 @@ npm run electron:build:win
 npm run electron:build:linux
 ```
 
-The built desktop app will be in `src/wraider-editor/release/`.
+The built desktop app will be in `src/ghost-writer-editor/release/`.

@@ -1,8 +1,8 @@
 @echo off
 setlocal
 
-cd /d "%~dp0src\wraider-editor" || (
-  echo Failed to change directory to src\wraider-editor
+cd /d "%~dp0src\ghost-writer-editor" || (
+  echo Failed to change directory to src\ghost-writer-editor
   pause
   exit /b 1
 )
@@ -34,7 +34,7 @@ if errorlevel 1 (
 )
 
 echo Starting dev server...
-start "Wraider Dev Server" cmd /k "npm run dev"
+start "Ghost Writer Dev Server" cmd /k "npm run dev"
 
 echo Waiting for the dev server to start...
 timeout /t 3 /nobreak >nul
