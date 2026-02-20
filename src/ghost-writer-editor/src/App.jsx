@@ -414,27 +414,51 @@ function App() {
                     type="submit"
                     className="prompt-panel__button prompt-panel__button--primary"
                     disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
+                    aria-label="Send prompt"
+                    title="Send"
                   >
-                    {isLoadingPrompt ? <span className="prompt-panel__spinner" aria-label="Generating" /> : 'Send'}
+                    {isLoadingPrompt ? (
+                      <span className="prompt-panel__spinner" aria-label="Generating" />
+                    ) : (
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        send
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     className="prompt-panel__button"
                     onClick={() => abortControllerRef.current?.abort()}
                     disabled={!isLoadingPrompt}
+                    aria-label="Stop generation"
+                    title="Stop"
                   >
-                    Stop
+                    <span className="material-symbols-rounded" aria-hidden="true">
+                      stop
+                    </span>
                   </button>
                   <button
                     type="button"
                     className="prompt-panel__button"
                     onClick={handleUndoToggle}
                     disabled={!canUndoGeneration && !canRedoGeneration}
+                    aria-label={undoToggleState === 'redo' ? 'Redo generation' : 'Undo generation'}
+                    title={undoToggleState === 'redo' ? 'Redo' : 'Undo'}
                   >
-                    {undoToggleState === 'redo' ? 'Redo' : 'Undo'}
+                    <span className="material-symbols-rounded" aria-hidden="true">
+                      {undoToggleState === 'redo' ? 'redo' : 'undo'}
+                    </span>
                   </button>
-                  <button type="button" className="prompt-panel__button" onClick={handleClearPrompt}>
-                    Clear
+                  <button
+                    type="button"
+                    className="prompt-panel__button"
+                    onClick={handleClearPrompt}
+                    aria-label="Clear prompt"
+                    title="Clear"
+                  >
+                    <span className="material-symbols-rounded" aria-hidden="true">
+                      clear_all
+                    </span>
                   </button>
                 </div>
               </div>
