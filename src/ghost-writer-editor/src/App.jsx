@@ -86,7 +86,32 @@ function App() {
   const streamBufferRef = useRef('')
   const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const appRef = useRef(null)
+  const footerRef = useRef(null)
   const renderedMarkdown = useMemo(() => sanitizeHtml(marked.parse(content ?? '')), [content])
+
+  useEffect(() => {
+    if (!appRef.current || !footerRef.current) return undefined
+
+    const appElement = appRef.current
+    const footerElement = footerRef.current
+
+    const syncFooterHeight = () => {
+      appElement.style.setProperty('--app-footer-height', `${footerElement.offsetHeight}px`)
+    }
+
+    syncFooterHeight()
+
+    const canObserveResize = typeof ResizeObserver !== 'undefined'
+    const resizeObserver = canObserveResize ? new ResizeObserver(syncFooterHeight) : null
+    resizeObserver?.observe(footerElement)
+    window.addEventListener('resize', syncFooterHeight)
+
+    return () => {
+      resizeObserver?.disconnect()
+      window.removeEventListener('resize', syncFooterHeight)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -231,6 +256,11 @@ function App() {
     }
   }, [])
 
+  const handleClearPrompt = () => {
+    setPromptText('')
+    setPromptError('')
+  }
+
   const handleSelectionChange = useCallback((payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
@@ -343,7 +373,7 @@ function App() {
   }
 
   return (
-    <div className={`app${isDark ? ' app--dark' : ''}`}>
+    <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
       <main className="app__main">
         <div className="editor-pane">
@@ -403,6 +433,9 @@ function App() {
                   >
                     {undoToggleState === 'redo' ? 'Redo' : 'Undo'}
                   </button>
+                  <button type="button" className="prompt-panel__button" onClick={handleClearPrompt}>
+                    Clear
+                  </button>
                 </div>
               </div>
               {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
@@ -411,7 +444,7 @@ function App() {
           </section>
         )}
       </main>
-      <footer className="app__footer">
+      <footer ref={footerRef} className="app__footer">
         <div className="app__footer-row">
           <div className="doc-actions">
             <button type="button" className="doc-actions__button" onClick={handleNew} aria-label="New document">
