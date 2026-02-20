@@ -1,6 +1,6 @@
 .app {
   --app-footer-height: 56px;
-  --editor-panel-height: 68vh;
+  --editor-panel-height: 74vh;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -73,7 +73,7 @@
 .app__main {
   flex: 1 1 auto;
   min-height: 0;
-  padding: calc(var(--space-4) + 1.2rem) var(--space-4) var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
   padding-bottom: calc(var(--space-4) + var(--app-footer-height));
   display: flex;
   flex-direction: column;
@@ -285,7 +285,7 @@
   border: none;
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
-  padding: var(--space-6);
+  padding: var(--space-3);
 }
 
 .prompt-panel__row {
@@ -398,9 +398,9 @@
 }
 
 .prompt-panel__actions .prompt-panel__button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
 }
@@ -458,7 +458,7 @@
 .prompt-panel__actions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   width: auto;
   flex: 0 0 auto;
 }
@@ -572,7 +572,7 @@
   }
 
   .app__main {
-    padding: calc(var(--space-3) + 1.5rem) var(--space-3) var(--space-3);
+    padding: 0 var(--space-3) var(--space-3);
     padding-bottom: calc(var(--space-3) + var(--app-footer-height));
   }
 

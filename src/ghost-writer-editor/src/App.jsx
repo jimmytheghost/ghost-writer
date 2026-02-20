@@ -3,9 +3,7 @@ import { marked } from 'marked'
 import './App.css'
 import Editor from './components/Editor'
 
-const DEFAULT_TEXT = `Welcome to Ghost Writer.
-
-Start writing here. Use the prompt panel below to ask AI for edits.`
+const DEFAULT_TEXT = ''
 
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
 
@@ -403,7 +401,7 @@ function App() {
                   onChange={(event) => setPromptText(event.target.value)}
                   onFocus={() => setIsPromptFocused(true)}
                   onBlur={() => setIsPromptFocused(false)}
-                  placeholder="Ask the AI to help with your writing..."
+                  placeholder=""
                   rows={4}
                 />
                 <div className="prompt-panel__actions">
