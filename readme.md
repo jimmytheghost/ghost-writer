@@ -36,9 +36,39 @@ Wraider then utilizes Ollama to process the prompt and either replace the select
 
 ## Launching the App (macOS)
 
+### Web Version
 Use the provided launchers from the project root:
 
 - **Start the app:** double-click `launch.command` to install dependencies, stop any process on port 5173, start the Vite dev server, and open the browser.
 - **Stop the app:** double-click `stop.command` to stop the Vite dev server running on port 5173.
 
 If macOS blocks the file the first time, right-click → **Open**. You can also verify permissions in Finder via **Get Info** → **Sharing & Permissions**.
+
+### Desktop App (Electron)
+You can also run Wraider as a standalone desktop application:
+
+```bash
+cd src/wraider-editor
+npm run electron:dev
+```
+
+### Building Desktop App
+To build distributable desktop apps:
+
+```bash
+cd src/wraider-editor
+
+# Build for current platform
+npm run electron:build
+
+# Build specifically for macOS
+npm run electron:build:mac
+
+# Build for Windows
+npm run electron:build:win
+
+# Build for Linux
+npm run electron:build:linux
+```
+
+The built desktop app will be in `src/wraider-editor/release/`.
