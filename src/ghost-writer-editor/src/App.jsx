@@ -392,7 +392,7 @@ function App() {
     }
   }, [])
 
-  const handlePreviewChange = useCallback(
+  const handlePreviewCheckboxToggle = useCallback(
     (event) => {
       const checkbox = event.target
       if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return
@@ -581,7 +581,7 @@ function App() {
               <div
                 ref={previewContentRef}
                 className="preview__content"
-                onChange={handlePreviewChange}
+                onClick={handlePreviewCheckboxToggle}
                 dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
               />
             </section>
