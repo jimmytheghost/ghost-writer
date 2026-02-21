@@ -137,7 +137,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TI
 }
 
 function App() {
-  const [theme, setTheme] = useState('light')
+  const [theme, setTheme] = useState('dark')
   const [content, setContent] = useState(DEFAULT_TEXT)
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
