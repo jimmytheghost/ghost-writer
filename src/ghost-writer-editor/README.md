@@ -7,6 +7,8 @@ This folder contains the Vite + React web app for Ghost Writer.
 ```bash
 npm run dev
 npm run lint
+npm run test
+npm run test:run
 npm run build
 npm run check
 ```

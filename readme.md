@@ -37,6 +37,7 @@ When you submit a prompt:
 
 - `Ctrl/Cmd + B`: wrap selection with bold markdown markers (`**`)
 - `Ctrl/Cmd + I`: wrap selection with italic markdown markers (`*`)
+- `Ctrl + Shift + M`: toggle markdown preview mode
 - `Shift + Enter` (inside AI prompt input): send prompt
 - `Enter` (inside AI prompt input): newline
 
@@ -86,3 +87,6 @@ npm run check
 
 - `CONTRIBUTING.md`
 - `SECURITY.md`
+- `CODE_OF_CONDUCT.md`
+- `CHANGELOG.md`
+- `LICENSE`

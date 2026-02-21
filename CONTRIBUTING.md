@@ -26,3 +26,4 @@ npm run check
 - Include a clear summary of what changed and why.
 - Include screenshots for UI changes.
 - Note any security implications when touching markdown rendering or Ollama request logic.
+- Update `CHANGELOG.md` for user-facing changes.
