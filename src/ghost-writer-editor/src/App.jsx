@@ -58,6 +58,7 @@ function App() {
   const [theme, setTheme] = useState('light')
   const [content, setContent] = useState(DEFAULT_TEXT)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
+  const [isNewConfirmOpen, setIsNewConfirmOpen] = useState(false)
   const [fileName, setFileName] = useState('ghost-writer-document.md')
   const [promptText, setPromptText] = useState('')
   const [promptError, setPromptError] = useState('')
@@ -79,6 +80,7 @@ function App() {
     /Electron/.test(navigator.userAgent) &&
     /Mac/.test(navigator.platform)
   const fileInputRef = useRef(null)
+  const promptFormRef = useRef(null)
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
@@ -154,15 +156,28 @@ function App() {
     }
   }, [])
 
+  const resetDocument = () => {
+    setContent('')
+    setUndoSnapshot('')
+    setRedoSnapshot('')
+    setCanUndoGeneration(false)
+    setCanRedoGeneration(false)
+    setUndoToggleState('undo')
+    setPromptError('')
+  }
+
   const handleNew = () => {
-    if (content.trim().length === 0 || window.confirm('Start a new document? Unsaved changes will be lost.')) {
-      setContent('')
-      setUndoSnapshot('')
-      setRedoSnapshot('')
-      setCanUndoGeneration(false)
-      setCanRedoGeneration(false)
-      setUndoToggleState('undo')
+    if (content.trim().length === 0) {
+      resetDocument()
+      return
     }
+
+    setIsNewConfirmOpen(true)
+  }
+
+  const handleConfirmNew = () => {
+    resetDocument()
+    setIsNewConfirmOpen(false)
   }
 
   const handleSaveClick = () => {
@@ -370,6 +385,18 @@ function App() {
     }
   }
 
+  const handlePromptKeyDown = (event) => {
+    if (event.key !== 'Enter' || !event.shiftKey) return
+
+    event.preventDefault()
+
+    if (isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel) {
+      return
+    }
+
+    promptFormRef.current?.requestSubmit()
+  }
+
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
@@ -392,13 +419,14 @@ function App() {
         </div>
         {!isPreviewOpen && (
           <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
-            <form className="prompt-panel__form" onSubmit={handlePromptSubmit}>
+            <form ref={promptFormRef} className="prompt-panel__form" onSubmit={handlePromptSubmit}>
               <div className="prompt-panel__row">
                 <textarea
                   id="promptText"
                   className="prompt-panel__textarea"
                   value={promptText}
                   onChange={(event) => setPromptText(event.target.value)}
+                  onKeyDown={handlePromptKeyDown}
                   onFocus={() => setIsPromptFocused(true)}
                   onBlur={() => setIsPromptFocused(false)}
                   placeholder=""
@@ -570,6 +598,22 @@ function App() {
                 disabled={!fileName.trim()}
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isNewConfirmOpen && (
+        <div className="modal-overlay" onClick={() => setIsNewConfirmOpen(false)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <h2 className="modal__title">Start a new document?</h2>
+            <p className="modal__description">Unsaved changes will be lost.</p>
+            <div className="modal__actions">
+              <button type="button" className="modal__button" onClick={() => setIsNewConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="modal__button modal__button--primary" onClick={handleConfirmNew}>
+                New
               </button>
             </div>
           </div>
