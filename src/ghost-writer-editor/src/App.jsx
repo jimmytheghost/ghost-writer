@@ -418,6 +418,21 @@ function App() {
     promptFormRef.current?.requestSubmit()
   }
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      if (!event.ctrlKey || !event.shiftKey) return
+      if (event.key.toLowerCase() !== 'm') return
+
+      event.preventDefault()
+      setIsPreviewOpen((previous) => !previous)
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+    }
+  }, [])
+
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
