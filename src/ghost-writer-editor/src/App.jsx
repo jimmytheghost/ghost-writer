@@ -567,23 +567,21 @@ function App() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
-      const isMac = /Mac/.test(navigator.platform)
-      const isMod = isMac ? event.metaKey : event.ctrlKey
       const key = event.key.toLowerCase()
 
-      if (isMod && !event.shiftKey && key === 's') {
+      if (event.ctrlKey && event.shiftKey && key === 's') {
         event.preventDefault()
         saveActionRef.current?.()
         return
       }
 
-      if (isMod && !event.shiftKey && key === 'o') {
+      if (event.ctrlKey && event.shiftKey && key === 'o') {
         event.preventDefault()
         openActionRef.current?.()
         return
       }
 
-      if (isMod && !event.shiftKey && key === 'n') {
+      if (event.ctrlKey && event.shiftKey && key === 'n') {
         event.preventDefault()
         newActionRef.current?.()
         return
@@ -744,17 +742,35 @@ function App() {
         <div className="app__footer-row">
           {!isFooterCollapsed && (
             <div className="doc-actions">
-              <button type="button" className="doc-actions__button" onClick={handleNew} aria-label="New document">
+              <button
+                type="button"
+                className="doc-actions__button"
+                onClick={handleNew}
+                aria-label="New document"
+                title="New (Ctrl+Shift+N)"
+              >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   note_add
                 </span>
               </button>
-              <button type="button" className="doc-actions__button" onClick={handleSaveClick} aria-label="Save document">
+              <button
+                type="button"
+                className="doc-actions__button"
+                onClick={handleSaveClick}
+                aria-label="Save document"
+                title="Save (Ctrl+Shift+S)"
+              >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   save
                 </span>
               </button>
-              <button type="button" className="doc-actions__button" onClick={handleLoadClick} aria-label="Load document">
+              <button
+                type="button"
+                className="doc-actions__button"
+                onClick={handleLoadClick}
+                aria-label="Load document"
+                title="Open (Ctrl+Shift+O)"
+              >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   upload_file
                 </span>
@@ -775,6 +791,7 @@ function App() {
                 onClick={() => setIsPreviewOpen((previous) => !previous)}
                 aria-label="Toggle markdown preview"
                 aria-pressed={isPreviewOpen}
+                title="Preview (Ctrl+Shift+M)"
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   preview
