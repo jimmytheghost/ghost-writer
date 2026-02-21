@@ -735,20 +735,24 @@ function App() {
                 </select>
               </div>
             )}
-            <button
-              type="button"
-              className="theme-toggle"
-              aria-pressed={isDark}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            >
-              <span className="material-symbols-rounded" aria-hidden="true">
-                {isDark ? 'light_mode' : 'dark_mode'}
+            {!isFooterCollapsed && (
+              <button
+                type="button"
+                className="theme-toggle"
+                aria-pressed={isDark}
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  {isDark ? 'light_mode' : 'dark_mode'}
+                </span>
+              </button>
+            )}
+            {!isFooterCollapsed && (
+              <span className="footer-controls__divider" aria-hidden="true">
+                |
               </span>
-            </button>
-            <span className="footer-controls__divider" aria-hidden="true">
-              |
-            </span>
+            )}
             <button
               type="button"
               className="footer-collapse"
