@@ -584,9 +584,9 @@
 }
 
 .prompt-panel__status--stopped {
-  background: color-mix(in srgb, var(--color-warning-light) 70%, var(--color-white));
-  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-white));
-  color: color-mix(in srgb, var(--color-warning) 82%, var(--color-black));
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-700);
 }
 
 .app--dark .prompt-panel__status--error {
@@ -596,9 +596,9 @@
 }
 
 .app--dark .prompt-panel__status--stopped {
-  background: color-mix(in srgb, var(--color-warning) 20%, var(--color-gray-800));
-  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-gray-700));
-  color: color-mix(in srgb, var(--color-warning-light) 88%, var(--color-white));
+  background: color-mix(in srgb, var(--color-gray-700) 44%, var(--color-gray-800));
+  border-color: color-mix(in srgb, var(--color-gray-600) 45%, var(--color-gray-800));
+  color: var(--color-gray-100);
 }
 
 .footer-controls__divider {
