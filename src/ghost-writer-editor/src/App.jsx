@@ -610,7 +610,7 @@ function App() {
                   onKeyDown={handlePromptKeyDown}
                   onFocus={() => setIsPromptFocused(true)}
                   onBlur={() => setIsPromptFocused(false)}
-                  placeholder="Enter prompt"
+                  placeholder=""
                 />
                 <div className="prompt-panel__actions">
                   <button
