@@ -154,6 +154,7 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
+  const [showStoppedToast, setShowStoppedToast] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelError, setModelError] = useState('')
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
@@ -207,6 +208,17 @@ function App() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (!showStoppedToast) return undefined
+    const timeoutId = setTimeout(() => {
+      setShowStoppedToast(false)
+    }, 3000)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [showStoppedToast])
 
   useEffect(() => {
     let isMounted = true
@@ -517,7 +529,8 @@ function App() {
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
-        setPromptError('Generation stopped.')
+        setShowStoppedToast(false)
+        requestAnimationFrame(() => setShowStoppedToast(true))
         return
       }
       setPromptError(error?.message ?? 'Unable to reach Ollama.')
@@ -613,6 +626,11 @@ function App() {
                   placeholder=""
                 />
                 <div className="prompt-panel__actions">
+                  {showStoppedToast && (
+                    <div className="prompt-panel__stopped-toast" aria-live="polite">
+                      Stopped
+                    </div>
+                  )}
                   <button
                     type="button"
                     className={`prompt-panel__button prompt-panel__button--primary${
@@ -665,9 +683,7 @@ function App() {
               {promptError && (
                 <div
                   className={`prompt-panel__status ${
-                    promptError === 'Generation stopped.'
-                      ? 'prompt-panel__status--stopped'
-                      : 'prompt-panel__status--error'
+                    promptError === 'Generation stopped.' ? 'prompt-panel__status--stopped' : 'prompt-panel__status--error'
                   }`}
                 >
                   {promptError}

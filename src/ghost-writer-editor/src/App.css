@@ -536,6 +536,28 @@
   flex: 0 0 auto;
 }
 
+.prompt-panel__stopped-toast {
+  width: 100px;
+  min-width: 100px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: stopped-toast-fade 2s ease forwards;
+  pointer-events: none;
+}
+
+.app--dark .prompt-panel__stopped-toast {
+  border-color: var(--color-gray-700);
+  background: var(--color-gray-800);
+  color: var(--color-gray-100);
+}
+
 .prompt-panel__button:disabled,
 .modal__button:disabled {
   opacity: 0.5;
@@ -732,5 +754,22 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes stopped-toast-fade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-2px);
   }
 }
