@@ -336,17 +336,17 @@
 .prompt-panel__form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   background: var(--color-gray-100);
   border: none;
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .prompt-panel__row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: var(--space-2);
 }
 
@@ -464,8 +464,8 @@
 }
 
 .prompt-panel__actions .prompt-panel__button--busy {
-  width: 44px;
-  min-width: 44px;
+  width: 40px;
+  min-width: 40px;
 }
 
 .prompt-panel__button-content {
@@ -529,7 +529,8 @@
 
 .prompt-panel__actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: var(--space-1);
   width: auto;
   flex: 0 0 auto;
@@ -711,12 +712,13 @@
 
   .prompt-panel__row {
     flex-direction: row;
-    align-items: stretch;
+    align-items: center;
   }
 
   .prompt-panel__actions {
     width: auto;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     flex: 0 0 auto;
   }
 
