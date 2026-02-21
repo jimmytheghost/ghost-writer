@@ -165,6 +165,9 @@ function App() {
     /Mac/.test(navigator.platform)
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
+  const saveActionRef = useRef(() => {})
+  const openActionRef = useRef(() => {})
+  const newActionRef = useRef(() => {})
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
@@ -318,6 +321,12 @@ function App() {
   const handleLoadClick = () => {
     fileInputRef.current?.click()
   }
+
+  useEffect(() => {
+    saveActionRef.current = handleSaveClick
+    openActionRef.current = handleLoadClick
+    newActionRef.current = handleNew
+  })
 
   const handleLoadFile = (event) => {
     const file = event.target.files?.[0]
@@ -558,8 +567,30 @@ function App() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
+      const isMac = /Mac/.test(navigator.platform)
+      const isMod = isMac ? event.metaKey : event.ctrlKey
+      const key = event.key.toLowerCase()
+
+      if (isMod && !event.shiftKey && key === 's') {
+        event.preventDefault()
+        saveActionRef.current?.()
+        return
+      }
+
+      if (isMod && !event.shiftKey && key === 'o') {
+        event.preventDefault()
+        openActionRef.current?.()
+        return
+      }
+
+      if (isMod && !event.shiftKey && key === 'n') {
+        event.preventDefault()
+        newActionRef.current?.()
+        return
+      }
+
       if (!event.ctrlKey || !event.shiftKey) return
-      if (event.key.toLowerCase() !== 'm') return
+      if (key !== 'm') return
 
       event.preventDefault()
       setIsPreviewOpen((previous) => !previous)
@@ -749,15 +780,15 @@ function App() {
                   preview
                 </span>
               </button>
-              <input
-                ref={fileInputRef}
-                className="doc-actions__file"
-                type="file"
-                accept={".md,text/markdown,text/plain"}
-                onChange={handleLoadFile}
-              />
             </div>
           )}
+          <input
+            ref={fileInputRef}
+            className="doc-actions__file"
+            type="file"
+            accept={".md,text/markdown,text/plain"}
+            onChange={handleLoadFile}
+          />
           {!isFooterCollapsed && (
             <div className="footer-controls">
               <div className="footer-model">
