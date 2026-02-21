@@ -782,13 +782,6 @@ function App() {
               </button>
             </div>
           )}
-          <input
-            ref={fileInputRef}
-            className="doc-actions__file"
-            type="file"
-            accept={".md,text/markdown,text/plain"}
-            onChange={handleLoadFile}
-          />
           {!isFooterCollapsed && (
             <div className="footer-controls">
               <div className="footer-model">
@@ -840,6 +833,13 @@ function App() {
           )}
         </div>
       </footer>
+      <input
+        ref={fileInputRef}
+        className="doc-actions__file"
+        type="file"
+        accept={".md,text/markdown,text/plain"}
+        onChange={handleLoadFile}
+      />
       {isSaveOpen && (
         <div className="modal-overlay" onClick={() => setIsSaveOpen(false)}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
