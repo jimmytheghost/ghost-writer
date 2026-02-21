@@ -90,6 +90,7 @@
 
 .editor-pane--preview {
   gap: 0;
+  grid-row: 1 / -1;
 }
 
 .editor {
@@ -106,9 +107,9 @@
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
-  min-height: var(--editor-panel-height);
-  height: var(--editor-panel-height);
-  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
 }
