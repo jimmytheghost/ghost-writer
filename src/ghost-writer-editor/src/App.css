@@ -571,6 +571,12 @@
   color: var(--color-gray-700);
 }
 
+.app--dark .prompt-panel__status {
+  background: color-mix(in srgb, var(--color-gray-700) 44%, var(--color-gray-800));
+  border-color: color-mix(in srgb, var(--color-gray-600) 45%, var(--color-gray-800));
+  color: var(--color-gray-100);
+}
+
 .prompt-panel__status--error {
   background: var(--color-error-light);
   border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-white));
@@ -578,9 +584,21 @@
 }
 
 .prompt-panel__status--stopped {
-  background: var(--color-warning-light);
-  border-color: color-mix(in srgb, var(--color-warning) 36%, var(--color-white));
-  color: color-mix(in srgb, var(--color-warning) 80%, var(--color-black));
+  background: color-mix(in srgb, var(--color-warning-light) 70%, var(--color-white));
+  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-white));
+  color: color-mix(in srgb, var(--color-warning) 82%, var(--color-black));
+}
+
+.app--dark .prompt-panel__status--error {
+  background: color-mix(in srgb, var(--color-error) 22%, var(--color-gray-800));
+  border-color: color-mix(in srgb, var(--color-error) 42%, var(--color-gray-700));
+  color: color-mix(in srgb, var(--color-error-light) 82%, var(--color-white));
+}
+
+.app--dark .prompt-panel__status--stopped {
+  background: color-mix(in srgb, var(--color-warning) 20%, var(--color-gray-800));
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-gray-700));
+  color: color-mix(in srgb, var(--color-warning-light) 88%, var(--color-white));
 }
 
 .footer-controls__divider {
