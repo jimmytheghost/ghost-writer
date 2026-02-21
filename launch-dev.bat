@@ -1,5 +1,36 @@
 @echo off
 setlocal
+set OLLAMA_PORT=11434
+
+echo Checking Ollama on port %OLLAMA_PORT%...
+netstat -ano | findstr ":%OLLAMA_PORT%" >nul
+if errorlevel 1 (
+  where ollama >nul 2>&1
+  if errorlevel 1 (
+    echo Ollama is not installed or not on PATH.
+    pause
+    exit /b 1
+  )
+
+  echo Ollama is not running. Starting Ollama...
+  start "Ollama" cmd /c "ollama serve"
+
+  set OLLAMA_READY=
+  for /l %%i in (1,1,20) do (
+    netstat -ano | findstr ":%OLLAMA_PORT%" >nul
+    if not errorlevel 1 (
+      set OLLAMA_READY=1
+      goto :ollama_ready
+    )
+    timeout /t 1 /nobreak >nul
+  )
+  :ollama_ready
+  if not defined OLLAMA_READY (
+    echo Ollama did not become ready in time.
+  ) else (
+    echo Ollama started successfully.
+  )
+)
 
 cd /d "%~dp0src\ghost-writer-editor" || (
   echo Failed to change directory to src\ghost-writer-editor

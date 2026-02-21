@@ -234,10 +234,18 @@ function App() {
         }
       } catch (error) {
         const isAbortError = error?.name === 'AbortError'
+        const isNetworkError = error instanceof TypeError
+        const connectionMessage = `Unable to connect to Ollama at ${getOllamaBaseUrl()}. Start Ollama and try again.`
         if (isMounted) {
           setModels([])
           setSelectedModel('')
-          setModelError(isAbortError ? 'Timed out loading Ollama models.' : error?.message ?? 'Unable to load Ollama models.')
+          setModelError(
+            isAbortError
+              ? 'Timed out loading Ollama models.'
+              : isNetworkError
+                ? connectionMessage
+                : error?.message ?? 'Unable to load Ollama models.',
+          )
         }
       } finally {
         if (isMounted) {
