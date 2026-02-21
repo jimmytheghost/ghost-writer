@@ -550,6 +550,7 @@
   justify-content: center;
   animation: stopped-toast-fade 2s ease forwards;
   pointer-events: none;
+  margin-right: .25rem;
 }
 
 .app--dark .prompt-panel__stopped-toast {
