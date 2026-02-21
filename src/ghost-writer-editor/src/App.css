@@ -6,7 +6,7 @@
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: linear-gradient(180deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
+  background: linear-gradient(180deg, var(--color-gray-300) 0%, var(--color-gray-50) 100%);
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
 }
@@ -21,7 +21,7 @@
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, #0c0c0c 0%, #101011 100%);
+  background: linear-gradient(180deg, #181818 0%, #141414 100%);
 }
 
 .app__drag-region {
