@@ -65,10 +65,26 @@
 .app__footer--collapsed {
   min-height: 20px;
   padding: 2px var(--space-3);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .app__footer--collapsed .footer-controls {
   gap: 0;
+}
+
+.app__footer--collapsed .app__footer-row {
+  min-height: 16px;
+}
+
+.app__footer--collapsed:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-gray-100));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.app--dark .app__footer--collapsed:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-gray-800));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .app__footer-row {
@@ -430,16 +446,6 @@
   height: 36px;
   padding: var(--space-2);
   border: none;
-}
-
-.app__footer--collapsed .footer-collapse {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-}
-
-.app__footer--collapsed .footer-collapse .material-symbols-rounded {
-  font-size: 1rem;
 }
 
 .prompt-panel__button,

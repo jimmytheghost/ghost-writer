@@ -663,7 +663,23 @@ function App() {
           </section>
         )}
       </main>
-      <footer ref={footerRef} className={`app__footer${isFooterCollapsed ? ' app__footer--collapsed' : ''}`}>
+      <footer
+        ref={footerRef}
+        className={`app__footer${isFooterCollapsed ? ' app__footer--collapsed' : ''}`}
+        onClick={isFooterCollapsed ? () => setIsFooterCollapsed(false) : undefined}
+        onKeyDown={
+          isFooterCollapsed
+            ? (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                setIsFooterCollapsed(false)
+              }
+            : undefined
+        }
+        role={isFooterCollapsed ? 'button' : undefined}
+        tabIndex={isFooterCollapsed ? 0 : undefined}
+        aria-label={isFooterCollapsed ? 'Expand footer controls' : undefined}
+      >
         <div className="app__footer-row">
           {!isFooterCollapsed && (
             <div className="doc-actions">
@@ -712,8 +728,8 @@ function App() {
               />
             </div>
           )}
-          <div className="footer-controls">
-            {!isFooterCollapsed && (
+          {!isFooterCollapsed && (
+            <div className="footer-controls">
               <div className="footer-model">
                 <select
                   id="modelSelect"
@@ -730,12 +746,10 @@ function App() {
                       <option key={model} value={model}>
                         {model}
                       </option>
-                    ))
-                  )}
-                </select>
+                  ))
+                )}
+              </select>
               </div>
-            )}
-            {!isFooterCollapsed && (
               <button
                 type="button"
                 className="theme-toggle"
@@ -747,24 +761,22 @@ function App() {
                   {isDark ? 'light_mode' : 'dark_mode'}
                 </span>
               </button>
-            )}
-            {!isFooterCollapsed && (
               <span className="footer-controls__divider" aria-hidden="true">
                 |
               </span>
-            )}
-            <button
-              type="button"
-              className="footer-collapse"
-              aria-expanded={!isFooterCollapsed}
-              aria-label={isFooterCollapsed ? 'Expand footer' : 'Collapse footer'}
-              onClick={() => setIsFooterCollapsed((previous) => !previous)}
-            >
-              <span className="material-symbols-rounded" aria-hidden="true">
-                {isFooterCollapsed ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
-              </span>
-            </button>
-          </div>
+              <button
+                type="button"
+                className="footer-collapse"
+                aria-expanded={!isFooterCollapsed}
+                aria-label="Collapse footer"
+                onClick={() => setIsFooterCollapsed(true)}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  keyboard_arrow_down
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </footer>
       {isSaveOpen && (
