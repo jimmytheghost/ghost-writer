@@ -1,65 +1,65 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { marked } from 'marked'
 import './App.css'
 import Editor from './components/Editor'
+import { renderMarkdownToSafeHtml } from './lib/markdown'
 
 const DEFAULT_TEXT = ''
+const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
+const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
+const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
+const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
 
-const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
-
-function isSafeUrl(rawUrl) {
-  if (!rawUrl) return false
-  const value = rawUrl.trim()
-  if (value.startsWith('#') || value.startsWith('/')) return true
-  if (value.startsWith('./') || value.startsWith('../')) return true
+function getOllamaBaseUrl() {
+  const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
+  const rawBase = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv.trim() : DEFAULT_OLLAMA_BASE_URL
 
   try {
-    const parsed = new URL(value, window.location.origin)
-    return SAFE_PROTOCOLS.has(parsed.protocol)
+    const parsed = new URL(rawBase)
+    return parsed.toString().replace(/\/+$/, '')
   } catch {
-    return false
+    return DEFAULT_OLLAMA_BASE_URL
   }
 }
 
-function sanitizeHtml(html) {
-  if (!html || typeof window === 'undefined') return html ?? ''
-
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  doc
-    .querySelectorAll('script, iframe, object, embed, form, input, button, textarea, select, link, meta, base')
-    .forEach((node) => node.remove())
-
-  doc.body.querySelectorAll('*').forEach((element) => {
-    for (const attribute of [...element.attributes]) {
-      const name = attribute.name.toLowerCase()
-      const value = attribute.value
-
-      if (name.startsWith('on')) {
-        element.removeAttribute(attribute.name)
-        continue
-      }
-
-      if ((name === 'href' || name === 'src' || name === 'xlink:href') && !isSafeUrl(value)) {
-        element.removeAttribute(attribute.name)
-      }
-    }
-  })
-
-  return doc.body.innerHTML
+function buildOllamaUrl(path) {
+  return `${getOllamaBaseUrl()}${path}`
 }
 
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-})
+async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS) {
+  const timeoutController = new AbortController()
+  const externalSignal = options.signal
+
+  const relayAbort = () => {
+    timeoutController.abort()
+  }
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      timeoutController.abort()
+    } else {
+      externalSignal.addEventListener('abort', relayAbort, { once: true })
+    }
+  }
+
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: timeoutController.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+    externalSignal?.removeEventListener('abort', relayAbort)
+  }
+}
 
 function App() {
   const [theme, setTheme] = useState('light')
   const [content, setContent] = useState(DEFAULT_TEXT)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
   const [isNewConfirmOpen, setIsNewConfirmOpen] = useState(false)
-  const [fileName, setFileName] = useState('ghost-writer-document.md')
+  const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
   const [promptText, setPromptText] = useState('')
   const [promptError, setPromptError] = useState('')
   const [undoSnapshot, setUndoSnapshot] = useState('')
@@ -88,7 +88,7 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const appRef = useRef(null)
   const footerRef = useRef(null)
-  const renderedMarkdown = useMemo(() => sanitizeHtml(marked.parse(content ?? '')), [content])
+  const renderedMarkdown = useMemo(() => renderMarkdownToSafeHtml(content), [content])
 
   useEffect(() => {
     if (!appRef.current || !footerRef.current) return undefined
@@ -113,6 +113,13 @@ function App() {
     }
   }, [])
 
+  useEffect(
+    () => () => {
+      abortControllerRef.current?.abort()
+    },
+    [],
+  )
+
   useEffect(() => {
     let isMounted = true
 
@@ -120,7 +127,7 @@ function App() {
       setIsLoadingModels(true)
       setModelError('')
       try {
-        const response = await fetch('http://localhost:11434/api/tags')
+        const response = await fetchWithTimeout(buildOllamaUrl('/api/tags'))
         if (!response.ok) {
           throw new Error('Unable to load Ollama models.')
         }
@@ -138,10 +145,11 @@ function App() {
           setSelectedModel((current) => current || availableModels[0])
         }
       } catch (error) {
+        const isAbortError = error?.name === 'AbortError'
         if (isMounted) {
           setModels([])
           setSelectedModel('')
-          setModelError(error?.message ?? 'Unable to load Ollama models.')
+          setModelError(isAbortError ? 'Timed out loading Ollama models.' : error?.message ?? 'Unable to load Ollama models.')
         }
       } finally {
         if (isMounted) {
@@ -206,6 +214,13 @@ function App() {
   const handleLoadFile = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
+    if (file.size > MAX_LOAD_FILE_SIZE_BYTES) {
+      setPromptError('Selected file is too large. Please use a file smaller than 2 MB.')
+      event.target.value = ''
+      return
+    }
+
+    setPromptError('')
     const reader = new FileReader()
     reader.onload = (loadEvent) => {
       setContent(loadEvent.target?.result?.toString() ?? '')
@@ -229,8 +244,9 @@ function App() {
 
     try {
       await navigator.clipboard.writeText(textToCopy)
+      setPromptError('')
     } catch (error) {
-      console.error('Failed to copy:', error)
+      setPromptError(error?.message ?? 'Unable to copy text to the clipboard.')
     }
   }
 
@@ -307,18 +323,22 @@ function App() {
       streamSelectionRef.current = { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
       streamBufferRef.current = ''
 
-      const response = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetchWithTimeout(
+        buildOllamaUrl('/api/generate'),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: abortControllerRef.current.signal,
+          body: JSON.stringify({
+            model: selectedModel,
+            prompt: `${promptText}\n\n---\n\n${content}`,
+            stream: true,
+          }),
         },
-        signal: abortControllerRef.current.signal,
-        body: JSON.stringify({
-          model: selectedModel,
-          prompt: `${promptText}\n\n---\n\n${content}`,
-          stream: true,
-        }),
-      })
+        OLLAMA_REQUEST_TIMEOUT_MS,
+      )
 
       if (!response.ok) {
         throw new Error('Ollama request failed. Is the server running?')
@@ -382,6 +402,7 @@ function App() {
       setPromptError(error?.message ?? 'Unable to reach Ollama.')
     } finally {
       setIsLoadingPrompt(false)
+      abortControllerRef.current = null
     }
   }
 
@@ -424,6 +445,7 @@ function App() {
                 <textarea
                   id="promptText"
                   className="prompt-panel__textarea"
+                  aria-label="Prompt input"
                   value={promptText}
                   onChange={(event) => setPromptText(event.target.value)}
                   onKeyDown={handlePromptKeyDown}
@@ -543,6 +565,7 @@ function App() {
               <select
                 id="modelSelect"
                 className="footer-model__select"
+                aria-label="Ollama model"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
                 disabled={isLoadingModels || models.length === 0}

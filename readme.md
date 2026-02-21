@@ -60,7 +60,7 @@ Stop script (macOS): `stop.command`
 
 ```bash
 cd src/ghost-writer-editor
-npm install
+npm ci
 npm run dev
 ```
 
@@ -72,3 +72,17 @@ Ghost Writer expects Ollama at:
 
 - `GET http://localhost:11434/api/tags` (load models)
 - `POST http://localhost:11434/api/generate` (stream responses)
+
+You can override the default endpoint with `VITE_OLLAMA_BASE_URL`.
+
+## Quality Checks
+
+```bash
+cd src/ghost-writer-editor
+npm run check
+```
+
+## Project Policies
+
+- `CONTRIBUTING.md`
+- `SECURITY.md`
