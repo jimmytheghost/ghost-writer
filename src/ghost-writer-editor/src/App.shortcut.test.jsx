@@ -21,8 +21,9 @@ describe('App keyboard shortcuts', () => {
 
   it('toggles markdown preview with Ctrl+Shift+M', async () => {
     render(<App />)
-    const previewButton = screen.getByLabelText('Toggle markdown preview')
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
+    fireEvent.click(screen.getByLabelText('Expand footer'))
+    const previewButton = screen.getByLabelText('Toggle markdown preview')
 
     expect(previewButton).toHaveAttribute('aria-pressed', 'false')
 

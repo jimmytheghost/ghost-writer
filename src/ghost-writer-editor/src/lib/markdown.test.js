@@ -17,4 +17,14 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).not.toContain('javascript:')
     expect(output).toContain('<a')
   })
+
+  it('allows markdown task-list checkboxes', () => {
+    const output = renderMarkdownToSafeHtml('- [x] done')
+    expect(output).toContain('type="checkbox"')
+  })
+
+  it('removes non-checkbox input elements', () => {
+    const output = renderMarkdownToSafeHtml('<input type="text" value="x" />')
+    expect(output).not.toContain('<input')
+  })
 })

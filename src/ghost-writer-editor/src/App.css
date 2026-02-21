@@ -6,9 +6,14 @@
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: linear-gradient(180deg, var(--color-gray-100) 0%, var(--color-gray-200) 100%);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-white) 72%, transparent) 0%,
+    color-mix(in srgb, var(--color-gray-100) 68%, transparent) 100%
+  );
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
 .app--dark {
@@ -21,7 +26,7 @@
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, #181818 0%, #141414 100%);
+  background: linear-gradient(160deg, rgba(24, 24, 24, 0.72) 0%, rgba(20, 20, 20, 0.76) 100%);
 }
 
 .app__drag-region {
@@ -51,6 +56,10 @@
 
 .app--dark .app__footer {
   background: var(--color-gray-800);
+}
+
+.app__footer--collapsed .app__footer-row {
+  justify-content: flex-end;
 }
 
 .app__footer-row {
@@ -161,6 +170,27 @@
 
 .preview__content li {
   margin-bottom: var(--space-2);
+}
+
+.preview__content ul:has(> li > input[type='checkbox']) {
+  list-style: none;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.preview__content li:has(> input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.preview__checkbox {
+  margin-top: 0.4rem;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex: 0 0 auto;
 }
 
 .preview__content strong {
@@ -295,7 +325,7 @@
   gap: var(--space-2);
 }
 
-.prompt-panel__textarea,
+.prompt-panel__input,
 .footer-model__select,
 .modal__input {
   width: 100%;
@@ -309,20 +339,20 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
-.prompt-panel__textarea {
-  min-height: 120px;
+.prompt-panel__input {
+  min-height: 36px;
+  height: 36px;
   font-family: var(--font-family-mono);
   font-weight: var(--font-weight-normal);
   border: none;
-  resize: none;
 }
 
-.prompt-panel__textarea::placeholder,
+.prompt-panel__input::placeholder,
 .modal__input::placeholder {
   color: var(--color-gray-400);
 }
 
-.prompt-panel__textarea:focus,
+.prompt-panel__input:focus,
 .footer-model__select:focus,
 .modal__input:focus {
   outline: none;
@@ -330,7 +360,7 @@
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
-.app--dark .prompt-panel__textarea,
+.app--dark .prompt-panel__input,
 .app--dark .footer-model__select,
 .app--dark .modal__input {
   background: var(--color-gray-800);
@@ -366,6 +396,7 @@
 
 .doc-actions__button,
 .theme-toggle,
+.footer-collapse,
 .prompt-panel__button,
 .modal__button {
   display: inline-flex;
@@ -384,7 +415,8 @@
 }
 
 .doc-actions__button,
-.theme-toggle {
+.theme-toggle,
+.footer-collapse {
   width: 36px;
   height: 36px;
   padding: var(--space-2);
@@ -408,6 +440,7 @@
 
 .doc-actions__button:hover,
 .theme-toggle:hover,
+.footer-collapse:hover,
 .prompt-panel__button:hover,
 .modal__button:hover {
   background: var(--color-gray-200);
@@ -416,6 +449,7 @@
 
 .app--dark .doc-actions__button,
 .app--dark .theme-toggle,
+.app--dark .footer-collapse,
 .app--dark .prompt-panel__button,
 .app--dark .modal__button {
   background: var(--color-gray-800);
@@ -425,6 +459,7 @@
 
 .app--dark .doc-actions__button:hover,
 .app--dark .theme-toggle:hover,
+.app--dark .footer-collapse:hover,
 .app--dark .prompt-panel__button:hover,
 .app--dark .modal__button:hover {
   background: var(--color-gray-700);
@@ -503,6 +538,22 @@
   background: var(--color-error-light);
   border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-white));
   color: color-mix(in srgb, var(--color-error) 78%, var(--color-black));
+}
+
+.prompt-panel__status--stopped {
+  background: var(--color-warning-light);
+  border-color: color-mix(in srgb, var(--color-warning) 36%, var(--color-white));
+  color: color-mix(in srgb, var(--color-warning) 80%, var(--color-black));
+}
+
+.footer-controls__divider {
+  color: var(--color-gray-400);
+  font-size: var(--font-size-sm);
+  user-select: none;
+}
+
+.app--dark .footer-controls__divider {
+  color: var(--color-gray-500);
 }
 
 .modal-overlay {

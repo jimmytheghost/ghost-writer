@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+const INDENT_UNIT = '  '
+
 function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRange, showSelectionOverlay }) {
   const textareaRef = useRef(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -79,6 +81,85 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
     }
 
     const handleKeyDown = (event) => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        const text = value ?? ''
+        const start = textarea.selectionStart ?? 0
+        const end = textarea.selectionEnd ?? start
+        const hasRangeSelection = start !== end
+        const selectedText = text.slice(start, end)
+        const hasMultiLineSelection = selectedText.includes('\n')
+
+        if (!event.shiftKey && !hasMultiLineSelection && !hasRangeSelection) {
+          const nextValue = `${text.slice(0, start)}${INDENT_UNIT}${text.slice(end)}`
+          const nextPosition = start + INDENT_UNIT.length
+          onChange?.(nextValue)
+
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({
+              selectionStart: nextPosition,
+              selectionEnd: nextPosition,
+            })
+          })
+          return
+        }
+
+        const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
+        const blockEndIndex = end > 0 && text[end - 1] === '\n' ? end - 1 : end
+        const lineEndBoundary = text.indexOf('\n', blockEndIndex)
+        const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
+        const selectedBlock = text.slice(lineStart, lineEnd)
+        const blockLines = selectedBlock.split('\n')
+
+        let selectionStartShift = 0
+        let selectionEndShift = 0
+        const transformedLines = blockLines.map((line, lineIndex) => {
+          if (!event.shiftKey) {
+            selectionEndShift += INDENT_UNIT.length
+            if (lineIndex === 0 && lineStart < start) selectionStartShift += INDENT_UNIT.length
+            return `${INDENT_UNIT}${line}`
+          }
+
+          const removableCount =
+            line.startsWith(INDENT_UNIT)
+              ? INDENT_UNIT.length
+              : line.startsWith(' ')
+                ? 1
+                : 0
+
+          if (removableCount > 0) {
+            selectionEndShift -= removableCount
+            if (lineIndex === 0 && lineStart < start) {
+              selectionStartShift -= Math.min(removableCount, start - lineStart)
+            }
+            return line.slice(removableCount)
+          }
+
+          return line
+        })
+
+        const transformedBlock = transformedLines.join('\n')
+        const nextValue = `${text.slice(0, lineStart)}${transformedBlock}${text.slice(lineEnd)}`
+        const nextSelectionStart = Math.max(lineStart, start + selectionStartShift)
+        const nextSelectionEnd = Math.max(nextSelectionStart, end + selectionEndShift)
+
+        onChange?.(nextValue)
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd)
+          onSelectionChange?.({
+            selectionStart: nextSelectionStart,
+            selectionEnd: nextSelectionEnd,
+          })
+        })
+        return
+      }
+
       const isMac = /Mac/.test(navigator.platform)
       const isMod = isMac ? event.metaKey : event.ctrlKey
       const key = event.key.toLowerCase()
@@ -128,7 +209,7 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       textarea?.removeEventListener('blur', handleSelectionUpdate)
       textarea?.removeEventListener('scroll', handleScroll)
     }
-  }, [applyInlineFormat, onPromptOpen, onSelectionChange])
+  }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
 
   return (
     <section className="editor">

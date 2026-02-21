@@ -8,6 +8,88 @@ const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
 const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
+const CHECKBOX_LINE_PATTERN = /^(\s*)(?:([-*+])\s+)?\[( |x|X)\](.*)$/
+
+function normalizeCustomCheckboxLines(markdown = '') {
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^(\s*)\[( |x|X)\](.*)$/)
+      if (!match) return line
+      const [, indentation, mark, rest] = match
+      return `${indentation}- [${mark}]${rest}`
+    })
+    .join('\n')
+}
+
+function collectCheckboxLineIndexes(markdown = '') {
+  const lines = markdown.split('\n')
+  const indexes = []
+
+  lines.forEach((line, index) => {
+    if (CHECKBOX_LINE_PATTERN.test(line)) {
+      indexes.push(index)
+    }
+  })
+
+  return indexes
+}
+
+function toggleCheckboxOnLine(markdown = '', lineIndex, isChecked) {
+  const lines = markdown.split('\n')
+  const targetLine = lines[lineIndex]
+  if (typeof targetLine !== 'string') return markdown
+
+  const match = targetLine.match(CHECKBOX_LINE_PATTERN)
+  if (!match) return markdown
+
+  const [, indentation, bullet = '', , rest] = match
+  const marker = isChecked ? 'x' : ' '
+  const bulletPrefix = bullet ? `${bullet} ` : ''
+  lines[lineIndex] = `${indentation}${bulletPrefix}[${marker}]${rest}`
+  return lines.join('\n')
+}
+
+function buildGenerationPrompt({ promptText, documentText, selectedText }) {
+  const request = promptText.trim()
+  const hasSelection = selectedText.trim().length > 0
+  const hasDocument = documentText.trim().length > 0
+
+  const sharedRules = [
+    'Return only plain markdown content.',
+    'Do not include prefaces, explanations, labels, or quotes.',
+    'Do not include "Sure", "Here is", or similar lead-in phrases.',
+    'Do not wrap the output in code fences.',
+  ]
+
+  if (hasSelection) {
+    return [
+      'You are editing part of a markdown document.',
+      ...sharedRules,
+      'Rewrite only the selected text to satisfy the request.',
+      'Do not return the full document.',
+      `User request:\n${request}`,
+      `Selected text:\n${selectedText}`,
+      `Full document context:\n${documentText}`,
+    ].join('\n\n')
+  }
+
+  if (!hasDocument) {
+    return [
+      'You are writing new markdown content.',
+      ...sharedRules,
+      `User request:\n${request}`,
+    ].join('\n\n')
+  }
+
+  return [
+    'You are editing an entire markdown document.',
+    ...sharedRules,
+    'Return the full updated document only.',
+    `User request:\n${request}`,
+    `Current document:\n${documentText}`,
+  ].join('\n\n')
+}
 
 function getOllamaBaseUrl() {
   const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
@@ -57,6 +139,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TI
 function App() {
   const [theme, setTheme] = useState('light')
   const [content, setContent] = useState(DEFAULT_TEXT)
+  const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
   const [isNewConfirmOpen, setIsNewConfirmOpen] = useState(false)
   const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
@@ -88,7 +171,12 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const appRef = useRef(null)
   const footerRef = useRef(null)
-  const renderedMarkdown = useMemo(() => renderMarkdownToSafeHtml(content), [content])
+  const previewContentRef = useRef(null)
+  const checkboxLineIndexes = useMemo(() => collectCheckboxLineIndexes(content), [content])
+  const renderedMarkdown = useMemo(
+    () => renderMarkdownToSafeHtml(normalizeCustomCheckboxLines(content)),
+    [content],
+  )
 
   useEffect(() => {
     if (!appRef.current || !footerRef.current) return undefined
@@ -296,6 +384,18 @@ function App() {
     }
   }, [])
 
+  const handlePreviewChange = useCallback(
+    (event) => {
+      const checkbox = event.target
+      if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return
+      const sourceLine = Number(checkbox.dataset.sourceLine)
+      if (!Number.isInteger(sourceLine)) return
+
+      setContent((currentContent) => toggleCheckboxOnLine(currentContent, sourceLine, checkbox.checked))
+    },
+    [setContent],
+  )
+
   const handlePromptSubmit = async (event) => {
     event.preventDefault()
     if (!promptText.trim()) return
@@ -319,9 +419,22 @@ function App() {
 
       abortControllerRef.current = new AbortController()
 
+      const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
+      const selectedText = hasRangeSelection
+        ? content.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
+        : ''
+
       streamBaseRef.current = content
-      streamSelectionRef.current = { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
+      streamSelectionRef.current = hasRangeSelection
+        ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
+        : { start: 0, end: content.length }
       streamBufferRef.current = ''
+
+      const refinedPrompt = buildGenerationPrompt({
+        promptText,
+        documentText: content,
+        selectedText,
+      })
 
       const response = await fetchWithTimeout(
         buildOllamaUrl('/api/generate'),
@@ -333,7 +446,7 @@ function App() {
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({
             model: selectedModel,
-            prompt: `${promptText}\n\n---\n\n${content}`,
+            prompt: refinedPrompt,
             stream: true,
           }),
         },
@@ -407,15 +520,9 @@ function App() {
   }
 
   const handlePromptKeyDown = (event) => {
-    if (event.key !== 'Enter' || !event.shiftKey) return
-
+    if (event.key !== 'Enter') return
+    if (!isLoadingPrompt && !isLoadingModels && promptText.trim() && selectedModel) return
     event.preventDefault()
-
-    if (isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel) {
-      return
-    }
-
-    promptFormRef.current?.requestSubmit()
   }
 
   useEffect(() => {
@@ -433,6 +540,19 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isPreviewOpen || !previewContentRef.current) return
+
+    const checkboxNodes = previewContentRef.current.querySelectorAll('input[type="checkbox"]')
+    checkboxNodes.forEach((node, index) => {
+      const sourceLine = checkboxLineIndexes[index]
+      if (typeof sourceLine !== 'number') return
+      node.removeAttribute('disabled')
+      node.dataset.sourceLine = String(sourceLine)
+      node.classList.add('preview__checkbox')
+    })
+  }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
+
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
@@ -440,7 +560,12 @@ function App() {
         <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
             <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
-              <div className="preview__content" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
+              <div
+                ref={previewContentRef}
+                className="preview__content"
+                onChange={handlePreviewChange}
+                dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
+              />
             </section>
           ) : (
             <Editor
@@ -457,17 +582,17 @@ function App() {
           <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
             <form ref={promptFormRef} className="prompt-panel__form" onSubmit={handlePromptSubmit}>
               <div className="prompt-panel__row">
-                <textarea
+                <input
                   id="promptText"
-                  className="prompt-panel__textarea"
+                  className="prompt-panel__input"
+                  type="text"
                   aria-label="Prompt input"
                   value={promptText}
                   onChange={(event) => setPromptText(event.target.value)}
                   onKeyDown={handlePromptKeyDown}
                   onFocus={() => setIsPromptFocused(true)}
                   onBlur={() => setIsPromptFocused(false)}
-                  placeholder=""
-                  rows={4}
+                  placeholder="Enter prompt"
                 />
                 <div className="prompt-panel__actions">
                   <button
@@ -523,79 +648,93 @@ function App() {
                 </div>
               </div>
               {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
-              {promptError && <div className="prompt-panel__status prompt-panel__status--error">{promptError}</div>}
+              {promptError && (
+                <div
+                  className={`prompt-panel__status ${
+                    promptError === 'Generation stopped.'
+                      ? 'prompt-panel__status--stopped'
+                      : 'prompt-panel__status--error'
+                  }`}
+                >
+                  {promptError}
+                </div>
+              )}
             </form>
           </section>
         )}
       </main>
-      <footer ref={footerRef} className="app__footer">
+      <footer ref={footerRef} className={`app__footer${isFooterCollapsed ? ' app__footer--collapsed' : ''}`}>
         <div className="app__footer-row">
-          <div className="doc-actions">
-            <button type="button" className="doc-actions__button" onClick={handleNew} aria-label="New document">
-              <span className="material-symbols-rounded" aria-hidden="true">
-                note_add
-              </span>
-            </button>
-            <button type="button" className="doc-actions__button" onClick={handleSaveClick} aria-label="Save document">
-              <span className="material-symbols-rounded" aria-hidden="true">
-                save
-              </span>
-            </button>
-            <button type="button" className="doc-actions__button" onClick={handleLoadClick} aria-label="Load document">
-              <span className="material-symbols-rounded" aria-hidden="true">
-                upload_file
-              </span>
-            </button>
-            <button
-              type="button"
-              className="doc-actions__button"
-              onClick={handleCopyClick}
-              aria-label="Copy to clipboard"
-            >
-              <span className="material-symbols-rounded" aria-hidden="true">
-                content_copy
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`doc-actions__button${isPreviewOpen ? ' doc-actions__button--active' : ''}`}
-              onClick={() => setIsPreviewOpen((previous) => !previous)}
-              aria-label="Toggle markdown preview"
-              aria-pressed={isPreviewOpen}
-            >
-              <span className="material-symbols-rounded" aria-hidden="true">
-                preview
-              </span>
-            </button>
-            <input
-              ref={fileInputRef}
-              className="doc-actions__file"
-              type="file"
-              accept={".md,text/markdown,text/plain"}
-              onChange={handleLoadFile}
-            />
-          </div>
-          <div className="footer-controls">
-            <div className="footer-model">
-              <select
-                id="modelSelect"
-                className="footer-model__select"
-                aria-label="Ollama model"
-                value={selectedModel}
-                onChange={(event) => setSelectedModel(event.target.value)}
-                disabled={isLoadingModels || models.length === 0}
+          {!isFooterCollapsed && (
+            <div className="doc-actions">
+              <button type="button" className="doc-actions__button" onClick={handleNew} aria-label="New document">
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  note_add
+                </span>
+              </button>
+              <button type="button" className="doc-actions__button" onClick={handleSaveClick} aria-label="Save document">
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  save
+                </span>
+              </button>
+              <button type="button" className="doc-actions__button" onClick={handleLoadClick} aria-label="Load document">
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  upload_file
+                </span>
+              </button>
+              <button
+                type="button"
+                className="doc-actions__button"
+                onClick={handleCopyClick}
+                aria-label="Copy to clipboard"
               >
-                {models.length === 0 ? (
-                  <option value="">No models available</option>
-                ) : (
-                  models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))
-                )}
-              </select>
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  content_copy
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`doc-actions__button${isPreviewOpen ? ' doc-actions__button--active' : ''}`}
+                onClick={() => setIsPreviewOpen((previous) => !previous)}
+                aria-label="Toggle markdown preview"
+                aria-pressed={isPreviewOpen}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  preview
+                </span>
+              </button>
+              <input
+                ref={fileInputRef}
+                className="doc-actions__file"
+                type="file"
+                accept={".md,text/markdown,text/plain"}
+                onChange={handleLoadFile}
+              />
             </div>
+          )}
+          <div className="footer-controls">
+            {!isFooterCollapsed && (
+              <div className="footer-model">
+                <select
+                  id="modelSelect"
+                  className="footer-model__select"
+                  aria-label="Ollama model"
+                  value={selectedModel}
+                  onChange={(event) => setSelectedModel(event.target.value)}
+                  disabled={isLoadingModels || models.length === 0}
+                >
+                  {models.length === 0 ? (
+                    <option value="">No models available</option>
+                  ) : (
+                    models.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
             <button
               type="button"
               className="theme-toggle"
@@ -605,6 +744,20 @@ function App() {
             >
               <span className="material-symbols-rounded" aria-hidden="true">
                 {isDark ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+            <span className="footer-controls__divider" aria-hidden="true">
+              |
+            </span>
+            <button
+              type="button"
+              className="footer-collapse"
+              aria-expanded={!isFooterCollapsed}
+              aria-label={isFooterCollapsed ? 'Expand footer' : 'Collapse footer'}
+              onClick={() => setIsFooterCollapsed((previous) => !previous)}
+            >
+              <span className="material-symbols-rounded" aria-hidden="true">
+                {isFooterCollapsed ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
               </span>
             </button>
           </div>

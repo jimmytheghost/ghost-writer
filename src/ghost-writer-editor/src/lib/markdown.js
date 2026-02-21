@@ -18,6 +18,7 @@ const ALLOWED_TAGS = new Set([
   'hr',
   'i',
   'img',
+  'input',
   'li',
   'ol',
   'p',
@@ -36,6 +37,7 @@ const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['class', 'title', 'aria-label'])
 const ELEMENT_ALLOWED_ATTRIBUTES = {
   a: new Set(['href']),
   img: new Set(['src', 'alt']),
+  input: new Set(['type', 'checked', 'disabled', 'data-source-line']),
 }
 
 marked.setOptions({
@@ -91,6 +93,13 @@ function sanitizeHtml(html) {
     if (tagName === 'a' && element.hasAttribute('href')) {
       element.setAttribute('rel', 'noopener noreferrer')
       element.setAttribute('target', '_blank')
+    }
+
+    if (tagName === 'input') {
+      const inputType = (element.getAttribute('type') || '').toLowerCase()
+      if (inputType !== 'checkbox') {
+        element.remove()
+      }
     }
   }
 
