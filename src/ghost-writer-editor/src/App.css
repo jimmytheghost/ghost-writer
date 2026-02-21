@@ -463,6 +463,18 @@
   border: none;
 }
 
+.prompt-panel__actions .prompt-panel__button--busy {
+  width: 44px;
+  min-width: 44px;
+}
+
+.prompt-panel__button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
 .doc-actions__button:hover,
 .theme-toggle:hover,
 .footer-collapse:hover,

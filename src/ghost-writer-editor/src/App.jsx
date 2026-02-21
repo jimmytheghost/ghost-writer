@@ -525,6 +525,16 @@ function App() {
     event.preventDefault()
   }
 
+  const handlePrimaryPromptAction = () => {
+    if (isLoadingPrompt) {
+      abortControllerRef.current?.abort()
+      return
+    }
+
+    if (isLoadingModels || !promptText.trim() || !selectedModel) return
+    promptFormRef.current?.requestSubmit()
+  }
+
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
       if (!event.ctrlKey || !event.shiftKey) return
@@ -596,31 +606,27 @@ function App() {
                 />
                 <div className="prompt-panel__actions">
                   <button
-                    type="submit"
-                    className="prompt-panel__button prompt-panel__button--primary"
-                    disabled={isLoadingPrompt || isLoadingModels || !promptText.trim() || !selectedModel}
-                    aria-label="Send prompt"
-                    title="Send"
+                    type="button"
+                    className={`prompt-panel__button prompt-panel__button--primary${
+                      isLoadingPrompt ? ' prompt-panel__button--busy' : ''
+                    }`}
+                    disabled={!isLoadingPrompt && (isLoadingModels || !promptText.trim() || !selectedModel)}
+                    aria-label={isLoadingPrompt ? 'Stop generation' : 'Send prompt'}
+                    title={isLoadingPrompt ? 'Stop' : 'Send'}
+                    onClick={handlePrimaryPromptAction}
                   >
                     {isLoadingPrompt ? (
-                      <span className="prompt-panel__spinner" aria-label="Generating" />
+                      <span className="prompt-panel__button-content" aria-label="Generating">
+                        <span className="prompt-panel__spinner" />
+                        <span className="material-symbols-rounded" aria-hidden="true">
+                          stop
+                        </span>
+                      </span>
                     ) : (
                       <span className="material-symbols-rounded" aria-hidden="true">
                         send
                       </span>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    className="prompt-panel__button"
-                    onClick={() => abortControllerRef.current?.abort()}
-                    disabled={!isLoadingPrompt}
-                    aria-label="Stop generation"
-                    title="Stop"
-                  >
-                    <span className="material-symbols-rounded" aria-hidden="true">
-                      stop
-                    </span>
                   </button>
                   <button
                     type="button"
