@@ -1,54 +1,74 @@
-## Ghost Writer: AI-Assisted Writing with Ollama
+# Ghost Writer
 
-Ghost Writer is an open-source web-based writing tool designed to leverage the power of Large Language Models (LLMs) through Ollama. It aims to provide a streamlined writing experience for creating articles, essays, novels, and various other content types.
+Ghost Writer is a local-first markdown writing app with built-in Ollama assistance.
+It is designed for fast drafting, rewriting, and iterative editing without leaving the editor.
 
-**Core Concept:**
+## Highlights
 
-Ghost Writer features an intentionally simple and intuitive interface, resembling Ollama's existing chat or Byword's markdown friendly interface for ease of use. The primary interaction model centers around a focused editor with a permanent prompt box below it for AI assistance.
+- Focused markdown editor with matching markdown preview mode
+- Local model integration via Ollama (`http://localhost:11434`)
+- Selection-aware AI insertion/replacement
+- Streaming generation with Stop/Undo/Redo
+- Save/Load markdown files (`.md`)
+- Copy full document or current selection
+- Light/dark theme toggle
+- Responsive layout with fixed footer controls
+- Custom in-app modals for Save and New-document confirmation
+- `Shift+Enter` sends AI prompt, `Enter` inserts a new line in prompt input
 
-**How it Works:**
+## Current UI/UX Features
 
-Users can write freely within the Ghost Writer text editor. The prompt box is always available beneath the editor, so users can type an instruction at any time.
+- Footer quick actions: New, Save, Load, Copy, Markdown Preview toggle, Theme toggle
+- Markdown preview button remains visibly active while preview is on
+- Preview container and editor container are size-matched for consistent mode switching
+- Prompt actions are icon-based: Send, Stop, Undo/Redo, Clear
+- Prompt panel and editor use Noto Sans Mono; app and preview typography use Noto Sans
+- Preview rendering is sanitized before injection
 
-When submitting a prompt, Ghost Writer uses the current cursor or selection in the editor as the insertion point:
+## AI Editing Behavior
 
-- If text is highlighted, the AI output replaces the highlighted selection.
-- If there is no selection, the AI output inserts at the current cursor position.
+When you submit a prompt:
 
-The user can then enter a natural language prompt directing the LLM (powered by Ollama) to perform actions on the existing text or generate new content.  Examples of prompts include:
+- If text is selected in the editor, AI output replaces that selection.
+- If no text is selected, AI output inserts at the cursor location.
+- Output streams into the document as it is generated.
 
-*   "Edit all of the text above for clarity and conciseness."
-*   "Write a paragraph here explaining the above points in more detail."
-*   "Rewrite the previous sentence in a more formal tone."
-*   "Expand on the idea presented in the last paragraph."
-*   "Summarize the entire document."
-*   "Create this character's backstory."
+## Keyboard Shortcuts
 
-Ghost Writer then utilizes Ollama to process the prompt and either replace the selection or insert new content at the cursor position.
+- `Ctrl/Cmd + B`: wrap selection with bold markdown markers (`**`)
+- `Ctrl/Cmd + I`: wrap selection with italic markdown markers (`*`)
+- `Shift + Enter` (inside AI prompt input): send prompt
+- `Enter` (inside AI prompt input): newline
 
-**Key Features & Goals:**
+## Requirements
 
-*   **Simplicity:** Minimalist interface to avoid distractions.
-*   **Ollama Integration:** Leverages local LLMs via Ollama.
-*   **Contextual Assistance:** AI responds to prompts relative to the current document content.
-*   **Keyboard-Driven:** Efficient workflow using keyboard shortcuts. (Shortcut-based prompt invocation has been retired in favor of the permanent prompt box.)
-*   **Open Source:** Promotes community contribution and customization.
+- Node.js `20.19+` or `22.12+`
+- npm
+- Ollama running locally with at least one installed model
 
-## Launching the App (Localhost)
+## Run Locally
 
-### Web Version
-Use the provided launchers from the project root:
+### Option 1: Launch scripts (project root)
 
-- **Start the app:** double-click `launch.command` to install dependencies, stop any process on port 5174, start the Vite dev server, and open the browser.
-- **Stop the app:** double-click `stop.command` to stop the Vite dev server running on port 5174.
+- Windows: `launch-dev.bat`
+- macOS: `launch.command`
+- Shell: `launch-dev.sh`
 
-If macOS blocks the file the first time, right-click → **Open**. You can also verify permissions in Finder via **Get Info** → **Sharing & Permissions**.
+Stop script (macOS): `stop.command`
 
-### Manual start
-You can also run Ghost Writer from Terminal:
+### Option 2: Manual
 
 ```bash
 cd src/ghost-writer-editor
 npm install
 npm run dev
 ```
+
+Then open: `http://localhost:5174`
+
+## Model Endpoint
+
+Ghost Writer expects Ollama at:
+
+- `GET http://localhost:11434/api/tags` (load models)
+- `POST http://localhost:11434/api/generate` (stream responses)
