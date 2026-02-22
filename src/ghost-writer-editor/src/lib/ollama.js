@@ -1,11 +1,10 @@
 const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
+const OLLAMA_BASE_URL_FALLBACKS = ['http://127.0.0.1:11434', DEFAULT_OLLAMA_BASE_URL]
+let activeOllamaBaseUrl = ''
 
 export const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
 
-export function getOllamaBaseUrl() {
-  const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
-  const rawBase = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv.trim() : DEFAULT_OLLAMA_BASE_URL
-
+function normalizeBaseUrl(rawBase) {
   try {
     const parsed = new URL(rawBase)
     return parsed.toString().replace(/\/+$/, '')
@@ -14,8 +13,28 @@ export function getOllamaBaseUrl() {
   }
 }
 
-export function buildOllamaUrl(path) {
-  return `${getOllamaBaseUrl()}${path}`
+export function getConfiguredOllamaBaseUrl() {
+  const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
+  const rawBase = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv.trim() : DEFAULT_OLLAMA_BASE_URL
+  return normalizeBaseUrl(rawBase)
+}
+
+export function getOllamaBaseUrls() {
+  const configured = getConfiguredOllamaBaseUrl()
+  const candidates = [configured, ...OLLAMA_BASE_URL_FALLBACKS.map(normalizeBaseUrl)]
+  return [...new Set(candidates)]
+}
+
+export function setActiveOllamaBaseUrl(baseUrl) {
+  activeOllamaBaseUrl = normalizeBaseUrl(baseUrl)
+}
+
+export function getOllamaBaseUrl() {
+  return activeOllamaBaseUrl || getConfiguredOllamaBaseUrl()
+}
+
+export function buildOllamaUrl(path, baseUrl = getOllamaBaseUrl()) {
+  return `${baseUrl}${path}`
 }
 
 export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS) {

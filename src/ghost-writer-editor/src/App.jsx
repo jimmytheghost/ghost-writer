@@ -9,7 +9,14 @@ import {
 } from './lib/contentTransforms'
 import { isMacDesktopRuntime, markRendererInteractive } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
-import { buildOllamaUrl, fetchWithTimeout, getOllamaBaseUrl, OLLAMA_REQUEST_TIMEOUT_MS } from './lib/ollama'
+import {
+  buildOllamaUrl,
+  fetchWithTimeout,
+  getOllamaBaseUrl,
+  getOllamaBaseUrls,
+  OLLAMA_REQUEST_TIMEOUT_MS,
+  setActiveOllamaBaseUrl,
+} from './lib/ollama'
 import { buildGenerationPrompt } from './lib/prompting'
 
 const DEFAULT_TEXT = ''
@@ -118,23 +125,36 @@ function App() {
     setIsLoadingModels(true)
     setModelError('')
     try {
-      const response = await fetchWithTimeout(buildOllamaUrl('/api/tags'))
-      if (!response.ok) {
-        throw new Error('Unable to load Ollama models.')
-      }
-      const data = await response.json()
-      const availableModels = Array.isArray(data?.models)
-        ? data.models.map((model) => model?.name).filter(Boolean)
-        : []
+      const baseUrls = getOllamaBaseUrls()
+      let lastError = null
 
-      if (!availableModels.length) {
-        throw new Error('No Ollama models found.')
+      for (const baseUrl of baseUrls) {
+        try {
+          const response = await fetchWithTimeout(buildOllamaUrl('/api/tags', baseUrl))
+          if (!response.ok) {
+            throw new Error('Unable to load Ollama models.')
+          }
+          const data = await response.json()
+          const availableModels = Array.isArray(data?.models)
+            ? data.models.map((model) => model?.name).filter(Boolean)
+            : []
+
+          if (!availableModels.length) {
+            throw new Error('No Ollama models found.')
+          }
+
+          setActiveOllamaBaseUrl(baseUrl)
+          if (isMountedRef.current) {
+            setModels(availableModels)
+            setSelectedModel((current) => current || availableModels[0])
+          }
+          return
+        } catch (error) {
+          lastError = error
+        }
       }
 
-      if (isMountedRef.current) {
-        setModels(availableModels)
-        setSelectedModel((current) => current || availableModels[0])
-      }
+      throw lastError ?? new Error('Unable to load Ollama models.')
     } catch (error) {
       const isAbortError = error?.name === 'AbortError'
       const isNetworkError = error instanceof TypeError
