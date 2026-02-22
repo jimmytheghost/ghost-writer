@@ -91,6 +91,31 @@ function buildGenerationPrompt({ promptText, documentText, selectedText }) {
   ].join('\n\n')
 }
 
+function stripAssistantLeadIn(text = '') {
+  if (!text) return text
+
+  const patterns = [
+    /^\s*(sure|absolutely|certainly|of course)[^.\n]*[.:]?\s*\n*/i,
+    /^\s*here(?:'s| is)\s+(?:the\s+)?(?:plain\s+)?(?:markdown\s+)?(?:content|result|output)[^:\n]*:\s*\n*/i,
+    /^\s*(?:output|result|response)\s*:\s*\n*/i,
+  ]
+
+  let next = text
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const pattern of patterns) {
+      const updated = next.replace(pattern, '')
+      if (updated !== next) {
+        next = updated
+        changed = true
+      }
+    }
+  }
+
+  return next
+}
+
 function getOllamaBaseUrl() {
   const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
   const rawBase = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv.trim() : DEFAULT_OLLAMA_BASE_URL
@@ -497,11 +522,12 @@ function App() {
       const applyStreamChunk = (chunk) => {
         if (!chunk) return
         streamBufferRef.current += chunk
+        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
         const base = streamBaseRef.current
         const { start, end } = streamSelectionRef.current
         const safeStart = Math.min(start, base.length)
         const safeEnd = Math.min(end, base.length)
-        setContent(`${base.slice(0, safeStart)}${streamBufferRef.current}${base.slice(safeEnd)}`)
+        setContent(`${base.slice(0, safeStart)}${cleanedStreamText}${base.slice(safeEnd)}`)
       }
 
       while (true) {
