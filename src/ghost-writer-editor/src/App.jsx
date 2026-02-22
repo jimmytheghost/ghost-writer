@@ -13,7 +13,6 @@ import { renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   buildOllamaUrl,
   fetchWithTimeout,
-  listOllamaModelsViaTauri,
   OLLAMA_REQUEST_TIMEOUT_MS,
 } from './lib/ollama'
 import { buildGenerationPrompt } from './lib/prompting'
@@ -22,8 +21,6 @@ const DEFAULT_TEXT = ''
 const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
 const MODEL_SNAPSHOT_TIMEOUT_MS = 2_000
-const MODEL_NATIVE_TIMEOUT_MS = 5_000
-const MODEL_LOAD_WATCHDOG_TIMEOUT_MS = 12_000
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
@@ -48,9 +45,10 @@ function App() {
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [showStoppedToast, setShowStoppedToast] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
-  const [modelError, setModelError] = useState('')
   const [modelLoadStatus, setModelLoadStatus] = useState(
-    BUNDLED_MODELS.length ? `Loaded ${BUNDLED_MODELS.length} model(s).` : 'Not loaded yet.',
+    BUNDLED_MODELS.length
+      ? `Loaded ${BUNDLED_MODELS.length} model(s) from bundled snapshot.`
+      : 'No bundled model snapshot found. Click reload.',
   )
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
@@ -63,8 +61,6 @@ function App() {
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
-  const modelLoadInFlightRef = useRef(false)
-  const modelLoadTokenRef = useRef(0)
   const isMountedRef = useRef(true)
   const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -127,24 +123,11 @@ function App() {
   }, [showStoppedToast])
 
   const loadModels = useCallback(async ({ force = false } = {}) => {
-    if (modelLoadInFlightRef.current && !force) return
+    if (isLoadingModels && !force) return
     if (models.length > 0 && !force) return
 
-    const loadToken = modelLoadTokenRef.current + 1
-    modelLoadTokenRef.current = loadToken
-    modelLoadInFlightRef.current = true
     setIsLoadingModels(true)
-    setModelError('')
     setModelLoadStatus('Loading models...')
-    const watchdogId = setTimeout(() => {
-      if (modelLoadTokenRef.current !== loadToken) return
-      modelLoadInFlightRef.current = false
-      if (isMountedRef.current) {
-        setIsLoadingModels(false)
-        setModelLoadStatus('Model load timed out after 12 seconds. Click reload.')
-        setModelError('Model load timed out after 12 seconds. Click reload.')
-      }
-    }, MODEL_LOAD_WATCHDOG_TIMEOUT_MS)
 
     try {
       const snapshotResult = await Promise.race([
@@ -163,50 +146,33 @@ function App() {
         if (isMountedRef.current) {
           setModels(snapshotModels)
           setSelectedModel((current) => (snapshotModels.includes(current) ? current : snapshotModels[0]))
-          setModelLoadStatus(`Loaded ${snapshotModels.length} model(s).`)
+          setModelLoadStatus(`Loaded ${snapshotModels.length} model(s) from snapshot.`)
         }
         return
       }
-
-      const nativeResult = await Promise.race([
-        listOllamaModelsViaTauri(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Native model lookup timed out.')), MODEL_NATIVE_TIMEOUT_MS),
-        ),
-      ])
-      const availableModels = Array.isArray(nativeResult?.models) ? nativeResult.models : []
-      if (!availableModels.length) {
-        throw new Error(nativeResult?.error ?? 'No Ollama models found.')
-      }
-
-      if (isMountedRef.current) {
-        setModels(availableModels)
-        setSelectedModel((current) => (availableModels.includes(current) ? current : availableModels[0]))
-        setModelLoadStatus(`Loaded ${availableModels.length} model(s).`)
-      }
+      throw new Error('Snapshot did not include any models. Run `npm run sync:models`.')
     } catch (error) {
-      const nativeMessage = error?.message ?? 'Unable to load Ollama models.'
+      const failureMessage = error?.message ?? 'Unable to load Ollama models.'
       if (isMountedRef.current) {
-        if (models.length === 0) {
+        if (models.length > 0) {
+          setModelLoadStatus(`Using bundled models. Latest refresh failed: ${failureMessage}`)
+        } else {
           setSelectedModel('')
+          setModelLoadStatus(`Model load failed: ${failureMessage}`)
         }
-        setModelLoadStatus(`Model load failed: ${nativeMessage}`)
-        setModelError(`Model load failed: ${nativeMessage}`)
       }
     } finally {
-      clearTimeout(watchdogId)
-      if (modelLoadTokenRef.current === loadToken) {
-        modelLoadInFlightRef.current = false
-        if (isMountedRef.current) {
-          setIsLoadingModels(false)
-        }
+      if (isMountedRef.current) {
+        setIsLoadingModels(false)
       }
     }
-  }, [models.length])
+  }, [isLoadingModels, models.length])
 
   useEffect(() => {
-    void loadModels()
-  }, [loadModels])
+    if (!models.length) {
+      void loadModels({ force: true })
+    }
+  }, [loadModels, models.length])
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
@@ -657,9 +623,6 @@ function App() {
                   </button>
                 </div>
               </div>
-              {modelError && !selectedModel.trim() && (
-                <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>
-              )}
               {promptError && (
                 <div
                   className={`prompt-panel__status ${
@@ -777,17 +740,17 @@ function App() {
                       ))
                     )}
                   </select>
-                <button
-                  type="button"
-                  className="footer-model__reload"
-                  onClick={() => void loadModels({ force: true })}
-                  aria-label="Reload models"
-                  title="Reload models"
-                >
-                  <span className="material-symbols-rounded" aria-hidden="true">
-                    refresh
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="footer-model__reload"
+                    onClick={() => void loadModels({ force: true })}
+                    aria-label="Reload models"
+                    title="Reload models"
+                  >
+                    <span className="material-symbols-rounded" aria-hidden="true">
+                      refresh
+                    </span>
+                  </button>
                 </div>
                 {models.length === 0 && (
                   <div className="footer-model__status">{modelLoadStatus}</div>

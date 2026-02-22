@@ -88,6 +88,14 @@ npm run build:tauri:win
 # npm run build:tauri:mac
 ```
 
+Model dropdown behavior:
+
+- `npm run dev:tauri` and `npm run build:tauri*` run `npm run sync:models` first.
+- `sync:models` reads `ollama list` and writes model snapshots to:
+  - `src/ghost-writer-editor/public/ollama-models.json`
+  - `src/ghost-writer-editor/src/generated/ollama-models.json`
+- The app model dropdown is initialized from the generated snapshot for deterministic startup.
+
 Performance metrics snapshot:
 
 ```bash
@@ -108,7 +116,6 @@ Current packaging target outputs:
 
 Ghost Writer expects Ollama at:
 
-- `GET http://localhost:11434/api/tags` (load models)
 - `POST http://localhost:11434/api/generate` (stream responses)
 
 You can override the default endpoint with `VITE_OLLAMA_BASE_URL`.

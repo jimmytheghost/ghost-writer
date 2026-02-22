@@ -7,6 +7,7 @@ This folder contains the Vite + React web app for Ghost Writer.
 ```bash
 npm run dev
 npm run dev:tauri
+npm run sync:models
 npm run lint
 npm run test
 npm run test:run
@@ -31,6 +32,8 @@ Notes:
 - Tauri artifacts are produced under `src-tauri/target/release/bundle`.
 - Tauri size snapshots are written to `metrics/tauri-size.json`.
 - Rust toolchain is required (`rustup`, `cargo`, `rustc`) before running Tauri commands.
+- `dev:tauri` and `build:tauri*` refresh the model snapshot with `sync:models` before launch/build.
+- Model snapshots are written to `public/ollama-models.json` and `src/generated/ollama-models.json`.
 
 ## Environment variables
 
