@@ -22,8 +22,7 @@
         "backgroundColor": "#00000000",
         "windowEffects": {
           "effects": [
-            "underWindowBackground",
-            "hudWindow"
+            "popover"
           ],
           "state": "active"
         }

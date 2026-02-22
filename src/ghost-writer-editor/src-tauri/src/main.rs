@@ -79,8 +79,7 @@ fn apply_background_blur<R: tauri::Runtime>(app: &tauri::App<R>) {
     {
         if let Err(error) = window.set_effects(
             EffectsBuilder::new()
-                .effect(Effect::UnderWindowBackground)
-                .effect(Effect::HudWindow)
+                .effect(Effect::Popover)
                 .state(EffectState::Active)
                 .build(),
         ) {
