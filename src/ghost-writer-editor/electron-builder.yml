@@ -1,0 +1,41 @@
+appId: com.ghostwriter.editor
+productName: Ghost Writer
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - dist-electron/main/**
+  - dist-electron/preload/**
+  - package.json
+  - '!**/*.map'
+  - '!src/**'
+  - '!electron/**'
+  - '!docs/**'
+  - '!assets/**'
+  - '!**/*.test.*'
+  - '!**/__tests__/**'
+asar: true
+npmRebuild: false
+compression: maximum
+win:
+  signAndEditExecutable: false
+  verifyUpdateCodeSignature: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Ghost-Writer-${version}-win-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+  artifactName: Ghost-Writer-${version}-mac-${arch}.${ext}
+  category: public.app-category.productivity
+dmg:
+  sign: false

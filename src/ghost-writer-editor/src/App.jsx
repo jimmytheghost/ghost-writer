@@ -1,165 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import Editor from './components/Editor'
+import {
+  collectCheckboxLineIndexes,
+  normalizeCustomCheckboxLines,
+  stripAssistantLeadIn,
+  toggleCheckboxOnLine,
+} from './lib/contentTransforms'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
+import { buildOllamaUrl, fetchWithTimeout, getOllamaBaseUrl, OLLAMA_REQUEST_TIMEOUT_MS } from './lib/ollama'
+import { buildGenerationPrompt } from './lib/prompting'
 
 const DEFAULT_TEXT = ''
 const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
-const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
-const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
-const CHECKBOX_LINE_PATTERN = /^(\s*)(?:([-*+])\s+)?\[( |x|X)\](.*)$/
-
-function normalizeCustomCheckboxLines(markdown = '') {
-  return markdown
-    .split('\n')
-    .map((line) => {
-      const match = line.match(/^(\s*)\[( |x|X)\](.*)$/)
-      if (!match) return line
-      const [, indentation, mark, rest] = match
-      return `${indentation}- [${mark}]${rest}`
-    })
-    .join('\n')
-}
-
-function collectCheckboxLineIndexes(markdown = '') {
-  const lines = markdown.split('\n')
-  const indexes = []
-
-  lines.forEach((line, index) => {
-    if (CHECKBOX_LINE_PATTERN.test(line)) {
-      indexes.push(index)
-    }
-  })
-
-  return indexes
-}
-
-function toggleCheckboxOnLine(markdown = '', lineIndex, isChecked) {
-  const lines = markdown.split('\n')
-  const targetLine = lines[lineIndex]
-  if (typeof targetLine !== 'string') return markdown
-
-  const match = targetLine.match(CHECKBOX_LINE_PATTERN)
-  if (!match) return markdown
-
-  const [, indentation, bullet = '', , rest] = match
-  const marker = isChecked ? 'x' : ' '
-  const bulletPrefix = bullet ? `${bullet} ` : ''
-  lines[lineIndex] = `${indentation}${bulletPrefix}[${marker}]${rest}`
-  return lines.join('\n')
-}
-
-function buildGenerationPrompt({ promptText, documentText, selectedText }) {
-  const request = promptText.trim()
-  const hasSelection = selectedText.trim().length > 0
-  const hasDocument = documentText.trim().length > 0
-
-  const sharedRules = [
-    'Return only plain markdown content.',
-    'Do not include prefaces, explanations, labels, or quotes.',
-    'Do not include "Sure", "Here is", or similar lead-in phrases.',
-    'Do not wrap the output in code fences.',
-  ]
-
-  if (hasSelection) {
-    return [
-      'You are editing part of a markdown document.',
-      ...sharedRules,
-      'Rewrite only the selected text to satisfy the request.',
-      'Do not return the full document.',
-      `User request:\n${request}`,
-      `Selected text:\n${selectedText}`,
-      `Full document context:\n${documentText}`,
-    ].join('\n\n')
-  }
-
-  if (!hasDocument) {
-    return [
-      'You are writing new markdown content.',
-      ...sharedRules,
-      `User request:\n${request}`,
-    ].join('\n\n')
-  }
-
-  return [
-    'You are editing an entire markdown document.',
-    ...sharedRules,
-    'Return the full updated document only.',
-    `User request:\n${request}`,
-    `Current document:\n${documentText}`,
-  ].join('\n\n')
-}
-
-function stripAssistantLeadIn(text = '') {
-  if (!text) return text
-
-  const patterns = [
-    /^\s*(sure|absolutely|certainly|of course)[^.\n]*[.:]?\s*\n*/i,
-    /^\s*here(?:'s| is)\s+(?:the\s+)?(?:plain\s+)?(?:markdown\s+)?(?:content|result|output)[^:\n]*:\s*\n*/i,
-    /^\s*(?:output|result|response)\s*:\s*\n*/i,
-  ]
-
-  let next = text
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const pattern of patterns) {
-      const updated = next.replace(pattern, '')
-      if (updated !== next) {
-        next = updated
-        changed = true
-      }
-    }
-  }
-
-  return next
-}
-
-function getOllamaBaseUrl() {
-  const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL
-  const rawBase = typeof fromEnv === 'string' && fromEnv.trim() ? fromEnv.trim() : DEFAULT_OLLAMA_BASE_URL
-
-  try {
-    const parsed = new URL(rawBase)
-    return parsed.toString().replace(/\/+$/, '')
-  } catch {
-    return DEFAULT_OLLAMA_BASE_URL
-  }
-}
-
-function buildOllamaUrl(path) {
-  return `${getOllamaBaseUrl()}${path}`
-}
-
-async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS) {
-  const timeoutController = new AbortController()
-  const externalSignal = options.signal
-
-  const relayAbort = () => {
-    timeoutController.abort()
-  }
-
-  if (externalSignal) {
-    if (externalSignal.aborted) {
-      timeoutController.abort()
-    } else {
-      externalSignal.addEventListener('abort', relayAbort, { once: true })
-    }
-  }
-
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs)
-
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: timeoutController.signal,
-    })
-  } finally {
-    clearTimeout(timeoutId)
-    externalSignal?.removeEventListener('abort', relayAbort)
-  }
-}
+const MODEL_LOAD_IDLE_DELAY_MS = 350
 
 function App() {
   const [theme, setTheme] = useState('dark')
@@ -196,15 +51,24 @@ function App() {
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
+  const modelLoadInFlightRef = useRef(false)
+  const isMountedRef = useRef(true)
   const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
-  const checkboxLineIndexes = useMemo(() => collectCheckboxLineIndexes(content), [content])
+  const checkboxLineIndexes = useMemo(
+    () => (isPreviewOpen ? collectCheckboxLineIndexes(content) : []),
+    [content, isPreviewOpen],
+  )
+  const normalizedPreviewMarkdown = useMemo(
+    () => (isPreviewOpen ? normalizeCustomCheckboxLines(content) : ''),
+    [content, isPreviewOpen],
+  )
   const renderedMarkdown = useMemo(
-    () => renderMarkdownToSafeHtml(normalizeCustomCheckboxLines(content)),
-    [content],
+    () => (isPreviewOpen ? renderMarkdownToSafeHtml(normalizedPreviewMarkdown) : ''),
+    [isPreviewOpen, normalizedPreviewMarkdown],
   )
 
   useEffect(() => {
@@ -232,6 +96,7 @@ function App() {
 
   useEffect(
     () => () => {
+      isMountedRef.current = false
       abortControllerRef.current?.abort()
     },
     [],
@@ -248,59 +113,79 @@ function App() {
     }
   }, [showStoppedToast])
 
-  useEffect(() => {
-    let isMounted = true
+  const loadModels = useCallback(async () => {
+    if (modelLoadInFlightRef.current || models.length > 0) return
 
-    const loadModels = async () => {
-      setIsLoadingModels(true)
-      setModelError('')
-      try {
-        const response = await fetchWithTimeout(buildOllamaUrl('/api/tags'))
-        if (!response.ok) {
-          throw new Error('Unable to load Ollama models.')
-        }
-        const data = await response.json()
-        const availableModels = Array.isArray(data?.models)
-          ? data.models.map((model) => model?.name).filter(Boolean)
-          : []
+    modelLoadInFlightRef.current = true
+    setIsLoadingModels(true)
+    setModelError('')
+    try {
+      const response = await fetchWithTimeout(buildOllamaUrl('/api/tags'))
+      if (!response.ok) {
+        throw new Error('Unable to load Ollama models.')
+      }
+      const data = await response.json()
+      const availableModels = Array.isArray(data?.models)
+        ? data.models.map((model) => model?.name).filter(Boolean)
+        : []
 
-        if (!availableModels.length) {
-          throw new Error('No Ollama models found.')
-        }
+      if (!availableModels.length) {
+        throw new Error('No Ollama models found.')
+      }
 
-        if (isMounted) {
-          setModels(availableModels)
-          setSelectedModel((current) => current || availableModels[0])
-        }
-      } catch (error) {
-        const isAbortError = error?.name === 'AbortError'
-        const isNetworkError = error instanceof TypeError
-        const connectionMessage = `Unable to connect to Ollama at ${getOllamaBaseUrl()}. Start Ollama and try again.`
-        if (isMounted) {
-          setModels([])
-          setSelectedModel('')
-          setModelError(
-            isAbortError
-              ? 'Timed out loading Ollama models.'
-              : isNetworkError
-                ? connectionMessage
-                : error?.message ?? 'Unable to load Ollama models.',
-          )
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingModels(false)
-        }
+      if (isMountedRef.current) {
+        setModels(availableModels)
+        setSelectedModel((current) => current || availableModels[0])
+      }
+    } catch (error) {
+      const isAbortError = error?.name === 'AbortError'
+      const isNetworkError = error instanceof TypeError
+      const connectionMessage = `Unable to connect to Ollama at ${getOllamaBaseUrl()}. Start Ollama and try again.`
+      if (isMountedRef.current) {
+        setModels([])
+        setSelectedModel('')
+        setModelError(
+          isAbortError
+            ? 'Timed out loading Ollama models.'
+            : isNetworkError
+              ? connectionMessage
+              : error?.message ?? 'Unable to load Ollama models.',
+        )
+      }
+    } finally {
+      modelLoadInFlightRef.current = false
+      if (isMountedRef.current) {
+        setIsLoadingModels(false)
       }
     }
+  }, [models.length])
 
-    loadModels()
-    return () => {
-      isMounted = false
+  useEffect(() => {
+    const runWhenIdle = () => {
+      void loadModels()
     }
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(runWhenIdle, { timeout: 1000 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timeoutId = setTimeout(runWhenIdle, MODEL_LOAD_IDLE_DELAY_MS)
+    return () => clearTimeout(timeoutId)
+  }, [loadModels])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const marker = window.ghostWriterDesktop?.markRendererInteractive
+    if (typeof marker !== 'function') return
+
+    const frameId = requestAnimationFrame(() => {
+      marker({ source: 'app-mounted' })
+    })
+    return () => cancelAnimationFrame(frameId)
   }, [])
 
-  const resetDocument = () => {
+  const resetDocument = useCallback(() => {
     setContent('')
     setUndoSnapshot('')
     setRedoSnapshot('')
@@ -308,25 +193,25 @@ function App() {
     setCanRedoGeneration(false)
     setUndoToggleState('undo')
     setPromptError('')
-  }
+  }, [])
 
-  const handleNew = () => {
+  const handleNew = useCallback(() => {
     if (content.trim().length === 0) {
       resetDocument()
       return
     }
 
     setIsNewConfirmOpen(true)
-  }
+  }, [content, resetDocument])
 
-  const handleConfirmNew = () => {
+  const handleConfirmNew = useCallback(() => {
     resetDocument()
     setIsNewConfirmOpen(false)
-  }
+  }, [resetDocument])
 
-  const handleSaveClick = () => {
+  const handleSaveClick = useCallback(() => {
     setIsSaveOpen(true)
-  }
+  }, [])
 
   const handleSaveConfirm = () => {
     if (!fileName.trim()) return
@@ -343,15 +228,15 @@ function App() {
     setIsSaveOpen(false)
   }
 
-  const handleLoadClick = () => {
+  const handleLoadClick = useCallback(() => {
     fileInputRef.current?.click()
-  }
+  }, [])
 
   useEffect(() => {
     saveActionRef.current = handleSaveClick
     openActionRef.current = handleLoadClick
     newActionRef.current = handleNew
-  })
+  }, [handleLoadClick, handleNew, handleSaveClick])
 
   const handleLoadFile = (event) => {
     const file = event.target.files?.[0]
@@ -834,7 +719,12 @@ function App() {
                   aria-label="Ollama model"
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
-                  disabled={isLoadingModels || models.length === 0}
+                  onFocus={() => {
+                    if (!models.length) {
+                      void loadModels()
+                    }
+                  }}
+                  disabled={isLoadingModels}
                 >
                   {models.length === 0 ? (
                     <option value="">No models available</option>

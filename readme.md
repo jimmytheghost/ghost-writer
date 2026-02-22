@@ -14,7 +14,7 @@ It is designed for fast drafting, rewriting, and iterative editing without leavi
 - Light/dark theme toggle
 - Responsive layout with fixed footer controls
 - Custom in-app modals for Save and New-document confirmation
-- `Shift+Enter` sends AI prompt, `Enter` inserts a new line in prompt input
+- Single-line AI prompt input with Enter-to-send behavior
 
 ## Current UI/UX Features
 
@@ -38,8 +38,10 @@ When you submit a prompt:
 - `Ctrl/Cmd + B`: wrap selection with bold markdown markers (`**`)
 - `Ctrl/Cmd + I`: wrap selection with italic markdown markers (`*`)
 - `Ctrl + Shift + M`: toggle markdown preview mode
-- `Shift + Enter` (inside AI prompt input): send prompt
-- `Enter` (inside AI prompt input): newline
+- `Ctrl + Shift + S`: save document
+- `Ctrl + Shift + O`: load document
+- `Ctrl + Shift + N`: new document
+- `Enter` (inside AI prompt input): send prompt
 
 ## Requirements
 
@@ -66,6 +68,37 @@ npm run dev
 ```
 
 Then open: `http://localhost:5174`
+
+## Desktop App (Electron)
+
+Ghost Writer now includes a lightweight Electron build path.
+
+```bash
+cd src/ghost-writer-editor
+npm ci
+npm run dev:electron
+```
+
+Build desktop artifacts:
+
+```bash
+cd src/ghost-writer-editor
+npm run build:electron
+npm run dist:win
+# npm run dist:mac
+```
+
+Performance metrics snapshot:
+
+```bash
+cd src/ghost-writer-editor
+npm run metrics:package
+```
+
+Current packaging target outputs:
+
+- Windows installer (NSIS, x64): `src/ghost-writer-editor/release/*.exe`
+- macOS installer (DMG, x64): `src/ghost-writer-editor/release/*.dmg` (requires macOS build host)
 
 ## Model Endpoint
 

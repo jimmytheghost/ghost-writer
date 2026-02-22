@@ -1,5 +1,7 @@
 ## Phase 2: Ollama Integration - Prompting - Detailed Build Plan
 
+> Historical planning document: this phase plan references earlier shortcut and UI assumptions that may not match the current app.
+
 **Objective:** Connect the editor to Ollama and enable a basic prompting workflow with a small inline prompt box, model selection, and non-streaming responses.
 
 **Scope (Phase 2):**
