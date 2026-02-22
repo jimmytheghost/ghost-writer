@@ -1,18 +1,12 @@
 .app {
   --app-footer-height: 56px;
   --editor-panel-height: 74vh;
-  --app-shell-top: var(--glass-shell-light-top);
-  --app-shell-bottom: var(--glass-shell-light-bottom);
-  --app-shell-blur: var(--glass-shell-blur);
-  --app-shell-saturation: var(--glass-shell-saturation);
   display: flex;
   flex-direction: column;
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: linear-gradient(180deg, var(--app-shell-top) 0%, var(--app-shell-bottom) 100%);
-  -webkit-backdrop-filter: blur(var(--app-shell-blur)) saturate(var(--app-shell-saturation));
-  backdrop-filter: blur(var(--app-shell-blur)) saturate(var(--app-shell-saturation));
+  background: linear-gradient(180deg, #f2f4f7 0%, #e9edf2 100%);
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
 }
@@ -26,10 +20,8 @@
   --color-primary-light: rgba(161, 161, 170, 0.28);
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
-  --app-shell-top: var(--glass-shell-dark-top);
-  --app-shell-bottom: var(--glass-shell-dark-bottom);
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, var(--app-shell-top) 0%, var(--app-shell-bottom) 100%);
+  background: linear-gradient(180deg, #181818 0%, #141414 100%);
 }
 
 .app__drag-region {

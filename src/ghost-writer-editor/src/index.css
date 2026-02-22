@@ -97,14 +97,6 @@
   --z-popover: 1060;
   --z-tooltip: 1070;
 
-  /* Window glass tokens */
-  --glass-shell-light-top: rgba(255, 255, 255, 0.82);
-  --glass-shell-light-bottom: rgba(255, 255, 255, 0.76);
-  --glass-shell-dark-top: rgba(18, 18, 20, 0.32);
-  --glass-shell-dark-bottom: rgba(14, 14, 16, 0.3);
-  --glass-shell-blur: 12px;
-  --glass-shell-saturation: 120%;
-
   /* Base app defaults */
   font-family: var(--font-family-base);
   line-height: var(--line-height-normal);
@@ -121,7 +113,7 @@
 }
 
 html {
-  background: transparent;
+  background: var(--color-gray-50);
 }
 
 body {
@@ -129,13 +121,13 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow: hidden;
-  background: transparent;
+  background: var(--color-gray-50);
   color: var(--color-gray-800);
 }
 
 #root {
   min-height: 100vh;
-  background: transparent;
+  background: var(--color-gray-50);
 }
 
 a {
