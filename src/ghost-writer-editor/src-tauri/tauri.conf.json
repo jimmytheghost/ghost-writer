@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "Ghost Writer",
-        "width": 1280,
-        "height": 860,
-        "minWidth": 500,
-        "minHeight": 640
+        "width": 400,
+        "height": 500,
+        "minWidth": 400,
+        "minHeight": 500
       }
     ],
     "security": {

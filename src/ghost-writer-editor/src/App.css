@@ -234,6 +234,22 @@
   letter-spacing: var(--letter-spacing-tight);
 }
 
+.preview__content h1 {
+  font-size: var(--font-size-4xl);
+}
+
+.preview__content h2 {
+  font-size: var(--font-size-3xl);
+}
+
+.preview__content h3 {
+  font-size: var(--font-size-2xl);
+}
+
+.preview__content h4 {
+  font-size: var(--font-size-xl);
+}
+
 .preview__content code {
   font-family: var(--font-family-mono);
   background: var(--color-gray-100);
