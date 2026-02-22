@@ -88,11 +88,21 @@ npm run dist:win
 # npm run dist:mac
 ```
 
+Run Tauri in parallel (fallback-friendly with Electron):
+
+```bash
+cd src/ghost-writer-editor
+npm run dev:tauri
+npm run build:tauri:win
+# npm run build:tauri:mac
+```
+
 Performance metrics snapshot:
 
 ```bash
 cd src/ghost-writer-editor
 npm run metrics:package
+npm run metrics:tauri
 ```
 
 Current packaging target outputs:

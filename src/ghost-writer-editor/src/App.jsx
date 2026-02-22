@@ -7,6 +7,7 @@ import {
   stripAssistantLeadIn,
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
+import { isMacDesktopRuntime, markRendererInteractive } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
 import { buildOllamaUrl, fetchWithTimeout, getOllamaBaseUrl, OLLAMA_REQUEST_TIMEOUT_MS } from './lib/ollama'
 import { buildGenerationPrompt } from './lib/prompting'
@@ -39,10 +40,7 @@ function App() {
   const [modelError, setModelError] = useState('')
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
-  const showDragRegion =
-    typeof navigator !== 'undefined' &&
-    /Electron/.test(navigator.userAgent) &&
-    /Mac/.test(navigator.platform)
+  const showDragRegion = isMacDesktopRuntime()
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
   const saveActionRef = useRef(() => {})
@@ -175,12 +173,8 @@ function App() {
   }, [loadModels])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const marker = window.ghostWriterDesktop?.markRendererInteractive
-    if (typeof marker !== 'function') return
-
     const frameId = requestAnimationFrame(() => {
-      marker({ source: 'app-mounted' })
+      markRendererInteractive({ source: 'app-mounted' })
     })
     return () => cancelAnimationFrame(frameId)
   }, [])

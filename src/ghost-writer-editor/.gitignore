@@ -13,6 +13,8 @@ dist-electron
 dist-ssr
 release
 metrics
+src-tauri/target
+src-tauri/gen
 *.local
 
 # Editor directories and files
