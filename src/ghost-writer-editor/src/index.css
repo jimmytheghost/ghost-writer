@@ -102,7 +102,6 @@
   line-height: var(--line-height-normal);
   font-weight: var(--font-weight-normal);
   color: var(--color-gray-800);
-  background-color: var(--color-gray-50);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -113,13 +112,22 @@
   box-sizing: border-box;
 }
 
+html {
+  background: transparent;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   overflow: hidden;
-  background: var(--color-gray-50);
+  background: transparent;
   color: var(--color-gray-800);
+}
+
+#root {
+  min-height: 100vh;
+  background: transparent;
 }
 
 a {

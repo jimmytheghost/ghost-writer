@@ -6,7 +6,7 @@
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: linear-gradient(180deg, var(--color-gray-100) 0%, var(--color-gray-200) 100%);
+  background: transparent;
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
 }
@@ -21,7 +21,7 @@
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, #181818 0%, #141414 100%);
+  background: transparent;
 }
 
 .app__drag-region {
@@ -130,6 +130,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  background: var(--color-gray-100);
+  border-radius: var(--radius-2xl);
+}
+
+.app--dark .editor {
+  background: var(--color-gray-800);
 }
 
 .preview--full {

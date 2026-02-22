@@ -10,13 +10,23 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Ghost Writer",
         "width": 1280,
         "height": 860,
         "minWidth": 500,
-        "minHeight": 640
+        "minHeight": 640,
+        "transparent": true,
+        "backgroundColor": "#00000000",
+        "windowEffects": {
+          "effects": [
+            "underWindowBackground",
+            "hudWindow"
+          ],
+          "state": "active"
+        }
       }
     ],
     "security": {
