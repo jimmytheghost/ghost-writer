@@ -48,7 +48,7 @@ function App() {
   const [modelLoadStatus, setModelLoadStatus] = useState(
     BUNDLED_MODELS.length
       ? `Loaded ${BUNDLED_MODELS.length} model(s) from bundled snapshot.`
-      : 'No bundled model snapshot found. Click reload.',
+      : 'No bundled model snapshot found. Run `npm run sync:models` and relaunch.',
   )
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
@@ -122,9 +122,8 @@ function App() {
     }
   }, [showStoppedToast])
 
-  const loadModels = useCallback(async ({ force = false } = {}) => {
-    if (isLoadingModels && !force) return
-    if (models.length > 0 && !force) return
+  const loadModels = useCallback(async () => {
+    if (isLoadingModels || models.length > 0) return
 
     setIsLoadingModels(true)
     setModelLoadStatus('Loading models...')
@@ -170,7 +169,7 @@ function App() {
 
   useEffect(() => {
     if (!models.length) {
-      void loadModels({ force: true })
+      void loadModels()
     }
   }, [loadModels, models.length])
 
@@ -716,42 +715,29 @@ function App() {
           {!isFooterCollapsed && (
             <div className="footer-controls">
               <div className="footer-model">
-                <div className="footer-model__controls">
-                  <select
-                    id="modelSelect"
-                    className="footer-model__select"
-                    aria-label="Ollama model"
-                    value={selectedModel}
-                    onChange={(event) => setSelectedModel(event.target.value)}
-                    onFocus={() => {
-                      if (!models.length) {
-                        void loadModels()
-                      }
-                    }}
-                    disabled={isLoadingModels}
-                  >
-                    {models.length === 0 ? (
-                      <option value="">No models available</option>
-                    ) : (
-                      models.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <button
-                    type="button"
-                    className="footer-model__reload"
-                    onClick={() => void loadModels({ force: true })}
-                    aria-label="Reload models"
-                    title="Reload models"
-                  >
-                    <span className="material-symbols-rounded" aria-hidden="true">
-                      refresh
-                    </span>
-                  </button>
-                </div>
+                <select
+                  id="modelSelect"
+                  className="footer-model__select"
+                  aria-label="Ollama model"
+                  value={selectedModel}
+                  onChange={(event) => setSelectedModel(event.target.value)}
+                  onFocus={() => {
+                    if (!models.length) {
+                      void loadModels()
+                    }
+                  }}
+                  disabled={isLoadingModels}
+                >
+                  {models.length === 0 ? (
+                    <option value="">No models available</option>
+                  ) : (
+                    models.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))
+                  )}
+                </select>
                 {models.length === 0 && (
                   <div className="footer-model__status">{modelLoadStatus}</div>
                 )}

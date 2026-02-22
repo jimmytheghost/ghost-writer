@@ -67,8 +67,6 @@ npm run dev:tauri
 After launch, the footer model dropdown should show your local model list.
 
 Important:
-- The reload button in the footer re-reads `public/ollama-models.json`.
-- It does not execute `ollama list` directly.
 - If models changed, run `npm run sync:models` before expecting dropdown changes.
 
 Canonical runbook for developers and agents:
