@@ -6,7 +6,9 @@
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: transparent;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(248, 250, 252, 0.38) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
 }
@@ -21,7 +23,7 @@
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
   color: var(--color-gray-100);
-  background: transparent;
+  background: linear-gradient(180deg, rgba(18, 18, 20, 0.32) 0%, rgba(14, 14, 16, 0.3) 100%);
 }
 
 .app__drag-region {
