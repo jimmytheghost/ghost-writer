@@ -96,6 +96,39 @@ Model dropdown behavior:
   - `src/ghost-writer-editor/src/generated/ollama-models.json`
 - The app model dropdown is initialized from the generated snapshot for deterministic startup.
 
+### Load Local Models
+
+To load local models into the Ghost Writer dropdown:
+
+1. Install/pull one or more models with Ollama:
+
+```bash
+ollama pull llama3.1:8b
+# or any model you want to use
+```
+
+2. Confirm models exist locally:
+
+```bash
+ollama list
+```
+
+3. Refresh Ghost Writer model snapshots:
+
+```bash
+cd src/ghost-writer-editor
+npm run sync:models
+```
+
+4. Launch/relaunch Tauri:
+
+```bash
+cd src/ghost-writer-editor
+npm run dev:tauri
+```
+
+After launch, the footer model dropdown should show your local model list.
+
 Performance metrics snapshot:
 
 ```bash

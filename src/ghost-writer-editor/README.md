@@ -35,6 +35,37 @@ Notes:
 - `dev:tauri` and `build:tauri*` refresh the model snapshot with `sync:models` before launch/build.
 - Model snapshots are written to `public/ollama-models.json` and `src/generated/ollama-models.json`.
 
+## Load Local Models
+
+To load local models into the Ghost Writer dropdown:
+
+1. Install/pull one or more models with Ollama:
+
+```bash
+ollama pull llama3.1:8b
+# or any model you want to use
+```
+
+2. Confirm models exist locally:
+
+```bash
+ollama list
+```
+
+3. Refresh Ghost Writer model snapshots:
+
+```bash
+npm run sync:models
+```
+
+4. Launch/relaunch Tauri:
+
+```bash
+npm run dev:tauri
+```
+
+After launch, the footer model dropdown should show your local model list.
+
 ## Environment variables
 
 - `VITE_OLLAMA_BASE_URL` (optional): Override the Ollama base URL.  
