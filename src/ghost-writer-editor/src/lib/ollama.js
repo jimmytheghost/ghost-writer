@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core'
+
 const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
 const OLLAMA_BASE_URL_FALLBACKS = ['http://127.0.0.1:11434', DEFAULT_OLLAMA_BASE_URL]
 let activeOllamaBaseUrl = ''
@@ -37,6 +39,25 @@ export function buildOllamaUrl(path, baseUrl = getOllamaBaseUrl()) {
   return `${baseUrl}${path}`
 }
 
+export async function listOllamaModelsViaTauri() {
+  if (typeof window === 'undefined') {
+    return { models: null, error: 'No browser window available.' }
+  }
+
+  try {
+    const models = await invoke('list_ollama_models_native')
+    return {
+      models: Array.isArray(models) ? models.filter(Boolean) : [],
+      error: null,
+    }
+  } catch (error) {
+    return {
+      models: null,
+      error: error?.message ?? 'Tauri native model lookup failed.',
+    }
+  }
+}
+
 export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS) {
   const timeoutController = new AbortController()
   const externalSignal = options.signal
@@ -64,4 +85,18 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQ
     clearTimeout(timeoutId)
     externalSignal?.removeEventListener('abort', relayAbort)
   }
+}
+
+export async function fetchJsonWithHardTimeout(url, timeoutMs = OLLAMA_REQUEST_TIMEOUT_MS) {
+  return Promise.race([
+    fetch(url).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}.`)
+      }
+      return response.json()
+    }),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`HTTP lookup timed out for ${url}.`)), timeoutMs)
+    }),
+  ])
 }

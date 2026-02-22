@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import bundledModelSnapshot from './generated/ollama-models.json'
 import Editor from './components/Editor'
 import {
   collectCheckboxLineIndexes,
@@ -12,17 +13,20 @@ import { renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   buildOllamaUrl,
   fetchWithTimeout,
-  getOllamaBaseUrl,
-  getOllamaBaseUrls,
+  listOllamaModelsViaTauri,
   OLLAMA_REQUEST_TIMEOUT_MS,
-  setActiveOllamaBaseUrl,
 } from './lib/ollama'
 import { buildGenerationPrompt } from './lib/prompting'
 
 const DEFAULT_TEXT = ''
 const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
-const MODEL_LOAD_IDLE_DELAY_MS = 350
+const MODEL_SNAPSHOT_TIMEOUT_MS = 2_000
+const MODEL_NATIVE_TIMEOUT_MS = 5_000
+const MODEL_LOAD_WATCHDOG_TIMEOUT_MS = 12_000
+const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
+  ? bundledModelSnapshot.models.filter(Boolean)
+  : []
 
 function App() {
   const [theme, setTheme] = useState('dark')
@@ -38,13 +42,16 @@ function App() {
   const [canUndoGeneration, setCanUndoGeneration] = useState(false)
   const [canRedoGeneration, setCanRedoGeneration] = useState(false)
   const [undoToggleState, setUndoToggleState] = useState('undo')
-  const [models, setModels] = useState([])
-  const [selectedModel, setSelectedModel] = useState('')
+  const [models, setModels] = useState(BUNDLED_MODELS)
+  const [selectedModel, setSelectedModel] = useState(BUNDLED_MODELS[0] ?? '')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [showStoppedToast, setShowStoppedToast] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [modelError, setModelError] = useState('')
+  const [modelLoadStatus, setModelLoadStatus] = useState(
+    BUNDLED_MODELS.length ? `Loaded ${BUNDLED_MODELS.length} model(s).` : 'Not loaded yet.',
+  )
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -57,6 +64,7 @@ function App() {
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
   const modelLoadInFlightRef = useRef(false)
+  const modelLoadTokenRef = useRef(0)
   const isMountedRef = useRef(true)
   const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -118,78 +126,86 @@ function App() {
     }
   }, [showStoppedToast])
 
-  const loadModels = useCallback(async () => {
-    if (modelLoadInFlightRef.current || models.length > 0) return
+  const loadModels = useCallback(async ({ force = false } = {}) => {
+    if (modelLoadInFlightRef.current && !force) return
+    if (models.length > 0 && !force) return
 
+    const loadToken = modelLoadTokenRef.current + 1
+    modelLoadTokenRef.current = loadToken
     modelLoadInFlightRef.current = true
     setIsLoadingModels(true)
     setModelError('')
-    try {
-      const baseUrls = getOllamaBaseUrls()
-      let lastError = null
-
-      for (const baseUrl of baseUrls) {
-        try {
-          const response = await fetchWithTimeout(buildOllamaUrl('/api/tags', baseUrl))
-          if (!response.ok) {
-            throw new Error('Unable to load Ollama models.')
-          }
-          const data = await response.json()
-          const availableModels = Array.isArray(data?.models)
-            ? data.models.map((model) => model?.name).filter(Boolean)
-            : []
-
-          if (!availableModels.length) {
-            throw new Error('No Ollama models found.')
-          }
-
-          setActiveOllamaBaseUrl(baseUrl)
-          if (isMountedRef.current) {
-            setModels(availableModels)
-            setSelectedModel((current) => current || availableModels[0])
-          }
-          return
-        } catch (error) {
-          lastError = error
-        }
-      }
-
-      throw lastError ?? new Error('Unable to load Ollama models.')
-    } catch (error) {
-      const isAbortError = error?.name === 'AbortError'
-      const isNetworkError = error instanceof TypeError
-      const connectionMessage = `Unable to connect to Ollama at ${getOllamaBaseUrl()}. Start Ollama and try again.`
-      if (isMountedRef.current) {
-        setModels([])
-        setSelectedModel('')
-        setModelError(
-          isAbortError
-            ? 'Timed out loading Ollama models.'
-            : isNetworkError
-              ? connectionMessage
-              : error?.message ?? 'Unable to load Ollama models.',
-        )
-      }
-    } finally {
+    setModelLoadStatus('Loading models...')
+    const watchdogId = setTimeout(() => {
+      if (modelLoadTokenRef.current !== loadToken) return
       modelLoadInFlightRef.current = false
       if (isMountedRef.current) {
         setIsLoadingModels(false)
+        setModelLoadStatus('Model load timed out after 12 seconds. Click reload.')
+        setModelError('Model load timed out after 12 seconds. Click reload.')
+      }
+    }, MODEL_LOAD_WATCHDOG_TIMEOUT_MS)
+
+    try {
+      const snapshotResult = await Promise.race([
+        fetch(`/ollama-models.json?t=${Date.now()}`, { cache: 'no-store' })
+          .then(async (response) => {
+            if (!response.ok) return null
+            return response.json()
+          })
+          .catch(() => null),
+        new Promise((resolve) => setTimeout(() => resolve(null), MODEL_SNAPSHOT_TIMEOUT_MS)),
+      ])
+      const snapshotModels = Array.isArray(snapshotResult?.models)
+        ? snapshotResult.models.filter(Boolean)
+        : []
+      if (snapshotModels.length > 0) {
+        if (isMountedRef.current) {
+          setModels(snapshotModels)
+          setSelectedModel((current) => (snapshotModels.includes(current) ? current : snapshotModels[0]))
+          setModelLoadStatus(`Loaded ${snapshotModels.length} model(s).`)
+        }
+        return
+      }
+
+      const nativeResult = await Promise.race([
+        listOllamaModelsViaTauri(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Native model lookup timed out.')), MODEL_NATIVE_TIMEOUT_MS),
+        ),
+      ])
+      const availableModels = Array.isArray(nativeResult?.models) ? nativeResult.models : []
+      if (!availableModels.length) {
+        throw new Error(nativeResult?.error ?? 'No Ollama models found.')
+      }
+
+      if (isMountedRef.current) {
+        setModels(availableModels)
+        setSelectedModel((current) => (availableModels.includes(current) ? current : availableModels[0]))
+        setModelLoadStatus(`Loaded ${availableModels.length} model(s).`)
+      }
+    } catch (error) {
+      const nativeMessage = error?.message ?? 'Unable to load Ollama models.'
+      if (isMountedRef.current) {
+        if (models.length === 0) {
+          setSelectedModel('')
+        }
+        setModelLoadStatus(`Model load failed: ${nativeMessage}`)
+        setModelError(`Model load failed: ${nativeMessage}`)
+      }
+    } finally {
+      clearTimeout(watchdogId)
+      if (modelLoadTokenRef.current === loadToken) {
+        modelLoadInFlightRef.current = false
+        if (isMountedRef.current) {
+          setIsLoadingModels(false)
+        }
       }
     }
   }, [models.length])
 
   useEffect(() => {
-    const runWhenIdle = () => {
-      void loadModels()
-    }
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(runWhenIdle, { timeout: 1000 })
-      return () => window.cancelIdleCallback(idleId)
-    }
-
-    const timeoutId = setTimeout(runWhenIdle, MODEL_LOAD_IDLE_DELAY_MS)
-    return () => clearTimeout(timeoutId)
+    void loadModels()
   }, [loadModels])
 
   useEffect(() => {
@@ -476,7 +492,7 @@ function App() {
 
   const handlePromptKeyDown = (event) => {
     if (event.key !== 'Enter') return
-    if (!isLoadingPrompt && !isLoadingModels && promptText.trim() && selectedModel) return
+    if (!isLoadingPrompt && promptText.trim() && selectedModel.trim()) return
     event.preventDefault()
   }
 
@@ -486,8 +502,16 @@ function App() {
       return
     }
 
-    if (isLoadingModels || !promptText.trim() || !selectedModel) return
-    promptFormRef.current?.requestSubmit()
+    if (!promptText.trim() || !selectedModel.trim()) return
+    const form = promptFormRef.current
+    if (!form) return
+
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit()
+      return
+    }
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
   }
 
   useEffect(() => {
@@ -590,7 +614,7 @@ function App() {
                     className={`prompt-panel__button prompt-panel__button--primary${
                       isLoadingPrompt ? ' prompt-panel__button--busy' : ''
                     }`}
-                    disabled={!isLoadingPrompt && (isLoadingModels || !promptText.trim() || !selectedModel)}
+                    disabled={!isLoadingPrompt && (!promptText.trim() || !selectedModel.trim())}
                     aria-label={isLoadingPrompt ? 'Stop generation' : 'Send prompt'}
                     title={isLoadingPrompt ? 'Stop' : 'Send'}
                     onClick={handlePrimaryPromptAction}
@@ -633,7 +657,9 @@ function App() {
                   </button>
                 </div>
               </div>
-              {modelError && <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>}
+              {modelError && !selectedModel.trim() && (
+                <div className="prompt-panel__status prompt-panel__status--error">{modelError}</div>
+              )}
               {promptError && (
                 <div
                   className={`prompt-panel__status ${
@@ -727,29 +753,45 @@ function App() {
           {!isFooterCollapsed && (
             <div className="footer-controls">
               <div className="footer-model">
-                <select
-                  id="modelSelect"
-                  className="footer-model__select"
-                  aria-label="Ollama model"
-                  value={selectedModel}
-                  onChange={(event) => setSelectedModel(event.target.value)}
-                  onFocus={() => {
-                    if (!models.length) {
-                      void loadModels()
-                    }
-                  }}
-                  disabled={isLoadingModels}
+                <div className="footer-model__controls">
+                  <select
+                    id="modelSelect"
+                    className="footer-model__select"
+                    aria-label="Ollama model"
+                    value={selectedModel}
+                    onChange={(event) => setSelectedModel(event.target.value)}
+                    onFocus={() => {
+                      if (!models.length) {
+                        void loadModels()
+                      }
+                    }}
+                    disabled={isLoadingModels}
+                  >
+                    {models.length === 0 ? (
+                      <option value="">No models available</option>
+                    ) : (
+                      models.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                <button
+                  type="button"
+                  className="footer-model__reload"
+                  onClick={() => void loadModels({ force: true })}
+                  aria-label="Reload models"
+                  title="Reload models"
                 >
-                  {models.length === 0 ? (
-                    <option value="">No models available</option>
-                  ) : (
-                    models.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                  ))
+                  <span className="material-symbols-rounded" aria-hidden="true">
+                    refresh
+                  </span>
+                </button>
+                </div>
+                {models.length === 0 && (
+                  <div className="footer-model__status">{modelLoadStatus}</div>
                 )}
-              </select>
               </div>
               <button
                 type="button"

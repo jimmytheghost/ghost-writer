@@ -1,0 +1,20 @@
+{
+  "models": [
+    "devstral-small-2:24b",
+    "granite3.2-vision:latest",
+    "kimi-k2.5:cloud",
+    "glm-5:cloud",
+    "glm-4.7-flash:latest",
+    "qwen3-vl:8b",
+    "gpt-oss:20b",
+    "gemma3:27b",
+    "wizardlm-uncensored:13b",
+    "llama2-uncensored:7b",
+    "qwen3-coder:30b",
+    "llama3.1:8b",
+    "llama3.2-vision:latest"
+  ],
+  "source": "ollama list",
+  "generatedAt": "2026-02-22T05:44:52.754Z",
+  "error": null
+}
