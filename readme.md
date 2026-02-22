@@ -129,6 +129,9 @@ npm run dev:tauri
 
 After launch, the footer model dropdown should show your local model list.
 
+For full setup, failure recovery, and cross-machine behavior, use:
+- `docs/agent-workflows/local-models-runbook.md`
+
 Performance metrics snapshot:
 
 ```bash
