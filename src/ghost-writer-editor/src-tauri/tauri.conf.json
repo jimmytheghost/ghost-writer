@@ -19,13 +19,7 @@
         "minWidth": 500,
         "minHeight": 640,
         "transparent": true,
-        "backgroundColor": "#00000000",
-        "windowEffects": {
-          "effects": [
-            "popover"
-          ],
-          "state": "active"
-        }
+        "backgroundColor": "#00000000"
       }
     ],
     "security": {

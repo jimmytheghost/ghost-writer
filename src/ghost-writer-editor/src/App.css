@@ -1,14 +1,18 @@
 .app {
   --app-footer-height: 56px;
   --editor-panel-height: 74vh;
+  --app-shell-top: var(--glass-shell-light-top);
+  --app-shell-bottom: var(--glass-shell-light-bottom);
+  --app-shell-blur: var(--glass-shell-blur);
+  --app-shell-saturation: var(--glass-shell-saturation);
   display: flex;
   flex-direction: column;
   height: 100vh;
   min-height: 100vh;
   color: var(--color-gray-800);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.64) 100%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
-  backdrop-filter: blur(12px) saturate(130%);
+  background: linear-gradient(180deg, var(--app-shell-top) 0%, var(--app-shell-bottom) 100%);
+  -webkit-backdrop-filter: blur(var(--app-shell-blur)) saturate(var(--app-shell-saturation));
+  backdrop-filter: blur(var(--app-shell-blur)) saturate(var(--app-shell-saturation));
   transition: background-color var(--transition-base), color var(--transition-base);
   overflow: hidden;
 }
@@ -22,8 +26,10 @@
   --color-primary-light: rgba(161, 161, 170, 0.28);
   --color-secondary: #71717a;
   --color-secondary-hover: #52525b;
+  --app-shell-top: var(--glass-shell-dark-top);
+  --app-shell-bottom: var(--glass-shell-dark-bottom);
   color: var(--color-gray-100);
-  background: linear-gradient(180deg, rgba(18, 18, 20, 0.32) 0%, rgba(14, 14, 16, 0.3) 100%);
+  background: linear-gradient(180deg, var(--app-shell-top) 0%, var(--app-shell-bottom) 100%);
 }
 
 .app__drag-region {
