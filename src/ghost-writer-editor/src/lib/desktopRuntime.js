@@ -2,18 +2,13 @@ function hasWindow() {
   return typeof window !== 'undefined'
 }
 
-export function isElectronRuntime() {
-  if (!hasWindow() || typeof navigator === 'undefined') return false
-  return /Electron/i.test(navigator.userAgent)
-}
-
 export function isTauriRuntime() {
   if (!hasWindow() || typeof navigator === 'undefined') return false
   return /Tauri/i.test(navigator.userAgent)
 }
 
 export function isDesktopRuntime() {
-  return isElectronRuntime() || isTauriRuntime()
+  return isTauriRuntime()
 }
 
 export function isMacDesktopRuntime() {

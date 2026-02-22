@@ -46,6 +46,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where cargo >nul 2>&1
+if errorlevel 1 (
+  echo Rust toolchain is not installed or not on PATH.
+  echo Please install Rust (rustup, cargo, rustc) and try again.
+  pause
+  exit /b 1
+)
+
 for /f "delims=" %%v in ('node -p "process.versions.node"') do set NODE_VER=%%v
 node -e "const v=process.versions.node.split('.').map(Number); const ok=(v[0]===20 && v[1]>=19) || (v[0]===22 && v[1]>=12) || (v[0]>22); process.exit(ok?0:1);"
 if errorlevel 1 (
@@ -65,13 +73,10 @@ if errorlevel 1 (
 )
 
 echo Starting dev server...
-start "Ghost Writer Dev Server" cmd /k "npm run dev"
+start "Ghost Writer Dev Server" cmd /k "npm run dev:tauri"
 
 echo Waiting for the dev server to start...
 timeout /t 3 /nobreak >nul
-
-echo Opening browser...
-start http://localhost:5174/
 
 echo Dev server is running in a separate window.
 pause

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'nod
 import path from 'node:path'
 
 const root = process.cwd()
-const releaseDir = path.join(root, 'release')
+const releaseDir = path.join(root, 'src-tauri', 'target', 'release', 'bundle')
 const distAssetsDir = path.join(root, 'dist', 'assets')
 const metricsDir = path.join(root, 'metrics')
 
@@ -20,7 +20,7 @@ function readDirSizes(dir, exts = []) {
 }
 
 const rendererAssets = readDirSizes(distAssetsDir, ['.js', '.css'])
-const installers = readDirSizes(releaseDir, ['.exe', '.dmg', '.zip'])
+const installers = readDirSizes(releaseDir, ['.exe', '.dmg', '.zip', '.msi'])
 const now = new Date().toISOString()
 
 const summary = {

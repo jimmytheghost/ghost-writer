@@ -3,20 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "dist-electron/main/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "electron-vite dev",
     "dev:tauri": "tauri dev",
     "build": "vite build",
     "build:renderer": "vite build",
-    "build:electron": "electron-vite build",
     "build:tauri": "tauri build",
     "build:tauri:win": "tauri build --target x86_64-pc-windows-msvc --bundles nsis",
     "build:tauri:mac": "tauri build --target x86_64-apple-darwin --bundles dmg",
-    "dist:win": "npm run build:electron && electron-builder --win nsis --x64",
-    "dist:mac": "npm run build:electron && electron-builder --mac dmg --x64",
-    "dist": "npm run build:electron && electron-builder --win nsis --x64 --mac dmg --x64",
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
@@ -28,9 +22,6 @@
   },
   "engines": {
     "node": ">=20.19.0"
-  },
-  "build": {
-    "extends": "./electron-builder.yml"
   },
   "dependencies": {
     "marked": "^12.0.2",
@@ -46,9 +37,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "@tauri-apps/cli": "^2.10.0",
-    "electron": "^33.3.0",
-    "electron-builder": "^25.1.8",
-    "electron-vite": "^5.0.0",
     "eslint": "^9.39.3",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

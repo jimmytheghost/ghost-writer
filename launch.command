@@ -36,6 +36,11 @@ else
   echo "Ollama is already running."
 fi
 
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "Rust toolchain is not installed or not on PATH. Please install Rust (rustup, cargo, rustc)."
+  exit 1
+fi
+
 echo "Ghost Writer launcher: checking for processes on port $DEV_PORT..."
 EXISTING_PIDS=$(lsof -ti tcp:$DEV_PORT || true)
 if [[ -n "$EXISTING_PIDS" ]]; then
@@ -49,10 +54,7 @@ cd "$APP_DIR"
 
 npm install
 
-nohup npm run dev >/tmp/ghost-writer-dev.log 2>&1 &
-
-echo "Opening browser..."
-open "http://localhost:$DEV_PORT/"
+nohup npm run dev:tauri >/tmp/ghost-writer-dev.log 2>&1 &
 
 echo "Ghost Writer dev server launched. Logs: /tmp/ghost-writer-dev.log"
 echo "You can close this window if desired."

@@ -51,7 +51,7 @@ When you submit a prompt:
 
 ## Run Locally
 
-### Option 1: Launch scripts (project root)
+### Option 1: Launch scripts (project root, Tauri)
 
 - Windows: `launch-dev.bat`
 - macOS: `launch.command`
@@ -69,30 +69,21 @@ npm run dev
 
 Then open: `http://localhost:5174`
 
-## Desktop App (Electron)
+## Desktop App (Tauri)
 
-Ghost Writer now includes a lightweight Electron build path.
+Ghost Writer uses a lightweight Tauri desktop wrapper.
 
 ```bash
 cd src/ghost-writer-editor
 npm ci
-npm run dev:electron
+npm run dev:tauri
 ```
 
 Build desktop artifacts:
 
 ```bash
 cd src/ghost-writer-editor
-npm run build:electron
-npm run dist:win
-# npm run dist:mac
-```
-
-Run Tauri in parallel (fallback-friendly with Electron):
-
-```bash
-cd src/ghost-writer-editor
-npm run dev:tauri
+npm run build:tauri
 npm run build:tauri:win
 # npm run build:tauri:mac
 ```
@@ -105,10 +96,13 @@ npm run metrics:package
 npm run metrics:tauri
 ```
 
+Tauri prerequisites:
+
+- Rust toolchain installed (`rustup`, `cargo`, `rustc`)
+
 Current packaging target outputs:
 
-- Windows installer (NSIS, x64): `src/ghost-writer-editor/release/*.exe`
-- macOS installer (DMG, x64): `src/ghost-writer-editor/release/*.dmg` (requires macOS build host)
+- Bundles are produced under `src/ghost-writer-editor/src-tauri/target/release/bundle`.
 
 ## Model Endpoint
 

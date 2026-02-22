@@ -22,6 +22,11 @@ if ! lsof -i tcp:$OLLAMA_PORT >/dev/null 2>&1; then
   done
 fi
 
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "Rust toolchain is not installed or not on PATH. Please install Rust (rustup, cargo, rustc)."
+  exit 1
+fi
+
 cd "$(dirname "$0")/src/ghost-writer-editor" || exit 1
 npm install
-npm run dev
+npm run dev:tauri
