@@ -94,6 +94,13 @@ npm run build:tauri:win
 # npm run build:tauri:mac
 ```
 
+`build:tauri:mac` now auto-selects an installed macOS Rust target (`aarch64-apple-darwin` or `x86_64-apple-darwin`) based on host architecture.
+You can override the target with `TAURI_MAC_TARGET`, for example:
+
+```bash
+TAURI_MAC_TARGET=x86_64-apple-darwin npm run build:tauri:mac
+```
+
 Default desktop window sizing:
 
 - Launch size: `400x500`

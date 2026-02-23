@@ -33,7 +33,7 @@ npm run check
 - Dev desktop app: `npm run dev:tauri`
 - Build desktop bundles: `npm run build:tauri`
 - Windows NSIS bundle: `npm run build:tauri:win`
-- macOS DMG bundle: `npm run build:tauri:mac`
+- macOS DMG bundle: `npm run build:tauri:mac` (auto-selects installed Apple target)
 
 Notes:
 
@@ -42,6 +42,7 @@ Notes:
 - Rust toolchain is required (`rustup`, `cargo`, `rustc`) before running Tauri commands.
 - `dev:tauri` and `build:tauri*` refresh the model snapshot with `sync:models` before launch/build.
 - Model snapshots are written to `public/ollama-models.json` and `src/generated/ollama-models.json`.
+- Optional macOS target override: `TAURI_MAC_TARGET=x86_64-apple-darwin npm run build:tauri:mac`
 
 Keyboard shortcuts:
 

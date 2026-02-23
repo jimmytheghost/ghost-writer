@@ -11,7 +11,7 @@
     "build:renderer": "vite build",
     "build:tauri": "npm run sync:models && tauri build",
     "build:tauri:win": "npm run sync:models && tauri build --target x86_64-pc-windows-msvc --bundles nsis",
-    "build:tauri:mac": "npm run sync:models && tauri build --target x86_64-apple-darwin --bundles dmg",
+    "build:tauri:mac": "npm run sync:models && node scripts/build-tauri-mac.mjs",
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",

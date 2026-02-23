@@ -1,37 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { listen } from '@tauri-apps/api/event'
-import { getName, getVersion } from '@tauri-apps/api/app'
 import './App.css'
 import bundledModelSnapshot from './generated/ollama-models.json'
 import Editor from './components/Editor'
+import { useDesktopAppMetadata } from './hooks/useDesktopAppMetadata'
+import { useFooterHeightSync } from './hooks/useFooterHeightSync'
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
+import { useModelLoader } from './hooks/useModelLoader'
+import { usePromptGeneration } from './hooks/usePromptGeneration'
+import { useTauriMenuEvents } from './hooks/useTauriMenuEvents'
 import {
   collectCheckboxLineIndexes,
   normalizeCustomCheckboxLines,
-  stripAssistantLeadIn,
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
 import {
-  isDesktopRuntime,
   isMacDesktopRuntime,
   markRendererInteractive,
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
-import {
-  buildOllamaUrl,
-  fetchWithTimeout,
-  OLLAMA_REQUEST_TIMEOUT_MS,
-} from './lib/ollama'
-import { buildGenerationPrompt } from './lib/prompting'
 
 const DEFAULT_TEXT = ''
 const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
-const MODEL_SNAPSHOT_TIMEOUT_MS = 2_000
 const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
+
+function readInitialAlwaysOnTop() {
+  if (typeof window === 'undefined') return false
+  return window.localStorage.getItem(ALWAYS_ON_TOP_STORAGE_KEY) === 'true'
+}
 
 function App() {
   const [theme, setTheme] = useState('dark')
@@ -43,25 +43,8 @@ function App() {
   const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
-  const [promptText, setPromptText] = useState('')
-  const [promptError, setPromptError] = useState('')
-  const [undoSnapshot, setUndoSnapshot] = useState('')
-  const [redoSnapshot, setRedoSnapshot] = useState('')
-  const [canUndoGeneration, setCanUndoGeneration] = useState(false)
-  const [canRedoGeneration, setCanRedoGeneration] = useState(false)
-  const [undoToggleState, setUndoToggleState] = useState('undo')
-  const [models, setModels] = useState(BUNDLED_MODELS)
-  const [selectedModel, setSelectedModel] = useState(BUNDLED_MODELS[0] ?? '')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
-  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
-  const [showStoppedToast, setShowStoppedToast] = useState(false)
-  const [isLoadingModels, setIsLoadingModels] = useState(false)
-  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false)
-  const [modelLoadStatus, setModelLoadStatus] = useState(
-    BUNDLED_MODELS.length
-      ? `Loaded ${BUNDLED_MODELS.length} model(s) from bundled snapshot.`
-      : 'No bundled model snapshot found. Run `npm run sync:models` and relaunch.',
-  )
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -71,15 +54,35 @@ function App() {
   const saveActionRef = useRef(() => {})
   const openActionRef = useRef(() => {})
   const newActionRef = useRef(() => {})
-  const streamBaseRef = useRef('')
-  const streamSelectionRef = useRef({ start: 0, end: 0 })
-  const streamBufferRef = useRef('')
-  const isMountedRef = useRef(true)
-  const abortControllerRef = useRef(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
+  const { models, selectedModel, setSelectedModel, isLoadingModels, modelLoadStatus, loadModels } =
+    useModelLoader({ bundledModels: BUNDLED_MODELS })
+  const {
+    canRedoGeneration,
+    canUndoGeneration,
+    handleClearPrompt,
+    handlePromptKeyDown,
+    handlePromptSubmit,
+    handlePrimaryPromptAction,
+    handleUndoToggle,
+    isLoadingPrompt,
+    promptError,
+    promptText,
+    resetGenerationState,
+    setPromptError,
+    setPromptText,
+    showStoppedToast,
+    undoToggleState,
+  } = usePromptGeneration({
+    content,
+    selectedModel,
+    selectionRange,
+    setContent,
+    promptFormRef,
+  })
   const checkboxLineIndexes = useMemo(
     () => (isPreviewOpen ? collectCheckboxLineIndexes(content) : []),
     [content, isPreviewOpen],
@@ -93,98 +96,7 @@ function App() {
     [isPreviewOpen, normalizedPreviewMarkdown],
   )
 
-  useEffect(() => {
-    if (!appRef.current || !footerRef.current) return undefined
-
-    const appElement = appRef.current
-    const footerElement = footerRef.current
-
-    const syncFooterHeight = () => {
-      appElement.style.setProperty('--app-footer-height', `${footerElement.offsetHeight}px`)
-    }
-
-    syncFooterHeight()
-
-    const canObserveResize = typeof ResizeObserver !== 'undefined'
-    const resizeObserver = canObserveResize ? new ResizeObserver(syncFooterHeight) : null
-    resizeObserver?.observe(footerElement)
-    window.addEventListener('resize', syncFooterHeight)
-
-    return () => {
-      resizeObserver?.disconnect()
-      window.removeEventListener('resize', syncFooterHeight)
-    }
-  }, [])
-
-  useEffect(
-    () => () => {
-      isMountedRef.current = false
-      abortControllerRef.current?.abort()
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (!showStoppedToast) return undefined
-    const timeoutId = setTimeout(() => {
-      setShowStoppedToast(false)
-    }, 3000)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [showStoppedToast])
-
-  const loadModels = useCallback(async () => {
-    if (isLoadingModels || models.length > 0) return
-
-    setIsLoadingModels(true)
-    setModelLoadStatus('Loading models...')
-
-    try {
-      const snapshotResult = await Promise.race([
-        fetch(`/ollama-models.json?t=${Date.now()}`, { cache: 'no-store' })
-          .then(async (response) => {
-            if (!response.ok) return null
-            return response.json()
-          })
-          .catch(() => null),
-        new Promise((resolve) => setTimeout(() => resolve(null), MODEL_SNAPSHOT_TIMEOUT_MS)),
-      ])
-      const snapshotModels = Array.isArray(snapshotResult?.models)
-        ? snapshotResult.models.filter(Boolean)
-        : []
-      if (snapshotModels.length > 0) {
-        if (isMountedRef.current) {
-          setModels(snapshotModels)
-          setSelectedModel((current) => (snapshotModels.includes(current) ? current : snapshotModels[0]))
-          setModelLoadStatus(`Loaded ${snapshotModels.length} model(s) from snapshot.`)
-        }
-        return
-      }
-      throw new Error('Snapshot did not include any models. Run `npm run sync:models`.')
-    } catch (error) {
-      const failureMessage = error?.message ?? 'Unable to load Ollama models.'
-      if (isMountedRef.current) {
-        if (models.length > 0) {
-          setModelLoadStatus(`Using bundled models. Latest refresh failed: ${failureMessage}`)
-        } else {
-          setSelectedModel('')
-          setModelLoadStatus(`Model load failed: ${failureMessage}`)
-        }
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingModels(false)
-      }
-    }
-  }, [isLoadingModels, models.length])
-
-  useEffect(() => {
-    if (!models.length) {
-      void loadModels()
-    }
-  }, [loadModels, models.length])
+  useFooterHeightSync(appRef, footerRef)
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
@@ -193,38 +105,16 @@ function App() {
     return () => cancelAnimationFrame(frameId)
   }, [])
 
-  useEffect(() => {
-    if (!isDesktopRuntime()) return
-
-    const loadAppMetadata = async () => {
-      try {
-        const [name, version] = await Promise.all([getName(), getVersion()])
-        setAppName(name)
-        setAppVersion(version)
-      } catch {
-        // Keep defaults when metadata is unavailable.
-      }
-    }
-
-    void loadAppMetadata()
-  }, [])
+  useDesktopAppMetadata({ setAppName, setAppVersion })
 
   useEffect(() => {
-    const storedValue = window.localStorage.getItem(ALWAYS_ON_TOP_STORAGE_KEY)
-    const shouldPinWindow = storedValue === 'true'
-    setIsAlwaysOnTop(shouldPinWindow)
-    void setAlwaysOnTop(shouldPinWindow)
-  }, [])
+    void setAlwaysOnTop(isAlwaysOnTop)
+  }, [isAlwaysOnTop])
 
   const resetDocument = useCallback(() => {
     setContent('')
-    setUndoSnapshot('')
-    setRedoSnapshot('')
-    setCanUndoGeneration(false)
-    setCanRedoGeneration(false)
-    setUndoToggleState('undo')
-    setPromptError('')
-  }, [])
+    resetGenerationState()
+  }, [resetGenerationState])
 
   const handleNew = useCallback(() => {
     if (content.trim().length === 0) {
@@ -282,11 +172,7 @@ function App() {
     const reader = new FileReader()
     reader.onload = (loadEvent) => {
       setContent(loadEvent.target?.result?.toString() ?? '')
-      setUndoSnapshot('')
-      setRedoSnapshot('')
-      setCanUndoGeneration(false)
-      setCanRedoGeneration(false)
-      setUndoToggleState('undo')
+      resetGenerationState()
     }
     reader.readAsText(file)
     event.target.value = ''
@@ -308,45 +194,11 @@ function App() {
     }
   }
 
-  const handleUndoGeneration = () => {
-    if (!canUndoGeneration) return
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    setRedoSnapshot(content)
-    setContent(undoSnapshot)
-    setPromptError('')
-    setCanUndoGeneration(false)
-    setCanRedoGeneration(true)
-    setUndoToggleState('redo')
-  }
-
-  const handleRedoGeneration = () => {
-    if (!canRedoGeneration) return
-    setContent(redoSnapshot)
-    setCanRedoGeneration(false)
-    setCanUndoGeneration(true)
-    setUndoToggleState('undo')
-  }
-
-  const handleUndoToggle = () => {
-    if (undoToggleState === 'redo') {
-      handleRedoGeneration()
-      return
-    }
-    handleUndoGeneration()
-  }
-
   const handlePromptOpen = useCallback((payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
       setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
     }
   }, [])
-
-  const handleClearPrompt = () => {
-    setPromptText('')
-    setPromptError('')
-  }
 
   const handleSelectionChange = useCallback((payload = {}) => {
     if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
@@ -366,165 +218,10 @@ function App() {
     [setContent],
   )
 
-  const handlePromptSubmit = async (event) => {
-    event.preventDefault()
-    if (!promptText.trim()) return
-
-    setIsLoadingPrompt(true)
-    setPromptError('')
-    setUndoSnapshot(content)
-    setCanUndoGeneration(true)
-    setRedoSnapshot('')
-    setCanRedoGeneration(false)
-    setUndoToggleState('undo')
-
-    try {
-      if (!selectedModel) {
-        throw new Error('Please select a model to continue.')
-      }
-
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-
-      abortControllerRef.current = new AbortController()
-
-      const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
-      const selectedText = hasRangeSelection
-        ? content.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
-        : ''
-
-      streamBaseRef.current = content
-      streamSelectionRef.current = hasRangeSelection
-        ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
-        : { start: 0, end: content.length }
-      streamBufferRef.current = ''
-
-      const refinedPrompt = buildGenerationPrompt({
-        promptText,
-        documentText: content,
-        selectedText,
-      })
-
-      const response = await fetchWithTimeout(
-        buildOllamaUrl('/api/generate'),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({
-            model: selectedModel,
-            prompt: refinedPrompt,
-            stream: true,
-          }),
-        },
-        OLLAMA_REQUEST_TIMEOUT_MS,
-      )
-
-      if (!response.ok) {
-        throw new Error('Ollama request failed. Is the server running?')
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Streaming response not available.')
-      }
-
-      const decoder = new TextDecoder()
-      let bufferedText = ''
-
-      const applyStreamChunk = (chunk) => {
-        if (!chunk) return
-        streamBufferRef.current += chunk
-        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
-        const base = streamBaseRef.current
-        const { start, end } = streamSelectionRef.current
-        const safeStart = Math.min(start, base.length)
-        const safeEnd = Math.min(end, base.length)
-        setContent(`${base.slice(0, safeStart)}${cleanedStreamText}${base.slice(safeEnd)}`)
-      }
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        bufferedText += decoder.decode(value, { stream: true })
-        const lines = bufferedText.split('\n')
-        bufferedText = lines.pop() ?? ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          try {
-            const payload = JSON.parse(trimmed)
-            if (payload?.response) {
-              applyStreamChunk(payload.response)
-            }
-          } catch {
-            // Ignore malformed lines
-          }
-        }
-      }
-
-      const finalLine = bufferedText.trim()
-      if (finalLine) {
-        try {
-          const payload = JSON.parse(finalLine)
-          if (payload?.response) {
-            applyStreamChunk(payload.response)
-          }
-        } catch {
-          // Ignore final parse errors
-        }
-      }
-    } catch (error) {
-      if (error?.name === 'AbortError') {
-        setShowStoppedToast(false)
-        requestAnimationFrame(() => setShowStoppedToast(true))
-        return
-      }
-      setPromptError(error?.message ?? 'Unable to reach Ollama.')
-    } finally {
-      setIsLoadingPrompt(false)
-      abortControllerRef.current = null
-    }
-  }
-
-  const handlePromptKeyDown = (event) => {
-    if (event.key !== 'Enter') return
-    if (event.metaKey || event.ctrlKey) {
-      event.preventDefault()
-      handlePrimaryPromptAction()
-      return
-    }
-    if (!isLoadingPrompt && promptText.trim() && selectedModel.trim()) return
-    event.preventDefault()
-  }
-
-  const handlePrimaryPromptAction = () => {
-    if (isLoadingPrompt) {
-      abortControllerRef.current?.abort()
-      return
-    }
-
-    if (!promptText.trim() || !selectedModel.trim()) return
-    const form = promptFormRef.current
-    if (!form) return
-
-    if (typeof form.requestSubmit === 'function') {
-      form.requestSubmit()
-      return
-    }
-
-    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-  }
-
   const handleAlwaysOnTopToggle = useCallback(() => {
     setIsAlwaysOnTop((previous) => {
       const nextValue = !previous
       window.localStorage.setItem(ALWAYS_ON_TOP_STORAGE_KEY, String(nextValue))
-      void setAlwaysOnTop(nextValue)
       return nextValue
     })
   }, [])
@@ -541,87 +238,23 @@ function App() {
     setIsPreviewOpen((previous) => !previous)
   }, [])
 
-  useEffect(() => {
-    const handleGlobalKeyDown = (event) => {
-      const key = event.key.toLowerCase()
-      const hasMod = event.metaKey || event.ctrlKey
+  useGlobalShortcuts({
+    saveActionRef,
+    openActionRef,
+    newActionRef,
+    onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onTogglePreview: handleTogglePreview,
+  })
 
-      if (hasMod && !event.altKey && key === 's') {
-        event.preventDefault()
-        saveActionRef.current?.()
-        return
-      }
-
-      if (hasMod && !event.altKey && key === 'o') {
-        event.preventDefault()
-        openActionRef.current?.()
-        return
-      }
-
-      if (hasMod && !event.altKey && key === 'n') {
-        event.preventDefault()
-        newActionRef.current?.()
-        return
-      }
-
-      if (hasMod && !event.altKey && key === 't') {
-        event.preventDefault()
-        handleAlwaysOnTopToggle()
-        return
-      }
-
-      if (!hasMod || event.altKey) return
-      if (key !== 'm') return
-
-      event.preventDefault()
-      handleTogglePreview()
-    }
-
-    window.addEventListener('keydown', handleGlobalKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown)
-    }
-  }, [handleAlwaysOnTopToggle, handleTogglePreview])
-
-  useEffect(() => {
-    if (!isDesktopRuntime()) return undefined
-
-    let disposed = false
-    const unlistenFns = []
-
-    const registerListeners = async () => {
-      const listeners = await Promise.all([
-        listen('ghost-writer://menu-new', () => handleNew()),
-        listen('ghost-writer://menu-open', () => handleLoadClick()),
-        listen('ghost-writer://menu-save', () => handleSaveClick()),
-        listen('ghost-writer://menu-preview', () => handleShowPreview()),
-        listen('ghost-writer://menu-markdown', () => handleShowMarkdown()),
-        listen('ghost-writer://menu-pin-top', () => handleAlwaysOnTopToggle()),
-        listen('ghost-writer://menu-about', () => setIsAboutOpen(true)),
-      ])
-
-      if (disposed) {
-        listeners.forEach((unlisten) => unlisten())
-        return
-      }
-
-      unlistenFns.push(...listeners)
-    }
-
-    void registerListeners()
-
-    return () => {
-      disposed = true
-      unlistenFns.forEach((unlisten) => unlisten())
-    }
-  }, [
-    handleAlwaysOnTopToggle,
-    handleLoadClick,
-    handleNew,
-    handleSaveClick,
-    handleShowMarkdown,
-    handleShowPreview,
-  ])
+  useTauriMenuEvents({
+    onNew: handleNew,
+    onOpen: handleLoadClick,
+    onSave: handleSaveClick,
+    onShowPreview: handleShowPreview,
+    onShowMarkdown: handleShowMarkdown,
+    onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onShowAbout: () => setIsAboutOpen(true),
+  })
 
   useEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
