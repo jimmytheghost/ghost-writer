@@ -4,11 +4,35 @@ use std::net::{SocketAddr, TcpStream};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
+use tauri::menu::{Menu, MenuItem, Submenu};
+use tauri::{Emitter, Manager};
 
 const OLLAMA_ADDR: &str = "127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
+
+fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let file_new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
+    let file_open = MenuItem::with_id(app, "file_open", "Open", true, Some("CmdOrCtrl+O"))?;
+    let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
+
+    let view_preview =
+        MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
+    let view_markdown = MenuItem::with_id(app, "view_markdown", "Markdown", true, None::<&str>)?;
+    let view_pin_top =
+        MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
+
+    let file_menu = Submenu::with_items(app, "File", true, &[&file_new, &file_open, &file_save])?;
+    let view_menu = Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[&view_preview, &view_markdown, &view_pin_top],
+    )?;
+
+    Menu::with_items(app, &[&file_menu, &view_menu])
+}
 
 #[tauri::command]
 fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
@@ -69,9 +93,32 @@ fn ensure_ollama_running() {
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![set_always_on_top])
-        .setup(|_| {
+        .setup(|app| {
+            let menu = build_app_menu(&app.handle())?;
+            app.set_menu(menu)?;
             tauri::async_runtime::spawn_blocking(ensure_ollama_running);
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            let Some(window) = app.get_webview_window("main") else {
+                return;
+            };
+
+            let emit_menu_event = |event_name: &str| {
+                if let Err(error) = window.emit(event_name, ()) {
+                    eprintln!("Failed to emit menu event `{event_name}`: {error}");
+                }
+            };
+
+            match event.id().as_ref() {
+                "file_new" => emit_menu_event("ghost-writer://menu-new"),
+                "file_open" => emit_menu_event("ghost-writer://menu-open"),
+                "file_save" => emit_menu_event("ghost-writer://menu-save"),
+                "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
+                "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),
+                "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
+                _ => {}
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

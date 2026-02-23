@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import './App.css'
 import bundledModelSnapshot from './generated/ollama-models.json'
 import Editor from './components/Editor'
@@ -8,7 +9,12 @@ import {
   stripAssistantLeadIn,
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
-import { isMacDesktopRuntime, markRendererInteractive, setAlwaysOnTop } from './lib/desktopRuntime'
+import {
+  isDesktopRuntime,
+  isMacDesktopRuntime,
+  markRendererInteractive,
+  setAlwaysOnTop,
+} from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   buildOllamaUrl,
@@ -498,6 +504,18 @@ function App() {
     })
   }, [])
 
+  const handleShowPreview = useCallback(() => {
+    setIsPreviewOpen(true)
+  }, [])
+
+  const handleShowMarkdown = useCallback(() => {
+    setIsPreviewOpen(false)
+  }, [])
+
+  const handleTogglePreview = useCallback(() => {
+    setIsPreviewOpen((previous) => !previous)
+  }, [])
+
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
       const key = event.key.toLowerCase()
@@ -531,14 +549,53 @@ function App() {
       if (key !== 'm') return
 
       event.preventDefault()
-      setIsPreviewOpen((previous) => !previous)
+      handleTogglePreview()
     }
 
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown)
     }
-  }, [handleAlwaysOnTopToggle])
+  }, [handleAlwaysOnTopToggle, handleTogglePreview])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return undefined
+
+    let disposed = false
+    const unlistenFns = []
+
+    const registerListeners = async () => {
+      const listeners = await Promise.all([
+        listen('ghost-writer://menu-new', () => handleNew()),
+        listen('ghost-writer://menu-open', () => handleLoadClick()),
+        listen('ghost-writer://menu-save', () => handleSaveClick()),
+        listen('ghost-writer://menu-preview', () => handleShowPreview()),
+        listen('ghost-writer://menu-markdown', () => handleShowMarkdown()),
+        listen('ghost-writer://menu-pin-top', () => handleAlwaysOnTopToggle()),
+      ])
+
+      if (disposed) {
+        listeners.forEach((unlisten) => unlisten())
+        return
+      }
+
+      unlistenFns.push(...listeners)
+    }
+
+    void registerListeners()
+
+    return () => {
+      disposed = true
+      unlistenFns.forEach((unlisten) => unlisten())
+    }
+  }, [
+    handleAlwaysOnTopToggle,
+    handleLoadClick,
+    handleNew,
+    handleSaveClick,
+    handleShowMarkdown,
+    handleShowPreview,
+  ])
 
   useEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
@@ -727,7 +784,7 @@ function App() {
               <button
                 type="button"
                 className={`doc-actions__button${isPreviewOpen ? ' doc-actions__button--active' : ''}`}
-                onClick={() => setIsPreviewOpen((previous) => !previous)}
+                onClick={handleTogglePreview}
                 aria-label="Toggle markdown preview"
                 aria-pressed={isPreviewOpen}
                 title={`Preview (${modKeyLabel}+M)`}
