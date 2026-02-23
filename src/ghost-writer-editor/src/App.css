@@ -862,13 +862,13 @@
   }
 
   .app--dark .footer-model::after {
-    background-color: #e5e7eb;
+    background-color: #ffffff;
     -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
     mask-image: url("/ghost-writer-model-icon-dark.svg");
   }
 
   .app--dark .footer-model:hover::after {
-    background-color: #f3f4f6;
+    background-color: #ffffff;
   }
 
   .app--dark .footer-model__select option {
