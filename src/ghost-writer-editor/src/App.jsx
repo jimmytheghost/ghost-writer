@@ -745,6 +745,7 @@ function App() {
                   id="modelSelect"
                   className="footer-model__select"
                   aria-label="Ollama model"
+                  title={selectedModel || 'No models available'}
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
                   onFocus={() => {
