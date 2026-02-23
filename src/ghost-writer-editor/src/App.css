@@ -836,7 +836,7 @@
     height: 15px;
     transform: translate(-50%, -50%);
     pointer-events: none;
-    background-color: #6b7280;
+    background-color: var(--color-gray-700);
     -webkit-mask-image: url("/ghost-writer-model-icon-light.svg");
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-position: center;
@@ -849,7 +849,7 @@
   }
 
   .footer-model:hover::after {
-    background-color: #4b5563;
+    background-color: var(--color-gray-700);
   }
 
   .footer-model__select option {
