@@ -15,6 +15,6 @@
     "llama3.2-vision:latest"
   ],
   "source": "ollama list",
-  "generatedAt": "2026-02-23T03:46:50.262Z",
+  "generatedAt": "2026-02-23T03:56:13.684Z",
   "error": null
 }
