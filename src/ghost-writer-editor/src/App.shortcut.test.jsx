@@ -9,7 +9,7 @@ describe('App keyboard shortcuts', () => {
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
-          models: [{ name: 'devstral-small-2:24b' }],
+          models: ['devstral-small-2:24b'],
         }),
       })),
     )
@@ -45,5 +45,19 @@ describe('App keyboard shortcuts', () => {
 
     fireEvent.keyDown(window, { key: 'T', ctrlKey: true })
     expect(pinButton).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('submits prompt with Ctrl+Enter', async () => {
+    const requestSubmitSpy = vi
+      .spyOn(HTMLFormElement.prototype, 'requestSubmit')
+      .mockImplementation(() => {})
+
+    render(<App />)
+    const promptInput = screen.getByLabelText('Prompt input')
+
+    fireEvent.change(promptInput, { target: { value: 'polish this paragraph' } })
+    fireEvent.keyDown(promptInput, { key: 'Enter', ctrlKey: true })
+
+    expect(requestSubmitSpy).toHaveBeenCalledTimes(1)
   })
 })

@@ -65,9 +65,9 @@ if errorlevel 1 (
 )
 
 echo Installing dependencies (if needed)...
-call npm install
+call npm ci
 if errorlevel 1 (
-  echo npm install failed.
+  echo npm ci failed.
   pause
   exit /b 1
 )

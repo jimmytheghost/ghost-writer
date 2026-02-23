@@ -50,6 +50,7 @@ Keyboard shortcuts:
 - `Cmd/Ctrl + N` new
 - `Cmd/Ctrl + M` preview toggle
 - `Cmd/Ctrl + T` always-on-top toggle (desktop/Tauri)
+- `Cmd/Ctrl + Enter` send prompt
 
 ## Load Local Models
 

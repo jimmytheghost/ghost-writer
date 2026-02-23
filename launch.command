@@ -52,7 +52,7 @@ fi
 echo "Starting Ghost Writer dev server..."
 cd "$APP_DIR"
 
-npm install
+npm ci
 
 nohup npm run dev:tauri >/tmp/ghost-writer-dev.log 2>&1 &
 

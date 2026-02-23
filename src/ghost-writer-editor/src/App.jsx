@@ -493,6 +493,11 @@ function App() {
 
   const handlePromptKeyDown = (event) => {
     if (event.key !== 'Enter') return
+    if (event.metaKey || event.ctrlKey) {
+      event.preventDefault()
+      handlePrimaryPromptAction()
+      return
+    }
     if (!isLoadingPrompt && promptText.trim() && selectedModel.trim()) return
     event.preventDefault()
   }

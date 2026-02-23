@@ -28,5 +28,5 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 cd "$(dirname "$0")/src/ghost-writer-editor" || exit 1
-npm install
+npm ci
 npm run dev:tauri

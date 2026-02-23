@@ -45,6 +45,7 @@ When you submit a prompt:
 - `Ctrl/Cmd + N`: new document
 - `Ctrl/Cmd + T`: toggle always-on-top (desktop/Tauri)
 - `Enter` (inside AI prompt input): send prompt
+- `Ctrl/Cmd + Enter` (inside AI prompt input): send prompt
 
 ## Requirements
 
@@ -66,6 +67,8 @@ Stop script (macOS): `stop.command`
 
 ```bash
 cd src/ghost-writer-editor
+# optional when using nvm
+# nvm use
 npm ci
 npm run dev
 ```
