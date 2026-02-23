@@ -451,6 +451,7 @@
 
 .doc-actions__button,
 .theme-toggle,
+.footer-pin,
 .footer-collapse,
 .prompt-panel__button,
 .modal__button {
@@ -471,6 +472,7 @@
 
 .doc-actions__button,
 .theme-toggle,
+.footer-pin,
 .footer-collapse {
   width: 36px;
   height: 36px;
@@ -507,6 +509,7 @@
 
 .doc-actions__button:hover,
 .theme-toggle:hover,
+.footer-pin:hover,
 .footer-collapse:hover,
 .prompt-panel__button:hover,
 .modal__button:hover {
@@ -516,6 +519,7 @@
 
 .app--dark .doc-actions__button,
 .app--dark .theme-toggle,
+.app--dark .footer-pin,
 .app--dark .footer-collapse,
 .app--dark .prompt-panel__button,
 .app--dark .modal__button {
@@ -526,6 +530,7 @@
 
 .app--dark .doc-actions__button:hover,
 .app--dark .theme-toggle:hover,
+.app--dark .footer-pin:hover,
 .app--dark .footer-collapse:hover,
 .app--dark .prompt-panel__button:hover,
 .app--dark .modal__button:hover {

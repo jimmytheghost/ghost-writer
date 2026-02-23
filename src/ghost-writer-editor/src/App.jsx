@@ -8,7 +8,7 @@ import {
   stripAssistantLeadIn,
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
-import { isMacDesktopRuntime, markRendererInteractive } from './lib/desktopRuntime'
+import { isMacDesktopRuntime, markRendererInteractive, setAlwaysOnTop } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   buildOllamaUrl,
@@ -21,6 +21,7 @@ const DEFAULT_TEXT = ''
 const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
 const MODEL_SNAPSHOT_TIMEOUT_MS = 2_000
+const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
@@ -45,6 +46,7 @@ function App() {
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [showStoppedToast, setShowStoppedToast] = useState(false)
   const [isLoadingModels, setIsLoadingModels] = useState(false)
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false)
   const [modelLoadStatus, setModelLoadStatus] = useState(
     BUNDLED_MODELS.length
       ? `Loaded ${BUNDLED_MODELS.length} model(s) from bundled snapshot.`
@@ -179,6 +181,13 @@ function App() {
       markRendererInteractive({ source: 'app-mounted' })
     })
     return () => cancelAnimationFrame(frameId)
+  }, [])
+
+  useEffect(() => {
+    const storedValue = window.localStorage.getItem(ALWAYS_ON_TOP_STORAGE_KEY)
+    const shouldPinWindow = storedValue === 'true'
+    setIsAlwaysOnTop(shouldPinWindow)
+    void setAlwaysOnTop(shouldPinWindow)
   }, [])
 
   const resetDocument = useCallback(() => {
@@ -480,6 +489,15 @@ function App() {
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
   }
 
+  const handleAlwaysOnTopToggle = useCallback(() => {
+    setIsAlwaysOnTop((previous) => {
+      const nextValue = !previous
+      window.localStorage.setItem(ALWAYS_ON_TOP_STORAGE_KEY, String(nextValue))
+      void setAlwaysOnTop(nextValue)
+      return nextValue
+    })
+  }, [])
+
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
       const key = event.key.toLowerCase()
@@ -503,6 +521,12 @@ function App() {
         return
       }
 
+      if (hasMod && !event.altKey && key === 't') {
+        event.preventDefault()
+        handleAlwaysOnTopToggle()
+        return
+      }
+
       if (!hasMod || event.altKey) return
       if (key !== 'm') return
 
@@ -514,7 +538,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown)
     }
-  }, [])
+  }, [handleAlwaysOnTopToggle])
 
   useEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
@@ -753,6 +777,18 @@ function App() {
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   {isDark ? 'light_mode' : 'dark_mode'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`footer-pin${isAlwaysOnTop ? ' doc-actions__button--active' : ''}`}
+                aria-pressed={isAlwaysOnTop}
+                aria-label="Toggle always on top"
+                title={`Always on top (${modKeyLabel}+T)`}
+                onClick={handleAlwaysOnTopToggle}
+              >
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  push_pin
                 </span>
               </button>
               <span className="footer-controls__divider" aria-hidden="true">

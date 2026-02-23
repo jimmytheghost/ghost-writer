@@ -10,6 +10,13 @@ const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
 
+#[tauri::command]
+fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    window
+        .set_always_on_top(enabled)
+        .map_err(|error| error.to_string())
+}
+
 fn parse_ollama_addr() -> Option<SocketAddr> {
     OLLAMA_ADDR.parse().ok()
 }
@@ -61,6 +68,7 @@ fn ensure_ollama_running() {
 
 fn main() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![set_always_on_top])
         .setup(|_| {
             tauri::async_runtime::spawn_blocking(ensure_ollama_running);
             Ok(())

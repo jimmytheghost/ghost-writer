@@ -32,4 +32,18 @@ describe('App keyboard shortcuts', () => {
     fireEvent.keyDown(window, { key: 'M', ctrlKey: true })
     expect(previewButton).toHaveAttribute('aria-pressed', 'false')
   })
+
+  it('toggles always-on-top with Ctrl+T', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    const pinButton = screen.getByLabelText('Toggle always on top')
+
+    expect(pinButton).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.keyDown(window, { key: 't', ctrlKey: true })
+    expect(pinButton).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.keyDown(window, { key: 'T', ctrlKey: true })
+    expect(pinButton).toHaveAttribute('aria-pressed', 'false')
+  })
 })
