@@ -510,6 +510,7 @@
 .doc-actions__button:hover,
 .theme-toggle:hover,
 .footer-pin:hover,
+.footer-model__select:hover,
 .footer-collapse:hover,
 .prompt-panel__button:hover,
 .modal__button:hover {
@@ -531,6 +532,7 @@
 .app--dark .doc-actions__button:hover,
 .app--dark .theme-toggle:hover,
 .app--dark .footer-pin:hover,
+.app--dark .footer-model__select:hover,
 .app--dark .footer-collapse:hover,
 .app--dark .prompt-panel__button:hover,
 .app--dark .modal__button:hover {
@@ -843,6 +845,11 @@
     mask-repeat: no-repeat;
     mask-position: center;
     mask-size: contain;
+    transition: background-color var(--transition-fast);
+  }
+
+  .footer-model:hover::after {
+    background-color: #4b5563;
   }
 
   .footer-model__select option {
@@ -858,6 +865,10 @@
     background-color: #e5e7eb;
     -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
     mask-image: url("/ghost-writer-model-icon-dark.svg");
+  }
+
+  .app--dark .footer-model:hover::after {
+    background-color: #f3f4f6;
   }
 
   .app--dark .footer-model__select option {
