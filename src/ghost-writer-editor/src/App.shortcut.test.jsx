@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -19,18 +19,17 @@ describe('App keyboard shortcuts', () => {
     vi.unstubAllGlobals()
   })
 
-  it('toggles markdown preview with Ctrl+Shift+M', async () => {
+  it('toggles markdown preview with Ctrl+M', async () => {
     render(<App />)
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     const previewButton = screen.getByLabelText('Toggle markdown preview')
 
     expect(previewButton).toHaveAttribute('aria-pressed', 'false')
 
-    fireEvent.keyDown(window, { key: 'm', ctrlKey: true, shiftKey: true })
+    fireEvent.keyDown(window, { key: 'm', ctrlKey: true })
     expect(previewButton).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.keyDown(window, { key: 'M', ctrlKey: true, shiftKey: true })
+    fireEvent.keyDown(window, { key: 'M', ctrlKey: true })
     expect(previewButton).toHaveAttribute('aria-pressed', 'false')
   })
 })

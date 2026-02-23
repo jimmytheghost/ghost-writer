@@ -53,6 +53,7 @@ function App() {
   const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
+  const modKeyLabel = showDragRegion ? 'Cmd' : 'Ctrl'
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
   const saveActionRef = useRef(() => {})
@@ -482,26 +483,27 @@ function App() {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
       const key = event.key.toLowerCase()
+      const hasMod = event.metaKey || event.ctrlKey
 
-      if (event.ctrlKey && event.shiftKey && key === 's') {
+      if (hasMod && !event.altKey && key === 's') {
         event.preventDefault()
         saveActionRef.current?.()
         return
       }
 
-      if (event.ctrlKey && event.shiftKey && key === 'o') {
+      if (hasMod && !event.altKey && key === 'o') {
         event.preventDefault()
         openActionRef.current?.()
         return
       }
 
-      if (event.ctrlKey && event.shiftKey && key === 'n') {
+      if (hasMod && !event.altKey && key === 'n') {
         event.preventDefault()
         newActionRef.current?.()
         return
       }
 
-      if (!event.ctrlKey || !event.shiftKey) return
+      if (!hasMod || event.altKey) return
       if (key !== 'm') return
 
       event.preventDefault()
@@ -660,7 +662,7 @@ function App() {
                 className="doc-actions__button"
                 onClick={handleNew}
                 aria-label="New document"
-                title="New (Ctrl+Shift+N)"
+                title={`New (${modKeyLabel}+N)`}
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   note_add
@@ -671,7 +673,7 @@ function App() {
                 className="doc-actions__button"
                 onClick={handleSaveClick}
                 aria-label="Save document"
-                title="Save (Ctrl+Shift+S)"
+                title={`Save (${modKeyLabel}+S)`}
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   save
@@ -682,7 +684,7 @@ function App() {
                 className="doc-actions__button"
                 onClick={handleLoadClick}
                 aria-label="Load document"
-                title="Open (Ctrl+Shift+O)"
+                title={`Open (${modKeyLabel}+O)`}
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   upload_file
@@ -704,7 +706,7 @@ function App() {
                 onClick={() => setIsPreviewOpen((previous) => !previous)}
                 aria-label="Toggle markdown preview"
                 aria-pressed={isPreviewOpen}
-                title="Preview (Ctrl+Shift+M)"
+                title={`Preview (${modKeyLabel}+M)`}
               >
                 <span className="material-symbols-rounded" aria-hidden="true">
                   preview
