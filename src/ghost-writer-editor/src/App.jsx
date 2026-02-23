@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { getName, getVersion } from '@tauri-apps/api/app'
 import './App.css'
 import bundledModelSnapshot from './generated/ollama-models.json'
 import Editor from './components/Editor'
@@ -38,7 +39,10 @@ function App() {
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
   const [isNewConfirmOpen, setIsNewConfirmOpen] = useState(false)
+  const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
+  const [appName, setAppName] = useState('Ghost Writer')
+  const [appVersion, setAppVersion] = useState('0.1.0')
   const [promptText, setPromptText] = useState('')
   const [promptError, setPromptError] = useState('')
   const [undoSnapshot, setUndoSnapshot] = useState('')
@@ -187,6 +191,22 @@ function App() {
       markRendererInteractive({ source: 'app-mounted' })
     })
     return () => cancelAnimationFrame(frameId)
+  }, [])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return
+
+    const loadAppMetadata = async () => {
+      try {
+        const [name, version] = await Promise.all([getName(), getVersion()])
+        setAppName(name)
+        setAppVersion(version)
+      } catch {
+        // Keep defaults when metadata is unavailable.
+      }
+    }
+
+    void loadAppMetadata()
   }, [])
 
   useEffect(() => {
@@ -572,6 +592,7 @@ function App() {
         listen('ghost-writer://menu-preview', () => handleShowPreview()),
         listen('ghost-writer://menu-markdown', () => handleShowMarkdown()),
         listen('ghost-writer://menu-pin-top', () => handleAlwaysOnTopToggle()),
+        listen('ghost-writer://menu-about', () => setIsAboutOpen(true)),
       ])
 
       if (disposed) {
@@ -916,6 +937,51 @@ function App() {
               </button>
               <button type="button" className="modal__button modal__button--primary" onClick={handleConfirmNew}>
                 New
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isAboutOpen && (
+        <div className="modal-overlay" onClick={() => setIsAboutOpen(false)}>
+          <div className="modal about-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="about-modal__header">
+              <img
+                className="about-modal__logo"
+                src="/ghost-writer-logo.png"
+                alt={`${appName} logo`}
+                width="64"
+                height="64"
+              />
+              <div className="about-modal__title-block">
+                <h2 className="modal__title about-modal__app-name">{appName}</h2>
+                <div className="about-modal__meta">Version {appVersion}</div>
+                <div className="about-modal__meta">Vibe Coded by Jimmy Weber</div>
+              </div>
+            </div>
+            <hr className="about-modal__divider" />
+            <div className="about-modal__body">
+              <p>
+                Ghost Writer is a private, distraction-free markdown editor. It uses private, local LLMs to help you write.
+              </p>
+              <p>
+                Browse different LLMs on the{' '}
+                <a href="https://ollama.com/library" target="_blank" rel="noreferrer">
+                  Ollama model library
+                </a>{' '}
+                and read the{' '}
+                <a href="https://github.com/ollama/ollama/blob/main/README.md" target="_blank" rel="noreferrer">
+                  Ollama docs
+                </a>
+                {' '}to learn more.
+              </p>
+              <p>Quick start to download a model:</p>
+              <pre className="about-modal__code">ollama pull llama3.1:8b</pre>
+              <p>Then restart Ghost Writer and you’re ready to write.</p>
+            </div>
+            <div className="modal__actions">
+              <button type="button" className="modal__button modal__button--primary" onClick={() => setIsAboutOpen(false)}>
+                Close
               </button>
             </div>
           </div>

@@ -16,22 +16,26 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let file_open = MenuItem::with_id(app, "file_open", "Open", true, Some("CmdOrCtrl+O"))?;
     let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
+    let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
 
     let view_preview =
         MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
     let view_markdown = MenuItem::with_id(app, "view_markdown", "Markdown", true, None::<&str>)?;
     let view_pin_top =
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
+    let about_show = MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
 
-    let file_menu = Submenu::with_items(app, "File", true, &[&file_new, &file_open, &file_save])?;
+    let file_menu =
+        Submenu::with_items(app, "File", true, &[&file_new, &file_open, &file_save, &file_quit])?;
     let view_menu = Submenu::with_items(
         app,
         "View",
         true,
         &[&view_preview, &view_markdown, &view_pin_top],
     )?;
+    let about_menu = Submenu::with_items(app, "About", true, &[&about_show])?;
 
-    Menu::with_items(app, &[&file_menu, &view_menu])
+    Menu::with_items(app, &[&file_menu, &view_menu, &about_menu])
 }
 
 #[tauri::command]
@@ -114,9 +118,11 @@ fn main() {
                 "file_new" => emit_menu_event("ghost-writer://menu-new"),
                 "file_open" => emit_menu_event("ghost-writer://menu-open"),
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
+                "file_quit" => app.exit(0),
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
                 "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
+                "about_show" => emit_menu_event("ghost-writer://menu-about"),
                 _ => {}
             }
         })

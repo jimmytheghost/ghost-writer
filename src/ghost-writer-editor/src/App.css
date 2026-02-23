@@ -739,6 +739,110 @@
   color: var(--color-gray-300);
 }
 
+.about-modal {
+  width: min(432px, 100%);
+  max-height: min(76vh, 562px);
+  overflow-y: auto;
+  padding: calc(var(--space-4) * 1.2);
+}
+
+.about-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.about-modal__logo {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-lg);
+  flex: 0 0 auto;
+}
+
+.about-modal__title-block {
+  min-width: 0;
+}
+
+.about-modal__app-name {
+  margin-bottom: 1px;
+  font-family: var(--font-family-mono);
+  font-size: calc(var(--font-size-2xl) * 0.75);
+  line-height: 1.15;
+}
+
+.about-modal__meta {
+  color: var(--color-gray-600);
+  font-size: calc(var(--font-size-sm) * 0.75);
+  line-height: 1.25;
+}
+
+.about-modal__divider {
+  border: 0;
+  border-top: 1px solid var(--color-gray-300);
+  margin: calc(var(--space-2) * 1.35) 0;
+}
+
+.about-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  color: var(--color-gray-700);
+  font-size: calc(var(--font-size-base) * 0.75);
+  line-height: 1.35;
+}
+
+.about-modal__body p {
+  margin: 0;
+}
+
+.about-modal__body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.about-modal__code {
+  margin: 0;
+  padding: calc(var(--space-2) * 1.25);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-gray-300);
+  background: var(--color-gray-100);
+  font-family: var(--font-family-mono);
+  font-size: calc(var(--font-size-sm) * 0.75);
+  overflow-x: auto;
+}
+
+.about-modal .modal__actions {
+  margin-top: calc(var(--space-1) * 1.4);
+}
+
+.about-modal .modal__button {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: calc(var(--font-size-sm) * 0.75);
+}
+
+.app--dark .about-modal__meta {
+  color: var(--color-gray-300);
+}
+
+.app--dark .about-modal__divider {
+  border-top-color: var(--color-gray-700);
+}
+
+.app--dark .about-modal__body {
+  color: var(--color-gray-100);
+}
+
+.app--dark .about-modal__body a {
+  color: var(--color-gray-100);
+}
+
+.app--dark .about-modal__code {
+  border-color: var(--color-gray-700);
+  background: var(--color-gray-800);
+  color: var(--color-gray-100);
+}
+
 @media (max-width: 767px) {
   .app__drag-region {
     left: 84px;
