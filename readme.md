@@ -12,18 +12,20 @@ It is designed for fast drafting, rewriting, and iterative editing without leavi
 - Save/Load markdown files (`.md`)
 - Copy full document or current selection
 - Light/dark theme toggle
+- Always-on-top toggle (desktop/Tauri)
 - Responsive layout with fixed footer controls
 - Custom in-app modals for Save and New-document confirmation
 - Single-line AI prompt input with Enter-to-send behavior
 
 ## Current UI/UX Features
 
-- Footer quick actions: New, Save, Load, Copy, Markdown Preview toggle, Theme toggle
+- Footer quick actions: New, Save, Load, Copy, Markdown Preview toggle, Theme toggle, Always-on-top toggle
 - Markdown preview button remains visibly active while preview is on
 - Preview container and editor container are size-matched for consistent mode switching
 - Prompt actions are icon-based: Send, Stop, Undo/Redo, Clear
 - Prompt panel and editor use Noto Sans Mono; app and preview typography use Noto Sans
 - Preview rendering is sanitized before injection
+- Compact footer behavior at narrow widths (`<=430px`) with square model selector button
 
 ## AI Editing Behavior
 
@@ -37,10 +39,11 @@ When you submit a prompt:
 
 - `Ctrl/Cmd + B`: wrap selection with bold markdown markers (`**`)
 - `Ctrl/Cmd + I`: wrap selection with italic markdown markers (`*`)
-- `Ctrl + Shift + M`: toggle markdown preview mode
-- `Ctrl + Shift + S`: save document
-- `Ctrl + Shift + O`: load document
-- `Ctrl + Shift + N`: new document
+- `Ctrl/Cmd + M`: toggle markdown preview mode
+- `Ctrl/Cmd + S`: save document
+- `Ctrl/Cmd + O`: load document
+- `Ctrl/Cmd + N`: new document
+- `Ctrl/Cmd + T`: toggle always-on-top (desktop/Tauri)
 - `Enter` (inside AI prompt input): send prompt
 
 ## Requirements
@@ -88,6 +91,11 @@ npm run build:tauri:win
 # npm run build:tauri:mac
 ```
 
+Default desktop window sizing:
+
+- Launch size: `400x500`
+- Minimum size: `400x500`
+
 Model dropdown behavior:
 
 - `npm run dev:tauri` and `npm run build:tauri*` run `npm run sync:models` first.
@@ -95,6 +103,7 @@ Model dropdown behavior:
   - `src/ghost-writer-editor/public/ollama-models.json`
   - `src/ghost-writer-editor/src/generated/ollama-models.json`
 - The app model dropdown is initialized from the generated snapshot for deterministic startup.
+- There is no in-app model reload button; refresh models by rerunning `npm run sync:models` (or restarting through `dev:tauri` / `build:tauri` scripts).
 
 ### Load Local Models
 

@@ -2,6 +2,14 @@
 
 This folder contains the Vite + React web app for Ghost Writer.
 
+## Current behavior highlights
+
+- Desktop window launches at `400x500` with minimum `400x500`.
+- Universal shortcuts use `Cmd` on macOS and `Ctrl` on Windows/Linux.
+- Footer includes always-on-top toggle (`Cmd/Ctrl + T`) in Tauri builds.
+- Narrow-width footer mode (`<=430px`) uses compact square controls, including a model selector icon button.
+- Model list is snapshot-based and refreshed by `npm run sync:models` (no in-app reload button).
+
 ## Commands
 
 ```bash
@@ -34,6 +42,14 @@ Notes:
 - Rust toolchain is required (`rustup`, `cargo`, `rustc`) before running Tauri commands.
 - `dev:tauri` and `build:tauri*` refresh the model snapshot with `sync:models` before launch/build.
 - Model snapshots are written to `public/ollama-models.json` and `src/generated/ollama-models.json`.
+
+Keyboard shortcuts:
+
+- `Cmd/Ctrl + S` save
+- `Cmd/Ctrl + O` open
+- `Cmd/Ctrl + N` new
+- `Cmd/Ctrl + M` preview toggle
+- `Cmd/Ctrl + T` always-on-top toggle (desktop/Tauri)
 
 ## Load Local Models
 

@@ -26,7 +26,6 @@ It does not describe future architecture; it describes what is in code now.
    - `src/ghost-writer-editor/src/generated/ollama-models.json`
 4. The app initializes dropdown state from the bundled snapshot (`src/generated/ollama-models.json`).
 5. The app then reloads from `/ollama-models.json` (served from `public/`).
-6. The UI reload button only re-reads `/ollama-models.json`. It does not run `ollama list` itself.
 
 Consequence: if snapshot files are empty or stale, the dropdown will remain empty or stale until `npm run sync:models` is run again.
 
@@ -87,7 +86,7 @@ Expected:
 - `"models": [...]` contains model names
 - `"error": null`
 
-If `"models": []` or `"error"` is non-null, fix that first. The app cannot recover from empty snapshots by clicking reload.
+If `"models": []` or `"error"` is non-null, fix that first. The app cannot recover from empty snapshots without regenerating snapshots.
 
 ## "No models available" troubleshooting
 

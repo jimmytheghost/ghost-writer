@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.1] - 2026-02-23
+
+### Added
+
+- Desktop always-on-top toggle in footer controls.
+- Universal always-on-top shortcut: `Cmd/Ctrl + T`.
+- Compact footer treatment for narrow widths (`<=430px`) with square model selector control.
+- Custom model-selector icon integration for compact mode (light/dark variants).
+
+### Changed
+
+- Updated desktop launch and minimum window size to `400x500`.
+- Standardized global shortcuts to universal `Cmd/Ctrl` combinations:
+  - `Cmd/Ctrl + S` save
+  - `Cmd/Ctrl + O` open
+  - `Cmd/Ctrl + N` new document
+  - `Cmd/Ctrl + M` preview toggle
+- Removed in-app model reload control; model refresh remains snapshot-driven via `npm run sync:models`.
+- Refined compact model-selector icon rendering and hover behavior.
+- Replaced app icon assets with latest Ghost Writer logo and regenerated Tauri icon bundle.
+
 ## [0.1.0] - 2026-02-21
 
 ### Added
