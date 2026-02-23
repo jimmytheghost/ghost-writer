@@ -16,7 +16,7 @@ function parseModels(stdout) {
     }
   }
 
-  return models
+  return models.sort((a, b) => a.localeCompare(b))
 }
 
 function readModelsFromOllama() {
@@ -48,7 +48,6 @@ const payload = `${JSON.stringify(
   {
     models,
     source: 'ollama list',
-    generatedAt: new Date().toISOString(),
     error,
   },
   null,
