@@ -68,4 +68,16 @@ describe('App keyboard shortcuts', () => {
 
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('selects all editor content with Ctrl+A', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'select this whole line' } })
+    fireEvent.keyDown(editor, { key: 'a', ctrlKey: true })
+
+    expect(editor.selectionStart).toBe(0)
+    expect(editor.selectionEnd).toBe('select this whole line'.length)
+  })
 })

@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fs;
 use std::net::{SocketAddr, TcpStream};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -43,6 +45,29 @@ fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), 
     window
         .set_always_on_top(enabled)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn save_markdown_file(content: String, suggested_name: String) -> Result<Option<String>, String> {
+    let safe_name = if suggested_name.trim().is_empty() {
+        "untitled.md".to_string()
+    } else if suggested_name.to_lowercase().ends_with(".md") {
+        suggested_name
+    } else {
+        format!("{suggested_name}.md")
+    };
+
+    let selected_path: Option<PathBuf> = rfd::FileDialog::new()
+        .set_file_name(&safe_name)
+        .add_filter("Markdown", &["md"])
+        .save_file();
+
+    let Some(path) = selected_path else {
+        return Ok(None);
+    };
+
+    fs::write(&path, content).map_err(|error| error.to_string())?;
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 fn parse_ollama_addr() -> Option<SocketAddr> {
@@ -96,7 +121,10 @@ fn ensure_ollama_running() {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![set_always_on_top])
+        .invoke_handler(tauri::generate_handler![
+            set_always_on_top,
+            save_markdown_file
+        ])
         .setup(|app| {
             let menu = build_app_menu(&app.handle())?;
             app.set_menu(menu)?;

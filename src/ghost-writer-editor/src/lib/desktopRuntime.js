@@ -36,3 +36,17 @@ export async function setAlwaysOnTop(enabled) {
     return false
   }
 }
+
+export async function saveMarkdownWithNativeDialog(content, suggestedName) {
+  if (!isDesktopRuntime()) return null
+
+  try {
+    return await invoke('save_markdown_file', {
+      content,
+      suggestedName,
+    })
+  } catch (error) {
+    console.warn('Failed to save markdown with native dialog:', error)
+    return null
+  }
+}

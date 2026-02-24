@@ -40,66 +40,70 @@
   display: flex;
   align-items: stretch;
   width: 100%;
-  min-height: 44px;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-gray-400) 30%, transparent);
-  background: color-mix(in srgb, var(--color-gray-100) 92%, var(--color-white));
+  min-height: 30px;
+  border-bottom: 1px solid color-mix(in srgb, #232222 70%, black);
+  background: #232222;
   z-index: var(--z-sticky);
   -webkit-app-region: no-drag;
 }
 
 .app--dark .tab-bar {
-  background: color-mix(in srgb, var(--color-gray-700) 86%, var(--color-gray-800));
-  border-bottom-color: color-mix(in srgb, var(--color-gray-800) 65%, var(--color-black));
+  background: #232222;
+  border-bottom-color: color-mix(in srgb, #232222 70%, black);
 }
 
 .tab-bar__tabs {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .tab-bar__tab {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: max-content;
   border: none;
-  border-right: 1px solid color-mix(in srgb, var(--color-gray-500) 30%, transparent);
-  background: color-mix(in srgb, var(--color-gray-200) 42%, var(--color-gray-100));
-  color: var(--color-gray-500);
-  height: 44px;
+  border-right: 1px solid color-mix(in srgb, var(--color-gray-500) 38%, transparent);
+  background: color-mix(in srgb, #232222 88%, #2d2c2c);
+  color: var(--color-gray-400);
+  height: 30px;
+  padding: 0 var(--space-3);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
+  justify-content: flex-start;
+  gap: var(--space-1);
   font-family: var(--font-family-base);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .app--dark .tab-bar__tab {
-  background: color-mix(in srgb, var(--color-gray-800) 90%, var(--color-black));
+  background: color-mix(in srgb, #232222 88%, #2d2c2c);
   border-right-color: color-mix(in srgb, var(--color-gray-600) 45%, transparent);
   color: var(--color-gray-400);
 }
 
 .tab-bar__tab:hover {
-  background: color-mix(in srgb, var(--color-gray-300) 35%, var(--color-gray-100));
-  color: var(--color-gray-700);
+  background: color-mix(in srgb, #232222 70%, #3a3939);
+  color: var(--color-gray-200);
 }
 
 .app--dark .tab-bar__tab:hover {
-  background: color-mix(in srgb, var(--color-gray-700) 60%, var(--color-gray-800));
+  background: color-mix(in srgb, #232222 70%, #3a3939);
   color: var(--color-gray-200);
 }
 
 .tab-bar__tab--active {
-  background: transparent;
-  color: var(--color-gray-800);
+  background: color-mix(in srgb, #232222 45%, #3f3e3e);
+  color: var(--color-gray-100);
 }
 
 .app--dark .tab-bar__tab--active {
-  background: color-mix(in srgb, var(--color-gray-700) 45%, transparent);
+  background: color-mix(in srgb, #232222 45%, #3f3e3e);
   color: var(--color-gray-100);
 }
 
@@ -110,13 +114,13 @@
 }
 
 .tab-bar__close {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -129,12 +133,12 @@
 }
 
 .tab-bar__add {
-  width: 54px;
-  min-width: 54px;
+  width: 30px;
+  min-width: 30px;
   border: none;
   border-left: 1px solid color-mix(in srgb, var(--color-gray-500) 30%, transparent);
-  background: color-mix(in srgb, var(--color-gray-200) 30%, var(--color-gray-100));
-  color: var(--color-gray-500);
+  background: #232222;
+  color: var(--color-gray-300);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -144,17 +148,17 @@
 
 .app--dark .tab-bar__add {
   border-left-color: color-mix(in srgb, var(--color-gray-600) 45%, transparent);
-  background: color-mix(in srgb, var(--color-gray-800) 80%, var(--color-black));
-  color: var(--color-gray-400);
+  background: #232222;
+  color: var(--color-gray-300);
 }
 
 .tab-bar__add:hover {
-  background: color-mix(in srgb, var(--color-gray-300) 35%, var(--color-gray-100));
-  color: var(--color-gray-700);
+  background: color-mix(in srgb, #232222 70%, #3a3939);
+  color: var(--color-gray-100);
 }
 
 .app--dark .tab-bar__add:hover {
-  background: color-mix(in srgb, var(--color-gray-700) 60%, var(--color-gray-800));
+  background: color-mix(in srgb, #232222 70%, #3a3939);
   color: var(--color-gray-100);
 }
 
@@ -974,13 +978,13 @@
   }
 
   .tab-bar__tab {
-    font-size: var(--font-size-lg);
-    height: 40px;
+    font-size: var(--font-size-sm);
+    height: 30px;
   }
 
   .tab-bar__add {
-    width: 44px;
-    min-width: 44px;
+    width: 30px;
+    min-width: 30px;
   }
 
   .app__main {
@@ -1029,14 +1033,14 @@
 
 @media (max-width: 430px) {
   .tab-bar__tab {
-    font-size: var(--font-size-base);
+    font-size: 12px;
     gap: var(--space-1);
   }
 
   .tab-bar__close {
-    width: 16px;
-    height: 16px;
-    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    font-size: 10px;
   }
 
   .app__footer {

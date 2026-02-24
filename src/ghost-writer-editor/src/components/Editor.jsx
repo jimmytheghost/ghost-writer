@@ -178,6 +178,17 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       if (isMod && !event.shiftKey && key === 'i') {
         event.preventDefault()
         applyInlineFormat('*')
+        return
+      }
+
+      if (isMod && !event.shiftKey && key === 'a') {
+        event.preventDefault()
+        textarea.focus()
+        textarea.setSelectionRange(0, (value ?? '').length)
+        onSelectionChange?.({
+          selectionStart: 0,
+          selectionEnd: (value ?? '').length,
+        })
       }
     }
 

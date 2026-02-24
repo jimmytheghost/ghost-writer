@@ -18,8 +18,10 @@ import {
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
 import {
+  isDesktopRuntime,
   isMacDesktopRuntime,
   markRendererInteractive,
+  saveMarkdownWithNativeDialog,
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
@@ -46,6 +48,17 @@ function readInitialAlwaysOnTop() {
   }
 }
 
+function ensureMarkdownFileName(name) {
+  const trimmed = name.trim()
+  if (!trimmed) return 'untitled.md'
+  return trimmed.toLowerCase().endsWith('.md') ? trimmed : `${trimmed}.md`
+}
+
+function fileNameFromPath(path) {
+  const parts = path.split(/[\\/]/)
+  return parts[parts.length - 1] || path
+}
+
 function App() {
   const initialTab = useMemo(() => createNewTab(1), [])
 
@@ -57,9 +70,7 @@ function App() {
     [initialTab.id]: { start: 0, end: 0 },
   }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
-  const [isSaveOpen, setIsSaveOpen] = useState(false)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
-  const [fileName, setFileName] = useState('')
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
@@ -223,29 +234,34 @@ function App() {
     [abortGeneration, activeTabId, isLoadingPrompt, nextUntitledIndex, tabs],
   )
 
-  const handleSaveClick = useCallback(() => {
-    const suggestedName = activeTab?.title?.trim() || 'untitled'
-    setFileName(suggestedName)
-    setIsSaveOpen(true)
-  }, [activeTab])
+  const handleSaveClick = useCallback(async () => {
+    if (!activeTabId) return
 
-  const handleSaveConfirm = useCallback(() => {
-    if (!fileName.trim() || !activeTabId) return
+    const suggestedName = ensureMarkdownFileName(activeTab?.title ?? 'untitled')
 
-    const safeName = fileName.toLowerCase().endsWith('.md') ? fileName : `${fileName}.md`
+    if (isDesktopRuntime()) {
+      const savedPath = await saveMarkdownWithNativeDialog(activeContent, suggestedName)
+      if (!savedPath) return
+
+      const savedName = ensureMarkdownFileName(fileNameFromPath(savedPath))
+      setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, savedName))
+      setPromptError('')
+      return
+    }
+
     const blob = new Blob([activeContent], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = safeName
+    link.download = suggestedName
     document.body.appendChild(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
 
-    setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, safeName))
-    setIsSaveOpen(false)
-  }, [activeContent, activeTabId, fileName])
+    setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, suggestedName))
+    setPromptError('')
+  }, [activeContent, activeTab, activeTabId, setPromptError])
 
   const handleLoadClick = useCallback(() => {
     fileInputRef.current?.click()
@@ -496,11 +512,6 @@ function App() {
         onChange={handleLoadFile}
       />
       <AppModals
-        isSaveOpen={isSaveOpen}
-        setIsSaveOpen={setIsSaveOpen}
-        fileName={fileName}
-        setFileName={setFileName}
-        handleSaveConfirm={handleSaveConfirm}
         isAboutOpen={isAboutOpen}
         setIsAboutOpen={setIsAboutOpen}
         appName={appName}

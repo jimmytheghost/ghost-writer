@@ -1,9 +1,4 @@
 function AppModals({
-  isSaveOpen,
-  setIsSaveOpen,
-  fileName,
-  setFileName,
-  handleSaveConfirm,
   isAboutOpen,
   setIsAboutOpen,
   appName,
@@ -11,37 +6,6 @@ function AppModals({
 }) {
   return (
     <>
-      {isSaveOpen && (
-        <div className="modal-overlay" onClick={() => setIsSaveOpen(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h2 className="modal__title">Save markdown file</h2>
-            <p className="modal__description">Choose a file name for your document.</p>
-            <label className="modal__label" htmlFor="fileName">
-              File name
-            </label>
-            <input
-              id="fileName"
-              className="modal__input"
-              value={fileName}
-              onChange={(event) => setFileName(event.target.value)}
-              placeholder="ghost-writer-document.md"
-            />
-            <div className="modal__actions">
-              <button type="button" className="modal__button" onClick={() => setIsSaveOpen(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="modal__button modal__button--primary"
-                onClick={handleSaveConfirm}
-                disabled={!fileName.trim()}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {isAboutOpen && (
         <div className="modal-overlay" onClick={() => setIsAboutOpen(false)}>
           <div className="modal about-modal" onClick={(event) => event.stopPropagation()}>
