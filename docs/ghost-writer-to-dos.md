@@ -10,6 +10,7 @@
 [x] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash 
 [x] In markdown preview - if user hits “exit” it takes them back to text editor
 [x] In “view” - add feature to “Hide Tab Bar”
+[ ] The check boxes need better alignment in markdown preview
 
 
 ## Edge Cases
