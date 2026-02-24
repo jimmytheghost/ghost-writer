@@ -1,4 +1,12 @@
-import { marked } from 'marked'
+import MarkdownIt from 'markdown-it'
+import markdownItAttrs from 'markdown-it-attrs'
+import markdownItDeflist from 'markdown-it-deflist'
+import { full as markdownItEmojiFull } from 'markdown-it-emoji'
+import markdownItFootnote from 'markdown-it-footnote'
+import markdownItMark from 'markdown-it-mark'
+import markdownItSub from 'markdown-it-sub'
+import markdownItSup from 'markdown-it-sup'
+import markdownItTaskLists from 'markdown-it-task-lists'
 
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
 const ALLOWED_TAGS = new Set([
@@ -7,7 +15,11 @@ const ALLOWED_TAGS = new Set([
   'blockquote',
   'br',
   'code',
+  'dd',
   'del',
+  'div',
+  'dl',
+  'dt',
   'em',
   'h1',
   'h2',
@@ -20,11 +32,16 @@ const ALLOWED_TAGS = new Set([
   'img',
   'input',
   'li',
+  'mark',
   'ol',
   'p',
   'pre',
   's',
+  'section',
+  'span',
   'strong',
+  'sub',
+  'sup',
   'table',
   'tbody',
   'td',
@@ -33,19 +50,29 @@ const ALLOWED_TAGS = new Set([
   'tr',
   'ul',
 ])
-const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['class', 'title', 'aria-label'])
+const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['class', 'title', 'aria-label', 'id'])
 const ELEMENT_ALLOWED_ATTRIBUTES = {
-  a: new Set(['href']),
+  a: new Set(['href', 'target', 'rel']),
   img: new Set(['src', 'alt']),
   input: new Set(['type', 'checked', 'disabled', 'data-source-line']),
 }
 
-marked.setOptions({
+const markdownRenderer = new MarkdownIt({
   breaks: true,
-  gfm: true,
+  html: false,
+  linkify: true,
+  typographer: false,
 })
+  .use(markdownItFootnote)
+  .use(markdownItDeflist)
+  .use(markdownItMark)
+  .use(markdownItSub)
+  .use(markdownItSup)
+  .use(markdownItAttrs)
+  .use(markdownItEmojiFull)
+  .use(markdownItTaskLists, { enabled: true, label: true })
 
-function isSafeUrl(rawUrl) {
+export function isSafeMarkdownUrl(rawUrl) {
   if (!rawUrl || typeof window === 'undefined') return false
   const value = rawUrl.trim()
   if (value.startsWith('#') || value.startsWith('/')) return true
@@ -85,7 +112,7 @@ function sanitizeHtml(html) {
         continue
       }
 
-      if ((name === 'href' || name === 'src') && !isSafeUrl(value)) {
+      if ((name === 'href' || name === 'src') && !isSafeMarkdownUrl(value)) {
         element.removeAttribute(attribute.name)
       }
     }
@@ -107,5 +134,5 @@ function sanitizeHtml(html) {
 }
 
 export function renderMarkdownToSafeHtml(markdown) {
-  return sanitizeHtml(marked.parse(markdown ?? ''))
+  return sanitizeHtml(markdownRenderer.render(markdown ?? ''))
 }

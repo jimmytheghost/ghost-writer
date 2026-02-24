@@ -32,6 +32,10 @@ function PromptPanel({
             onFocus={() => setIsPromptFocused(true)}
             onBlur={() => setIsPromptFocused(false)}
             placeholder=""
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
           />
           <div className="prompt-panel__actions">
             {showStoppedToast && (

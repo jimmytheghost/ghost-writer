@@ -9,6 +9,7 @@ export function useTauriMenuEvents({
   onShowPreview,
   onShowMarkdown,
   onToggleAlwaysOnTop,
+  onShowSettings,
   onShowAbout,
 }) {
   useEffect(() => {
@@ -25,6 +26,7 @@ export function useTauriMenuEvents({
         listen('ghost-writer://menu-preview', () => onShowPreview()),
         listen('ghost-writer://menu-markdown', () => onShowMarkdown()),
         listen('ghost-writer://menu-pin-top', () => onToggleAlwaysOnTop()),
+        listen('ghost-writer://menu-settings', () => onShowSettings()),
         listen('ghost-writer://menu-about', () => onShowAbout()),
       ])
 
@@ -49,6 +51,7 @@ export function useTauriMenuEvents({
     onShowAbout,
     onShowMarkdown,
     onShowPreview,
+    onShowSettings,
     onToggleAlwaysOnTop,
   ])
 }

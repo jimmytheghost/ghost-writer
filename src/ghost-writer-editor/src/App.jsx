@@ -20,11 +20,14 @@ import {
 import {
   isDesktopRuntime,
   isMacDesktopRuntime,
+  loadSettings,
   markRendererInteractive,
+  openExternalUrl,
   saveMarkdownWithNativeDialog,
+  saveSettings,
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
-import { renderMarkdownToSafeHtml } from './lib/markdown'
+import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   closeTabById,
   createNewTab,
@@ -38,6 +41,13 @@ const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
+const DEFAULT_SETTINGS = Object.freeze({
+  defaultModel: '',
+  defaultTheme: 'dark',
+  defaultAlwaysOnTop: false,
+  defaultFooterCollapsed: true,
+  defaultStartupPreview: false,
+})
 
 function readInitialAlwaysOnTop() {
   if (typeof window === 'undefined') return false
@@ -59,6 +69,17 @@ function fileNameFromPath(path) {
   return parts[parts.length - 1] || path
 }
 
+function readLegacyAlwaysOnTopSetting() {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.localStorage.getItem(ALWAYS_ON_TOP_STORAGE_KEY)
+    if (value == null) return null
+    return value === 'true'
+  } catch {
+    return null
+  }
+}
+
 function App() {
   const initialTab = useMemo(() => createNewTab(1), [])
 
@@ -71,6 +92,8 @@ function App() {
   }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
@@ -173,6 +196,53 @@ function App() {
   }, [])
 
   useDesktopAppMetadata({ setAppName, setAppVersion })
+
+  const applySettings = useCallback((nextSettings) => {
+    setTheme(nextSettings.defaultTheme === 'light' ? 'light' : 'dark')
+    setIsAlwaysOnTop(Boolean(nextSettings.defaultAlwaysOnTop))
+    setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
+    setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
+    if (nextSettings.defaultModel) {
+      setSelectedModel(nextSettings.defaultModel)
+    }
+  }, [setSelectedModel])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return
+
+    const loadDesktopSettings = async () => {
+      const payload = await loadSettings()
+      if (!payload?.settings) return
+
+      let nextSettings = {
+        ...DEFAULT_SETTINGS,
+        ...payload.settings,
+      }
+
+      if (!payload.hasFile) {
+        const legacyAlwaysOnTop = readLegacyAlwaysOnTopSetting()
+        if (legacyAlwaysOnTop != null) {
+          nextSettings = {
+            ...nextSettings,
+            defaultAlwaysOnTop: legacyAlwaysOnTop,
+          }
+          await saveSettings(nextSettings)
+        }
+      }
+
+      setSettings(nextSettings)
+      applySettings(nextSettings)
+    }
+
+    void loadDesktopSettings()
+  }, [applySettings])
+
+  useEffect(() => {
+    if (!settings.defaultModel || !models.length) return
+    if (models.includes(settings.defaultModel)) {
+      setSelectedModel(settings.defaultModel)
+    }
+  }, [models, setSelectedModel, settings.defaultModel])
 
   useEffect(() => {
     void setAlwaysOnTop(isAlwaysOnTop)
@@ -360,8 +430,26 @@ function App() {
     [activeTabId],
   )
 
-  const handlePreviewCheckboxToggle = useCallback(
+  const handlePreviewContentClick = useCallback(
     (event) => {
+      const anchor = event.target?.closest?.('a[href]')
+      if (anchor instanceof HTMLAnchorElement) {
+        const href = anchor.getAttribute('href') || ''
+        if (!isSafeMarkdownUrl(href)) {
+          event.preventDefault()
+          return
+        }
+
+        event.preventDefault()
+        if (isDesktopRuntime()) {
+          void openExternalUrl(href)
+          return
+        }
+
+        window.open(href, '_blank', 'noopener,noreferrer')
+        return
+      }
+
       const checkbox = event.target
       if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return
       const sourceLine = Number(checkbox.dataset.sourceLine)
@@ -389,6 +477,39 @@ function App() {
       return nextValue
     })
   }, [])
+
+  const updateSetting = useCallback(
+    async (key, value) => {
+      setSettings((current) => {
+        const next = { ...current, [key]: value }
+        if (isDesktopRuntime()) {
+          void saveSettings(next)
+        }
+        return next
+      })
+
+      if (key === 'defaultTheme') {
+        setTheme(value === 'light' ? 'light' : 'dark')
+      }
+
+      if (key === 'defaultAlwaysOnTop') {
+        setIsAlwaysOnTop(Boolean(value))
+      }
+
+      if (key === 'defaultFooterCollapsed') {
+        setIsFooterCollapsed(Boolean(value))
+      }
+
+      if (key === 'defaultStartupPreview') {
+        setIsPreviewOpen(Boolean(value))
+      }
+
+      if (key === 'defaultModel') {
+        setSelectedModel(value || '')
+      }
+    },
+    [setSelectedModel],
+  )
 
   const handleShowPreview = useCallback(() => {
     setIsPreviewOpen(true)
@@ -418,6 +539,7 @@ function App() {
     onShowPreview: handleShowPreview,
     onShowMarkdown: handleShowMarkdown,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onShowSettings: () => setIsSettingsOpen(true),
     onShowAbout: () => setIsAboutOpen(true),
   })
 
@@ -451,7 +573,7 @@ function App() {
               <div
                 ref={previewContentRef}
                 className="preview__content"
-                onClick={handlePreviewCheckboxToggle}
+                onClick={handlePreviewContentClick}
                 dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
               />
             </section>
@@ -523,6 +645,11 @@ function App() {
       <AppModals
         isAboutOpen={isAboutOpen}
         setIsAboutOpen={setIsAboutOpen}
+        isSettingsOpen={isSettingsOpen}
+        setIsSettingsOpen={setIsSettingsOpen}
+        settings={settings}
+        updateSetting={updateSetting}
+        models={models}
         appName={appName}
         appVersion={appVersion}
       />

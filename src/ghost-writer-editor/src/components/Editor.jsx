@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const INDENT_UNIT = '  '
+const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(.*)$/
 
 function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRange, showSelectionOverlay }) {
   const textareaRef = useRef(null)
@@ -84,12 +85,70 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       const textarea = textareaRef.current
       if (!textarea) return
 
+      const text = value ?? ''
+      const start = textarea.selectionStart ?? 0
+      const end = textarea.selectionEnd ?? start
+      const hasRangeSelection = start !== end
+      const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
+      const lineEndBoundary = text.indexOf('\n', start)
+      const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
+      const lineText = text.slice(lineStart, lineEnd)
+      const listMatch = lineText.match(LIST_ITEM_PATTERN)
+
+      if (event.key === 'Enter' && !hasRangeSelection && listMatch) {
+        event.preventDefault()
+        const [, indentation, marker, itemText] = listMatch
+        const beforeLine = text.slice(0, lineStart)
+        const afterLine = text.slice(lineEnd)
+        const isEmptyItem = itemText.trim().length === 0
+
+        if (isEmptyItem) {
+          const nextValue = `${beforeLine}${indentation}\n${afterLine.startsWith('\n') ? afterLine.slice(1) : afterLine}`
+          const nextPosition = lineStart + indentation.length + 1
+          onChange?.(nextValue)
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+          })
+          return
+        }
+
+        const nextMarker = marker.endsWith('.')
+          ? `${Number.parseInt(marker, 10) + 1}.`
+          : marker
+        const inserted = `\n${indentation}${nextMarker} `
+        const nextValue = `${text.slice(0, end)}${inserted}${text.slice(end)}`
+        const nextPosition = end + inserted.length
+        onChange?.(nextValue)
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextPosition, nextPosition)
+          onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+        })
+        return
+      }
+
+      if (event.key === 'Backspace' && !hasRangeSelection && listMatch) {
+        const [, indentation] = listMatch
+        const markerOffset = lineStart + indentation.length
+        if (start === markerOffset && indentation.length > 0) {
+          event.preventDefault()
+          const removeCount = Math.min(INDENT_UNIT.length, indentation.length)
+          const nextValue = `${text.slice(0, lineStart)}${indentation.slice(removeCount)}${text.slice(markerOffset)}`
+          const nextPosition = start - removeCount
+          onChange?.(nextValue)
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+          })
+          return
+        }
+      }
+
       if (event.key === 'Tab') {
         event.preventDefault()
-        const text = value ?? ''
-        const start = textarea.selectionStart ?? 0
-        const end = textarea.selectionEnd ?? start
-        const hasRangeSelection = start !== end
         const selectedText = text.slice(start, end)
         const hasMultiLineSelection = selectedText.includes('\n')
 
@@ -109,11 +168,10 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
           return
         }
 
-        const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
         const blockEndIndex = end > 0 && text[end - 1] === '\n' ? end - 1 : end
-        const lineEndBoundary = text.indexOf('\n', blockEndIndex)
-        const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
-        const selectedBlock = text.slice(lineStart, lineEnd)
+        const blockLineEndBoundary = text.indexOf('\n', blockEndIndex)
+        const blockLineEnd = blockLineEndBoundary === -1 ? text.length : blockLineEndBoundary
+        const selectedBlock = text.slice(lineStart, blockLineEnd)
         const blockLines = selectedBlock.split('\n')
 
         let selectionStartShift = 0
@@ -144,7 +202,7 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
         })
 
         const transformedBlock = transformedLines.join('\n')
-        const nextValue = `${text.slice(0, lineStart)}${transformedBlock}${text.slice(lineEnd)}`
+        const nextValue = `${text.slice(0, lineStart)}${transformedBlock}${text.slice(blockLineEnd)}`
         const nextSelectionStart = Math.max(lineStart, start + selectionStartShift)
         const nextSelectionEnd = Math.max(nextSelectionStart, end + selectionEndShift)
 
@@ -178,6 +236,19 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       if (isMod && !event.shiftKey && key === 'i') {
         event.preventDefault()
         applyInlineFormat('*')
+        return
+      }
+
+      const isBackquote = event.code === 'Backquote'
+      if (isMod && ((isBackquote && event.shiftKey) || key === '~')) {
+        event.preventDefault()
+        applyInlineFormat('~~')
+        return
+      }
+
+      if (isMod && event.shiftKey && key === 'x') {
+        event.preventDefault()
+        applyInlineFormat('~~')
         return
       }
 
@@ -249,7 +320,10 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
               selectionEnd: target.selectionEnd ?? target.selectionStart ?? 0,
             })
           }}
-          spellCheck="true"
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={true}
         />
       </div>
     </section>
