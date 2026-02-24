@@ -241,8 +241,8 @@
   flex-wrap: nowrap;
   gap: var(--space-2);
   margin-left: auto;
-  flex: 1 1 auto;
-  justify-content: flex-end;
+  flex: 0 1 auto;
+  justify-content: flex-start;
   min-width: 0;
 }
 
@@ -663,8 +663,7 @@
 }
 
 .footer-model {
-  flex: 1 1 auto;
-  flex-basis: 400px;
+  flex: 0 1 400px;
   width: 400px;
   min-width: 0;
   max-width: 400px;
@@ -1166,11 +1165,13 @@
   }
 
   .footer-controls {
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .footer-model {
-    flex: 0 0 auto;
+    flex: 0 0 36px;
+    width: 36px;
+    min-width: 36px;
     max-width: none;
     position: relative;
   }
