@@ -100,6 +100,7 @@ function App() {
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
 
   const isDark = theme === 'dark'
@@ -574,6 +575,10 @@ function App() {
     setIsPreviewOpen((previous) => !previous)
   }, [])
 
+  const handleToggleTabBar = useCallback(() => {
+    setIsTabBarVisible((previous) => !previous)
+  }, [])
+
   useGlobalShortcuts({
     saveActionRef,
     openActionRef,
@@ -590,6 +595,7 @@ function App() {
     onShowPreview: handleShowPreview,
     onShowMarkdown: handleShowMarkdown,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onToggleTabBar: handleToggleTabBar,
     onShowSettings: () => setIsSettingsOpen(true),
     onShowAbout: () => setIsAboutOpen(true),
   })
@@ -610,17 +616,29 @@ function App() {
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
-      <TabBar
-        tabs={tabs}
-        activeTabId={activeTabId}
-        onSelectTab={handleTabSelect}
-        onCreateTab={handleNew}
-        onCloseTab={handleCloseTab}
-      />
+      {isTabBarVisible && (
+        <TabBar
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onSelectTab={handleTabSelect}
+          onCreateTab={handleNew}
+          onCloseTab={handleCloseTab}
+        />
+      )}
       <main className="app__main">
         <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
             <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
+              <div className="preview__toolbar">
+                <button
+                  type="button"
+                  className="preview__exit"
+                  aria-label="Exit markdown preview"
+                  onClick={handleShowMarkdown}
+                >
+                  Exit
+                </button>
+              </div>
               <div
                 ref={previewContentRef}
                 className="preview__content"

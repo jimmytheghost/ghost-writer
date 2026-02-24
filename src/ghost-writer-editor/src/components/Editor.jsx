@@ -389,6 +389,30 @@ function Editor({
           className="editor__textarea"
           value={value ?? ''}
           onChange={(event) => onChange(event.target.value)}
+          onBeforeInput={(event) => {
+            const nativeEvent = event.nativeEvent
+            if (nativeEvent?.inputType !== 'insertText' || nativeEvent?.data !== '—') return
+
+            event.preventDefault()
+            const target = event.target
+            if (!(target instanceof HTMLTextAreaElement)) return
+
+            const start = target.selectionStart ?? 0
+            const end = target.selectionEnd ?? start
+            const text = value ?? ''
+            const nextValue = `${text.slice(0, start)}--${text.slice(end)}`
+            const nextPosition = start + 2
+            onChange(nextValue)
+
+            requestAnimationFrame(() => {
+              target.focus()
+              target.setSelectionRange(nextPosition, nextPosition)
+              onSelectionChange?.({
+                selectionStart: nextPosition,
+                selectionEnd: nextPosition,
+              })
+            })
+          }}
           onScroll={(event) => setScrollTop(event.target.scrollTop)}
           onSelect={(event) => {
             const target = event.target

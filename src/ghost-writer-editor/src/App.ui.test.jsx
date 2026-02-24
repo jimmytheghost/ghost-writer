@@ -46,8 +46,9 @@ describe('App UI behaviors', () => {
 
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
     expect(document.querySelector('textarea.editor__textarea')).toBeNull()
-
-    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+    const exitButtons = screen.getAllByRole('button', { name: 'Exit markdown preview' })
+    expect(exitButtons.length).toBeGreaterThan(0)
+    fireEvent.click(exitButtons[0])
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
 })

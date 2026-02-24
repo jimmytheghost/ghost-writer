@@ -18,6 +18,7 @@
 ## LLM Integration Bugs
 [ ] Make sure LLM generation never deletes what is currently written
 [ ] If no text is highlighted - LLM generation should insert where cursor is - if text is highlighted it should replace that text and any {{}} text and leave everything else untouched 
+[ ] Stop button is buggy
 
 ## New Features
 

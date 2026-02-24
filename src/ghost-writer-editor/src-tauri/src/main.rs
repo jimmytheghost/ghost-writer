@@ -57,6 +57,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let view_preview =
         MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
     let view_markdown = MenuItem::with_id(app, "view_markdown", "Markdown", true, None::<&str>)?;
+    let view_toggle_tab_bar = MenuItem::with_id(
+        app,
+        "view_toggle_tab_bar",
+        "Hide Tab Bar",
+        true,
+        Some("CmdOrCtrl+Shift+H"),
+    )?;
     let view_pin_top =
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
 
@@ -84,7 +91,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app,
         "View",
         true,
-        &[&view_preview, &view_markdown, &view_pin_top],
+        &[&view_preview, &view_markdown, &view_toggle_tab_bar, &view_pin_top],
     )?;
     let settings_menu = Submenu::with_items(app, "Settings", true, &[&settings_open])?;
     let about_menu = Submenu::with_items(app, "About", true, &[&about_show])?;
@@ -266,6 +273,7 @@ fn main() {
                 "file_quit" => app.exit(0),
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
                 "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),
+                "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),
                 "about_show" => emit_menu_event("ghost-writer://menu-about"),
