@@ -73,7 +73,7 @@
   justify-content: center;
   gap: var(--space-1);
   font-family: var(--font-family-base);
-  font-size: var(--font-size-sm);
+  font-size: 12px;
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
@@ -111,6 +111,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .tab-bar__close {
@@ -315,7 +317,11 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  font-family: var(--font-family-base);
+  font-family:
+    var(--font-family-base),
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Noto Color Emoji";
   font-weight: var(--font-weight-normal);
   font-size: var(--font-size-base);
   line-height: var(--line-height-relaxed);
@@ -365,6 +371,11 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.preview__content em,
+.preview__content i {
+  font-style: italic;
+}
+
 .preview__content h1,
 .preview__content h2,
 .preview__content h3,
@@ -400,28 +411,40 @@
 }
 
 .preview__content pre {
-  background: var(--color-gray-100);
-  padding: var(--space-3);
-  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-gray-100) 88%, #0f172a);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
   overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--color-gray-300) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-gray-300) 72%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-gray-200) 30%, transparent);
 }
 
 .preview__content pre code {
   background: transparent;
   padding: 0;
+  font-size: 0.92em;
+  line-height: 1.6;
 }
 
 .preview__content dl {
   margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-gray-300) 65%, transparent);
+  background: color-mix(in srgb, var(--color-gray-100) 86%, transparent);
 }
 
 .preview__content dt {
   font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
 }
 
 .preview__content dd {
-  margin: 0 0 var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-2) var(--space-4);
+}
+
+.preview__content dd:last-of-type {
+  margin-bottom: 0;
 }
 
 .preview__content mark {
@@ -447,6 +470,11 @@
 .preview--dark .preview__content pre {
   background: var(--color-gray-900);
   border: 1px solid var(--color-gray-700);
+}
+
+.preview--dark .preview__content dl {
+  background: color-mix(in srgb, var(--color-gray-900) 86%, transparent);
+  border-color: color-mix(in srgb, var(--color-gray-700) 78%, transparent);
 }
 
 .editor__field {
@@ -920,6 +948,16 @@
   margin-bottom: var(--space-6);
 }
 
+.modal__select {
+  appearance: none;
+  border: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right var(--space-3) center;
+  background-repeat: no-repeat;
+  background-size: 1.1rem;
+  padding-right: var(--space-10);
+}
+
 .modal__actions {
   display: flex;
   justify-content: flex-end;
@@ -1043,54 +1081,6 @@
   .app__drag-region {
     left: 84px;
     height: calc(var(--space-3) + 1.5rem);
-  }
-
-  .tab-bar__add {
-    width: 30px;
-    min-width: 30px;
-  }
-
-  .app__main {
-    padding: var(--space-3) var(--space-3) 0;
-    padding-bottom: calc(var(--space-3) + var(--app-footer-height));
-  }
-
-  .app__footer-row {
-    flex-wrap: nowrap;
-    gap: var(--space-2);
-  }
-
-  .doc-actions {
-    flex-wrap: nowrap;
-    gap: var(--space-1);
-  }
-
-  .footer-controls {
-    flex: 1 1 auto;
-    justify-content: flex-end;
-  }
-
-  .footer-model {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .prompt-panel__row {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .prompt-panel__actions {
-    width: auto;
-    flex-direction: row;
-    align-items: center;
-    flex: 0 0 auto;
-  }
-
-  .footer-model__select {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
   }
 }
 

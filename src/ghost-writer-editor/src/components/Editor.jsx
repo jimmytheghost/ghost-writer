@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const INDENT_UNIT = '  '
-const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(.*)$/
+const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(?:\[(?: |x|X)\]\s)?(.*)$/
 
 function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRange, showSelectionOverlay }) {
   const textareaRef = useRef(null)
@@ -132,11 +132,11 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       if (event.key === 'Backspace' && !hasRangeSelection && listMatch) {
         const [, indentation] = listMatch
         const markerOffset = lineStart + indentation.length
-        if (start === markerOffset && indentation.length > 0) {
+        if ((start === markerOffset || start === lineStart) && indentation.length > 0) {
           event.preventDefault()
           const removeCount = Math.min(INDENT_UNIT.length, indentation.length)
           const nextValue = `${text.slice(0, lineStart)}${indentation.slice(removeCount)}${text.slice(markerOffset)}`
-          const nextPosition = start - removeCount
+          const nextPosition = Math.max(lineStart, start - removeCount)
           onChange?.(nextValue)
           requestAnimationFrame(() => {
             textarea.focus()
@@ -221,6 +221,11 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
       const isMac = /Mac/.test(navigator.platform)
       const isMod = isMac ? event.metaKey : event.ctrlKey
       const key = event.key.toLowerCase()
+      const isSystemEditShortcut = isMod && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
+
+      if (isSystemEditShortcut) {
+        return
+      }
 
       if (isMod && event.shiftKey && key === 'k') {
         event.preventDefault()
@@ -239,8 +244,8 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
         return
       }
 
-      const isBackquote = event.code === 'Backquote'
-      if (isMod && ((isBackquote && event.shiftKey) || key === '~')) {
+      const isBackquoteKey = event.code === 'Backquote' || key === '`' || key === '~'
+      if (isMod && !event.altKey && isBackquoteKey) {
         event.preventDefault()
         applyInlineFormat('~~')
         return
@@ -323,7 +328,9 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
-          spellCheck={true}
+          spellCheck={false}
+          data-gramm="false"
+          data-lt-active="false"
         />
       </div>
     </section>

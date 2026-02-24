@@ -22,7 +22,7 @@ function AppModals({
             </label>
             <select
               id="settings-model"
-              className="modal__input"
+              className="modal__input modal__select"
               value={settings.defaultModel}
               onChange={(event) => updateSetting('defaultModel', event.target.value)}
             >
@@ -39,7 +39,7 @@ function AppModals({
             </label>
             <select
               id="settings-theme"
-              className="modal__input"
+              className="modal__input modal__select"
               value={settings.defaultTheme}
               onChange={(event) => updateSetting('defaultTheme', event.target.value)}
             >

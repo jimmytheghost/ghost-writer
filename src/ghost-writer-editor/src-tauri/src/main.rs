@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
-use tauri::menu::{Menu, MenuItem, Submenu};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
 
 const OLLAMA_ADDR: &str = "127.0.0.1:11434";
@@ -63,6 +63,20 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     let file_menu =
         Submenu::with_items(app, "File", true, &[&file_new, &file_open, &file_save, &file_quit])?;
+    let edit_menu = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None::<&str>)?,
+            &PredefinedMenuItem::redo(app, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None::<&str>)?,
+            &PredefinedMenuItem::copy(app, None::<&str>)?,
+            &PredefinedMenuItem::paste(app, None::<&str>)?,
+            &PredefinedMenuItem::select_all(app, None::<&str>)?,
+        ],
+    )?;
     let view_menu = Submenu::with_items(
         app,
         "View",
@@ -72,7 +86,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let settings_menu = Submenu::with_items(app, "Settings", true, &[&settings_open])?;
     let about_menu = Submenu::with_items(app, "About", true, &[&about_show])?;
 
-    Menu::with_items(app, &[&file_menu, &view_menu, &settings_menu, &about_menu])
+    Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &settings_menu, &about_menu])
 }
 
 #[tauri::command]
