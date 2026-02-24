@@ -40,15 +40,14 @@ describe('App UI behaviors', () => {
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toBeInTheDocument()
   })
 
-  it('exits markdown preview back to the editor from footer exit control', () => {
+  it('exits markdown preview back to the editor with Escape', () => {
     render(<App />)
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
 
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
     expect(document.querySelector('textarea.editor__textarea')).toBeNull()
-    const exitButtons = screen.getAllByRole('button', { name: 'Exit markdown preview' })
-    expect(exitButtons.length).toBeGreaterThan(0)
-    fireEvent.click(exitButtons[0])
+
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
 })

@@ -9,7 +9,7 @@
 [x] Hide .md in tab headlines
 [ ] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash 
 [ ] In markdown preview - if user hits “exit” it takes them back to text editor
-[ ] In “view” - add feature to “Hide Tab Bar”
+[x] In “view” - add feature to “Hide Tab Bar”
 
 
 ## Edge Cases

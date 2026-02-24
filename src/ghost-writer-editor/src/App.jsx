@@ -613,6 +613,21 @@ function App() {
     })
   }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
 
+  useEffect(() => {
+    if (!isPreviewOpen) return undefined
+
+    const handleEscapeKey = (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setIsPreviewOpen(false)
+    }
+
+    window.addEventListener('keydown', handleEscapeKey)
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKey)
+    }
+  }, [isPreviewOpen])
+
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
@@ -629,16 +644,6 @@ function App() {
         <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
             <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
-              <div className="preview__toolbar">
-                <button
-                  type="button"
-                  className="preview__exit"
-                  aria-label="Exit markdown preview"
-                  onClick={handleShowMarkdown}
-                >
-                  Exit
-                </button>
-              </div>
               <div
                 ref={previewContentRef}
                 className="preview__content"

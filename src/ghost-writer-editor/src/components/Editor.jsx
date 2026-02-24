@@ -361,6 +361,42 @@ function Editor({
     }
   }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
 
+  const handleTextareaChange = (event) => {
+    const target = event.target
+    const inputValue = target.value
+    const selectionStart = target.selectionStart ?? inputValue.length
+    const previousValue = value ?? ''
+    const smartDashWindowStart = Math.max(0, selectionStart - 6)
+    const smartDashWindowEnd = Math.min(inputValue.length, selectionStart + 2)
+    const smartDashWindow = inputValue.slice(smartDashWindowStart, smartDashWindowEnd)
+    const localIndex = Math.max(smartDashWindow.lastIndexOf('—'), smartDashWindow.lastIndexOf('–'))
+
+    if (localIndex === -1) {
+      onChange(inputValue)
+      return
+    }
+
+    const absoluteIndex = smartDashWindowStart + localIndex
+    const matchedDash = inputValue[absoluteIndex]
+    const collapseAmount = Math.max(0, previousValue.length - inputValue.length)
+    const replacement = matchedDash === '—' ? (collapseAmount >= 1 ? '---' : '--') : '-'
+    const nextValue = `${inputValue.slice(0, absoluteIndex)}${replacement}${inputValue.slice(absoluteIndex + 1)}`
+    const lengthDelta = replacement.length - 1
+    const nextPosition = absoluteIndex < selectionStart ? selectionStart + lengthDelta : selectionStart
+    const resolvedPosition = Math.max(0, Math.min(nextPosition, nextValue.length))
+
+    onChange(nextValue)
+
+    requestAnimationFrame(() => {
+      target.focus()
+      target.setSelectionRange(resolvedPosition, resolvedPosition)
+      onSelectionChange?.({
+        selectionStart: resolvedPosition,
+        selectionEnd: resolvedPosition,
+      })
+    })
+  }
+
   return (
     <section className="editor">
       <div className="editor__field">
@@ -388,10 +424,11 @@ function Editor({
           ref={textareaRef}
           className="editor__textarea"
           value={value ?? ''}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={handleTextareaChange}
           onBeforeInput={(event) => {
             const nativeEvent = event.nativeEvent
-            if (nativeEvent?.inputType !== 'insertText' || nativeEvent?.data !== '—') return
+            if (nativeEvent?.inputType !== 'insertText') return
+            if (nativeEvent?.data !== '—' && nativeEvent?.data !== '–') return
 
             event.preventDefault()
             const target = event.target
@@ -400,8 +437,9 @@ function Editor({
             const start = target.selectionStart ?? 0
             const end = target.selectionEnd ?? start
             const text = value ?? ''
-            const nextValue = `${text.slice(0, start)}--${text.slice(end)}`
-            const nextPosition = start + 2
+            const replacement = nativeEvent?.data === '—' ? '--' : '-'
+            const nextValue = `${text.slice(0, start)}${replacement}${text.slice(end)}`
+            const nextPosition = start + replacement.length
             onChange(nextValue)
 
             requestAnimationFrame(() => {
