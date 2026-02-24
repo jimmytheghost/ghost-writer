@@ -13,7 +13,7 @@ function AppModals({
     <>
       {isSettingsOpen && (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <div className="modal modal--settings" onClick={(event) => event.stopPropagation()}>
             <h2 className="modal__title">Settings</h2>
             <p className="modal__description">Defaults are applied instantly and saved for next launch.</p>
 
