@@ -32,15 +32,19 @@
   height: calc(var(--space-4) + 2rem);
   -webkit-app-region: drag;
   z-index: var(--z-fixed);
+  pointer-events: none;
 }
 
 .tab-bar {
+  position: relative;
   display: flex;
   align-items: stretch;
   width: 100%;
   min-height: 44px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-gray-400) 30%, transparent);
   background: color-mix(in srgb, var(--color-gray-100) 92%, var(--color-white));
+  z-index: var(--z-sticky);
+  -webkit-app-region: no-drag;
 }
 
 .app--dark .tab-bar {
