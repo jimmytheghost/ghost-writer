@@ -269,8 +269,16 @@ function App() {
   }, [])
 
   const handleCloseTab = useCallback(
-    (tabId) => {
-      if (!tabs.some((tab) => tab.id === tabId)) return
+    async (tabId) => {
+      const tabToClose = tabs.find((tab) => tab.id === tabId)
+      if (!tabToClose) return
+
+      const hasContent = tabToClose.content.trim().length > 0
+      if (hasContent && isDesktopRuntime()) {
+        const suggestedName = ensureMarkdownFileName(tabToClose.title || 'untitled')
+        // Save dialog is shown for non-empty tabs; cancel still closes per product request.
+        await saveMarkdownWithNativeDialog(tabToClose.content, suggestedName)
+      }
 
       if (isLoadingPrompt && tabId === activeTabId) {
         abortGeneration()
