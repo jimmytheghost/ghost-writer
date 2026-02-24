@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.2] - 2026-02-24
+
+### Added
+
+- Editor spellcheck setting persisted in desktop settings and exposed in Settings modal.
+- In-app misspelling detection and red underline rendering for reliable spelling feedback on macOS.
+- Spellcheck timing behavior that checks words after they are committed with whitespace.
+- Spellcheck unit tests covering committed-word behavior.
+
+### Changed
+
+- Increased settings modal container max height by 20px for improved layout.
+- Updated editor spellcheck attributes (`autoCorrect`, language hinting) to improve platform integration.
+
 ## [0.1.1] - 2026-02-23
 
 ### Added
