@@ -241,6 +241,8 @@
   flex-wrap: nowrap;
   gap: var(--space-2);
   margin-left: auto;
+  flex: 1 1 auto;
+  justify-content: flex-end;
   min-width: 0;
 }
 
@@ -649,8 +651,8 @@
 
 .footer-model__select {
   font-family: var(--font-family-mono);
-  width: clamp(36px, 22vw, 190px);
-  min-width: 36px;
+  width: 100%;
+  min-width: 0;
   border: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
@@ -662,8 +664,10 @@
 
 .footer-model {
   flex: 1 1 auto;
+  flex-basis: 400px;
+  width: 400px;
   min-width: 0;
-  max-width: 220px;
+  max-width: 400px;
 }
 
 .footer-model__status {
@@ -683,7 +687,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
 }
 
 .doc-actions__button,
@@ -1151,19 +1156,16 @@
   color: var(--color-gray-100);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 525px) {
   .app__footer-row {
     gap: var(--space-2);
   }
 
   .doc-actions {
-    flex-wrap: nowrap;
     gap: var(--space-1);
-    flex: 0 0 auto;
   }
 
   .footer-controls {
-    flex: 1 1 auto;
     justify-content: flex-end;
   }
 
