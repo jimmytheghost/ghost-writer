@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { stripAssistantLeadIn } from '../lib/contentTransforms'
 import {
   buildOllamaUrl,
@@ -7,22 +7,28 @@ import {
 } from '../lib/ollama'
 import { buildGenerationPrompt } from '../lib/prompting'
 
+const EMPTY_HISTORY = Object.freeze({
+  undoSnapshot: '',
+  redoSnapshot: '',
+  canUndoGeneration: false,
+  canRedoGeneration: false,
+  undoToggleState: 'undo',
+})
+
 export function usePromptGeneration({
-  content,
+  activeTabId,
+  getActiveTab,
+  getTabById,
   selectedModel,
   selectionRange,
-  setContent,
+  setTabContentById,
+  updateTabById,
   promptFormRef,
 }) {
-  const [promptText, setPromptText] = useState('')
-  const [promptError, setPromptError] = useState('')
-  const [undoSnapshot, setUndoSnapshot] = useState('')
-  const [redoSnapshot, setRedoSnapshot] = useState('')
-  const [canUndoGeneration, setCanUndoGeneration] = useState(false)
-  const [canRedoGeneration, setCanRedoGeneration] = useState(false)
-  const [undoToggleState, setUndoToggleState] = useState('undo')
+  const [historyByTab, setHistoryByTab] = useState({})
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [showStoppedToast, setShowStoppedToast] = useState(false)
+  const streamTabIdRef = useRef('')
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
@@ -46,61 +52,117 @@ export function usePromptGeneration({
     }
   }, [showStoppedToast])
 
+  const activeTab = useMemo(() => getActiveTab(), [getActiveTab])
+  const historyForActiveTab = activeTabId ? historyByTab[activeTabId] ?? EMPTY_HISTORY : EMPTY_HISTORY
+  const promptText = activeTab?.promptText ?? ''
+  const promptError = activeTab?.promptError ?? ''
+
+  const setPromptError = useCallback(
+    (value, tabId = activeTabId) => {
+      if (!tabId) return
+      updateTabById(tabId, (tab) => ({ ...tab, promptError: value }))
+    },
+    [activeTabId, updateTabById],
+  )
+
+  const setPromptText = useCallback(
+    (value, tabId = activeTabId) => {
+      if (!tabId) return
+      updateTabById(tabId, (tab) => ({ ...tab, promptText: value }))
+    },
+    [activeTabId, updateTabById],
+  )
+
+  const patchHistory = useCallback((tabId, patch) => {
+    if (!tabId) return
+    setHistoryByTab((previous) => {
+      const current = previous[tabId] ?? EMPTY_HISTORY
+      const next = typeof patch === 'function' ? patch(current) : { ...current, ...patch }
+      return {
+        ...previous,
+        [tabId]: next,
+      }
+    })
+  }, [])
+
   const resetGenerationState = useCallback(
-    ({ clearPromptError = true } = {}) => {
-      setUndoSnapshot('')
-      setRedoSnapshot('')
-      setCanUndoGeneration(false)
-      setCanRedoGeneration(false)
-      setUndoToggleState('undo')
+    ({ clearPromptError = true, tabId = activeTabId } = {}) => {
+      if (!tabId) return
+      patchHistory(tabId, EMPTY_HISTORY)
       if (clearPromptError) {
-        setPromptError('')
+        setPromptError('', tabId)
       }
     },
-    [],
+    [activeTabId, patchHistory, setPromptError],
   )
 
   const handleUndoGeneration = useCallback(() => {
-    if (!canUndoGeneration) return
+    if (!activeTabId) return
+    const tab = getTabById(activeTabId)
+    if (!tab) return
+    const tabHistory = historyByTab[activeTabId] ?? EMPTY_HISTORY
+    if (!tabHistory.canUndoGeneration) return
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-    setRedoSnapshot(content)
-    setContent(undoSnapshot)
-    setPromptError('')
-    setCanUndoGeneration(false)
-    setCanRedoGeneration(true)
-    setUndoToggleState('redo')
-  }, [canUndoGeneration, content, setContent, undoSnapshot])
+
+    setTabContentById(activeTabId, tabHistory.undoSnapshot)
+    patchHistory(activeTabId, {
+      ...tabHistory,
+      redoSnapshot: tab.content,
+      canUndoGeneration: false,
+      canRedoGeneration: true,
+      undoToggleState: 'redo',
+    })
+    setPromptError('', activeTabId)
+  }, [activeTabId, getTabById, historyByTab, patchHistory, setPromptError, setTabContentById])
 
   const handleRedoGeneration = useCallback(() => {
-    if (!canRedoGeneration) return
-    setContent(redoSnapshot)
-    setCanRedoGeneration(false)
-    setCanUndoGeneration(true)
-    setUndoToggleState('undo')
-  }, [canRedoGeneration, redoSnapshot, setContent])
+    if (!activeTabId) return
+    const tabHistory = historyByTab[activeTabId] ?? EMPTY_HISTORY
+    if (!tabHistory.canRedoGeneration) return
+
+    setTabContentById(activeTabId, tabHistory.redoSnapshot)
+    patchHistory(activeTabId, {
+      ...tabHistory,
+      canRedoGeneration: false,
+      canUndoGeneration: true,
+      undoToggleState: 'undo',
+    })
+  }, [activeTabId, historyByTab, patchHistory, setTabContentById])
 
   const handleUndoToggle = useCallback(() => {
-    if (undoToggleState === 'redo') {
+    const tabHistory = historyForActiveTab
+    if (tabHistory.undoToggleState === 'redo') {
       handleRedoGeneration()
       return
     }
     handleUndoGeneration()
-  }, [handleRedoGeneration, handleUndoGeneration, undoToggleState])
+  }, [handleRedoGeneration, handleUndoGeneration, historyForActiveTab])
+
+  const abortGeneration = useCallback(() => {
+    abortControllerRef.current?.abort()
+  }, [])
 
   const handlePromptSubmit = useCallback(
     async (event) => {
       event.preventDefault()
-      if (!promptText.trim()) return
+      const tab = getActiveTab()
+      if (!tab || !tab.promptText.trim()) return
+
+      const submittingTabId = tab.id
+      const tabContent = tab.content
 
       setIsLoadingPrompt(true)
-      setPromptError('')
-      setUndoSnapshot(content)
-      setCanUndoGeneration(true)
-      setRedoSnapshot('')
-      setCanRedoGeneration(false)
-      setUndoToggleState('undo')
+      setPromptError('', submittingTabId)
+      patchHistory(submittingTabId, {
+        undoSnapshot: tabContent,
+        redoSnapshot: '',
+        canUndoGeneration: true,
+        canRedoGeneration: false,
+        undoToggleState: 'undo',
+      })
 
       try {
         if (!selectedModel) {
@@ -112,21 +174,22 @@ export function usePromptGeneration({
         }
 
         abortControllerRef.current = new AbortController()
+        streamTabIdRef.current = submittingTabId
 
         const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
         const selectedText = hasRangeSelection
-          ? content.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
+          ? tabContent.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
           : ''
 
-        streamBaseRef.current = content
+        streamBaseRef.current = tabContent
         streamSelectionRef.current = hasRangeSelection
           ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
-          : { start: 0, end: content.length }
+          : { start: 0, end: tabContent.length }
         streamBufferRef.current = ''
 
         const refinedPrompt = buildGenerationPrompt({
-          promptText,
-          documentText: content,
+          promptText: tab.promptText,
+          documentText: tabContent,
           selectedText,
         })
 
@@ -161,13 +224,19 @@ export function usePromptGeneration({
 
         const applyStreamChunk = (chunk) => {
           if (!chunk) return
+          const streamTabId = streamTabIdRef.current
+          if (!streamTabId || !getTabById(streamTabId)) {
+            abortControllerRef.current?.abort()
+            return
+          }
+
           streamBufferRef.current += chunk
           const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
           const base = streamBaseRef.current
           const { start, end } = streamSelectionRef.current
           const safeStart = Math.min(start, base.length)
           const safeEnd = Math.min(end, base.length)
-          setContent(`${base.slice(0, safeStart)}${cleanedStreamText}${base.slice(safeEnd)}`)
+          setTabContentById(streamTabId, `${base.slice(0, safeStart)}${cleanedStreamText}${base.slice(safeEnd)}`)
         }
 
         while (true) {
@@ -208,22 +277,35 @@ export function usePromptGeneration({
           requestAnimationFrame(() => setShowStoppedToast(true))
           return
         }
-        setPromptError(error?.message ?? 'Unable to reach Ollama.')
+        setPromptError(error?.message ?? 'Unable to reach Ollama.', submittingTabId)
       } finally {
         setIsLoadingPrompt(false)
         abortControllerRef.current = null
+        streamTabIdRef.current = ''
       }
     },
-    [content, promptText, selectedModel, selectionRange.end, selectionRange.start, setContent],
+    [
+      getActiveTab,
+      getTabById,
+      patchHistory,
+      selectedModel,
+      selectionRange.end,
+      selectionRange.start,
+      setPromptError,
+      setTabContentById,
+    ],
   )
 
   const handlePrimaryPromptAction = useCallback(() => {
+    const tab = getActiveTab()
+    if (!tab) return
+
     if (isLoadingPrompt) {
-      abortControllerRef.current?.abort()
+      abortGeneration()
       return
     }
 
-    if (!promptText.trim() || !selectedModel.trim()) return
+    if (!tab.promptText.trim() || !selectedModel.trim()) return
     const form = promptFormRef.current
     if (!form) return
 
@@ -233,7 +315,7 @@ export function usePromptGeneration({
     }
 
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-  }, [isLoadingPrompt, promptFormRef, promptText, selectedModel])
+  }, [abortGeneration, getActiveTab, isLoadingPrompt, promptFormRef, selectedModel])
 
   const handlePromptKeyDown = useCallback(
     (event) => {
@@ -250,13 +332,15 @@ export function usePromptGeneration({
   )
 
   const handleClearPrompt = useCallback(() => {
-    setPromptText('')
-    setPromptError('')
-  }, [])
+    if (!activeTabId) return
+    setPromptText('', activeTabId)
+    setPromptError('', activeTabId)
+  }, [activeTabId, setPromptError, setPromptText])
 
   return {
-    canRedoGeneration,
-    canUndoGeneration,
+    abortGeneration,
+    canRedoGeneration: historyForActiveTab.canRedoGeneration,
+    canUndoGeneration: historyForActiveTab.canUndoGeneration,
     handleClearPrompt,
     handlePromptKeyDown,
     handlePromptSubmit,
@@ -269,6 +353,6 @@ export function usePromptGeneration({
     setPromptError,
     setPromptText,
     showStoppedToast,
-    undoToggleState,
+    undoToggleState: historyForActiveTab.undoToggleState,
   }
 }

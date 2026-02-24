@@ -30,15 +30,13 @@ describe('App UI behaviors', () => {
     expect(screen.getByLabelText('Expand footer controls')).toBeInTheDocument()
   })
 
-  it('shows new-document confirmation when content exists', () => {
+  it('creates and activates a new tab from footer New action', () => {
     render(<App />)
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
 
-    const editor = document.querySelector('textarea.editor__textarea')
-    expect(editor).not.toBeNull()
-    fireEvent.change(editor, { target: { value: 'Unsaved draft content' } })
     fireEvent.click(screen.getByLabelText('New document'))
 
-    expect(screen.getByText('Start a new document?')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toBeInTheDocument()
   })
 })

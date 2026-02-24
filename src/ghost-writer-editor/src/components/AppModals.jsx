@@ -4,9 +4,6 @@ function AppModals({
   fileName,
   setFileName,
   handleSaveConfirm,
-  isNewConfirmOpen,
-  setIsNewConfirmOpen,
-  handleConfirmNew,
   isAboutOpen,
   setIsAboutOpen,
   appName,
@@ -40,22 +37,6 @@ function AppModals({
                 disabled={!fileName.trim()}
               >
                 Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {isNewConfirmOpen && (
-        <div className="modal-overlay" onClick={() => setIsNewConfirmOpen(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h2 className="modal__title">Start a new document?</h2>
-            <p className="modal__description">Unsaved changes will be lost.</p>
-            <div className="modal__actions">
-              <button type="button" className="modal__button" onClick={() => setIsNewConfirmOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="modal__button modal__button--primary" onClick={handleConfirmNew}>
-                New
               </button>
             </div>
           </div>

@@ -34,6 +34,126 @@
   z-index: var(--z-fixed);
 }
 
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 44px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-gray-400) 30%, transparent);
+  background: color-mix(in srgb, var(--color-gray-100) 92%, var(--color-white));
+}
+
+.app--dark .tab-bar {
+  background: color-mix(in srgb, var(--color-gray-700) 86%, var(--color-gray-800));
+  border-bottom-color: color-mix(in srgb, var(--color-gray-800) 65%, var(--color-black));
+}
+
+.tab-bar__tabs {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tab-bar__tab {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  border-right: 1px solid color-mix(in srgb, var(--color-gray-500) 30%, transparent);
+  background: color-mix(in srgb, var(--color-gray-200) 42%, var(--color-gray-100));
+  color: var(--color-gray-500);
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.app--dark .tab-bar__tab {
+  background: color-mix(in srgb, var(--color-gray-800) 90%, var(--color-black));
+  border-right-color: color-mix(in srgb, var(--color-gray-600) 45%, transparent);
+  color: var(--color-gray-400);
+}
+
+.tab-bar__tab:hover {
+  background: color-mix(in srgb, var(--color-gray-300) 35%, var(--color-gray-100));
+  color: var(--color-gray-700);
+}
+
+.app--dark .tab-bar__tab:hover {
+  background: color-mix(in srgb, var(--color-gray-700) 60%, var(--color-gray-800));
+  color: var(--color-gray-200);
+}
+
+.tab-bar__tab--active {
+  background: transparent;
+  color: var(--color-gray-800);
+}
+
+.app--dark .tab-bar__tab--active {
+  background: color-mix(in srgb, var(--color-gray-700) 45%, transparent);
+  color: var(--color-gray-100);
+}
+
+.tab-bar__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-bar__close {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.tab-bar__close:hover {
+  background: color-mix(in srgb, var(--color-gray-300) 50%, transparent);
+}
+
+.app--dark .tab-bar__close:hover {
+  background: color-mix(in srgb, var(--color-gray-600) 65%, transparent);
+}
+
+.tab-bar__add {
+  width: 54px;
+  min-width: 54px;
+  border: none;
+  border-left: 1px solid color-mix(in srgb, var(--color-gray-500) 30%, transparent);
+  background: color-mix(in srgb, var(--color-gray-200) 30%, var(--color-gray-100));
+  color: var(--color-gray-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.app--dark .tab-bar__add {
+  border-left-color: color-mix(in srgb, var(--color-gray-600) 45%, transparent);
+  background: color-mix(in srgb, var(--color-gray-800) 80%, var(--color-black));
+  color: var(--color-gray-400);
+}
+
+.tab-bar__add:hover {
+  background: color-mix(in srgb, var(--color-gray-300) 35%, var(--color-gray-100));
+  color: var(--color-gray-700);
+}
+
+.app--dark .tab-bar__add:hover {
+  background: color-mix(in srgb, var(--color-gray-700) 60%, var(--color-gray-800));
+  color: var(--color-gray-100);
+}
+
 .app__footer {
   position: fixed;
   left: 0;
@@ -849,6 +969,16 @@
     height: calc(var(--space-3) + 1.5rem);
   }
 
+  .tab-bar__tab {
+    font-size: var(--font-size-lg);
+    height: 40px;
+  }
+
+  .tab-bar__add {
+    width: 44px;
+    min-width: 44px;
+  }
+
   .app__main {
     padding: var(--space-3) var(--space-3) 0;
     padding-bottom: calc(var(--space-3) + var(--app-footer-height));
@@ -894,6 +1024,17 @@
 }
 
 @media (max-width: 430px) {
+  .tab-bar__tab {
+    font-size: var(--font-size-base);
+    gap: var(--space-1);
+  }
+
+  .tab-bar__close {
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+  }
+
   .app__footer {
     padding: var(--space-2);
   }

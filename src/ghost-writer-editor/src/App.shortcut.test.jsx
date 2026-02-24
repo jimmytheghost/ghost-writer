@@ -60,4 +60,12 @@ describe('App keyboard shortcuts', () => {
 
     expect(requestSubmitSpy).toHaveBeenCalledTimes(1)
   })
+
+  it('creates a new tab with Ctrl+N', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+  })
 })

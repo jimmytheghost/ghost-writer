@@ -5,6 +5,7 @@ import AppModals from './components/AppModals'
 import Editor from './components/Editor'
 import FooterBar from './components/FooterBar'
 import PromptPanel from './components/PromptPanel'
+import TabBar from './components/TabBar'
 import { useDesktopAppMetadata } from './hooks/useDesktopAppMetadata'
 import { useFooterHeightSync } from './hooks/useFooterHeightSync'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
@@ -22,9 +23,14 @@ import {
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
 import { renderMarkdownToSafeHtml } from './lib/markdown'
+import {
+  closeTabById,
+  createNewTab,
+  renameActiveTab,
+  replaceActiveTab,
+  updateTabContent,
+} from './lib/tabState'
 
-const DEFAULT_TEXT = ''
-const DEFAULT_FILE_NAME = 'ghost-writer-document.md'
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
 const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
@@ -41,33 +47,71 @@ function readInitialAlwaysOnTop() {
 }
 
 function App() {
+  const initialTab = useMemo(() => createNewTab(1), [])
+
   const [theme, setTheme] = useState('dark')
-  const [content, setContent] = useState(DEFAULT_TEXT)
+  const [tabs, setTabs] = useState(() => [initialTab])
+  const [activeTabId, setActiveTabId] = useState(() => initialTab.id)
+  const [nextUntitledIndex, setNextUntitledIndex] = useState(2)
+  const [selectionRangesByTab, setSelectionRangesByTab] = useState(() => ({
+    [initialTab.id]: { start: 0, end: 0 },
+  }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isSaveOpen, setIsSaveOpen] = useState(false)
-  const [isNewConfirmOpen, setIsNewConfirmOpen] = useState(false)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
-  const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
+  const [fileName, setFileName] = useState('')
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 })
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
   const modKeyLabel = showDragRegion ? 'Cmd' : 'Ctrl'
+
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
   const saveActionRef = useRef(() => {})
   const openActionRef = useRef(() => {})
   const newActionRef = useRef(() => {})
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
+
+  const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
+  const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
+  const activeContent = activeTab?.content ?? ''
+
   const { models, selectedModel, setSelectedModel, isLoadingModels, modelLoadStatus, loadModels } =
     useModelLoader({ bundledModels: BUNDLED_MODELS })
+
+  const updateTabById = useCallback((tabId, updater) => {
+    setTabs((currentTabs) =>
+      currentTabs.map((tab) => {
+        if (tab.id !== tabId) return tab
+        return typeof updater === 'function' ? updater(tab) : updater
+      }),
+    )
+  }, [])
+
+  const setTabContentById = useCallback((tabId, content) => {
+    setTabs((currentTabs) => updateTabContent(currentTabs, tabId, content))
+  }, [])
+
+  const getActiveTab = useCallback(() => {
+    return tabs.find((tab) => tab.id === activeTabId) ?? null
+  }, [tabs, activeTabId])
+
+  const getTabById = useCallback(
+    (tabId) => {
+      return tabs.find((tab) => tab.id === tabId) ?? null
+    },
+    [tabs],
+  )
+
   const {
+    abortGeneration,
     canRedoGeneration,
     canUndoGeneration,
     handleClearPrompt,
@@ -84,19 +128,23 @@ function App() {
     showStoppedToast,
     undoToggleState,
   } = usePromptGeneration({
-    content,
+    activeTabId,
+    getActiveTab,
+    getTabById,
     selectedModel,
     selectionRange,
-    setContent,
+    setTabContentById,
+    updateTabById,
     promptFormRef,
   })
+
   const checkboxLineIndexes = useMemo(
-    () => (isPreviewOpen ? collectCheckboxLineIndexes(content) : []),
-    [content, isPreviewOpen],
+    () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
+    [activeContent, isPreviewOpen],
   )
   const normalizedPreviewMarkdown = useMemo(
-    () => (isPreviewOpen ? normalizeCustomCheckboxLines(content) : ''),
-    [content, isPreviewOpen],
+    () => (isPreviewOpen ? normalizeCustomCheckboxLines(activeContent) : ''),
+    [activeContent, isPreviewOpen],
   )
   const renderedMarkdown = useMemo(
     () => (isPreviewOpen ? renderMarkdownToSafeHtml(normalizedPreviewMarkdown) : ''),
@@ -118,33 +166,74 @@ function App() {
     void setAlwaysOnTop(isAlwaysOnTop)
   }, [isAlwaysOnTop])
 
-  const resetDocument = useCallback(() => {
-    setContent('')
-    resetGenerationState()
-  }, [resetGenerationState])
+  const createAndActivateTab = useCallback(() => {
+    const nextTab = createNewTab(nextUntitledIndex)
+    setNextUntitledIndex((current) => current + 1)
+    setTabs((currentTabs) => [...currentTabs, nextTab])
+    setSelectionRangesByTab((currentRanges) => ({
+      ...currentRanges,
+      [nextTab.id]: { start: 0, end: 0 },
+    }))
+    setActiveTabId(nextTab.id)
+    return nextTab
+  }, [nextUntitledIndex])
 
   const handleNew = useCallback(() => {
-    if (content.trim().length === 0) {
-      resetDocument()
-      return
-    }
+    createAndActivateTab()
+  }, [createAndActivateTab])
 
-    setIsNewConfirmOpen(true)
-  }, [content, resetDocument])
-
-  const handleConfirmNew = useCallback(() => {
-    resetDocument()
-    setIsNewConfirmOpen(false)
-  }, [resetDocument])
-
-  const handleSaveClick = useCallback(() => {
-    setIsSaveOpen(true)
+  const handleTabSelect = useCallback((tabId) => {
+    setActiveTabId(tabId)
   }, [])
 
-  const handleSaveConfirm = () => {
-    if (!fileName.trim()) return
+  const handleCloseTab = useCallback(
+    (tabId) => {
+      if (!tabs.some((tab) => tab.id === tabId)) return
+
+      if (isLoadingPrompt && tabId === activeTabId) {
+        abortGeneration()
+      }
+
+      const { tabs: remainingTabs, closedIndex } = closeTabById(tabs, tabId)
+      setSelectionRangesByTab((currentRanges) => {
+        const nextRanges = { ...currentRanges }
+        delete nextRanges[tabId]
+        return nextRanges
+      })
+
+      if (remainingTabs.length === 0) {
+        const replacementTab = createNewTab(nextUntitledIndex)
+        setNextUntitledIndex((current) => current + 1)
+        setTabs([replacementTab])
+        setSelectionRangesByTab({
+          [replacementTab.id]: { start: 0, end: 0 },
+        })
+        setActiveTabId(replacementTab.id)
+        setIsPreviewOpen(false)
+        return
+      }
+
+      setTabs(remainingTabs)
+      if (tabId === activeTabId) {
+        const nextActiveTab =
+          remainingTabs[closedIndex] ?? remainingTabs[closedIndex - 1] ?? remainingTabs[0]
+        setActiveTabId(nextActiveTab.id)
+      }
+    },
+    [abortGeneration, activeTabId, isLoadingPrompt, nextUntitledIndex, tabs],
+  )
+
+  const handleSaveClick = useCallback(() => {
+    const suggestedName = activeTab?.title?.trim() || 'untitled'
+    setFileName(suggestedName)
+    setIsSaveOpen(true)
+  }, [activeTab])
+
+  const handleSaveConfirm = useCallback(() => {
+    if (!fileName.trim() || !activeTabId) return
+
     const safeName = fileName.toLowerCase().endsWith('.md') ? fileName : `${fileName}.md`
-    const blob = new Blob([content], { type: 'text/markdown' })
+    const blob = new Blob([activeContent], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -153,8 +242,10 @@ function App() {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+
+    setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, safeName))
     setIsSaveOpen(false)
-  }
+  }, [activeContent, activeTabId, fileName])
 
   const handleLoadClick = useCallback(() => {
     fileInputRef.current?.click()
@@ -166,35 +257,50 @@ function App() {
     newActionRef.current = handleNew
   }, [handleLoadClick, handleNew, handleSaveClick])
 
-  const handleLoadFile = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (file.size > MAX_LOAD_FILE_SIZE_BYTES) {
-      setPromptError('Selected file is too large. Please use a file smaller than 2 MB.')
+  const handleLoadFile = useCallback(
+    (event) => {
+      const file = event.target.files?.[0]
+      if (!file || !activeTabId) return
+
+      if (file.size > MAX_LOAD_FILE_SIZE_BYTES) {
+        setPromptError('Selected file is too large. Please use a file smaller than 2 MB.')
+        event.target.value = ''
+        return
+      }
+
+      setPromptError('')
+      const reader = new FileReader()
+      reader.onload = (loadEvent) => {
+        const loadedContent = loadEvent.target?.result?.toString() ?? ''
+        setTabs((currentTabs) =>
+          replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+            ...tab,
+            content: loadedContent,
+            title: file.name,
+          })),
+        )
+        setSelectionRangesByTab((currentRanges) => ({
+          ...currentRanges,
+          [activeTabId]: { start: 0, end: 0 },
+        }))
+        resetGenerationState({ tabId: activeTabId })
+      }
+      reader.onerror = () => {
+        setPromptError('Unable to read the selected file.')
+      }
+      reader.readAsText(file)
       event.target.value = ''
-      return
-    }
+    },
+    [activeTabId, resetGenerationState, setPromptError],
+  )
 
-    setPromptError('')
-    const reader = new FileReader()
-    reader.onload = (loadEvent) => {
-      setContent(loadEvent.target?.result?.toString() ?? '')
-      resetGenerationState()
-    }
-    reader.onerror = () => {
-      setPromptError('Unable to read the selected file.')
-    }
-    reader.readAsText(file)
-    event.target.value = ''
-  }
-
-  const handleCopyClick = async () => {
+  const handleCopyClick = useCallback(async () => {
     const rawSelection = document.getSelection()?.toString() ?? ''
     const hasRangeSelection = selectionRange.start !== selectionRange.end
     const editorSelection = hasRangeSelection
-      ? content.slice(selectionRange.start, selectionRange.end)
+      ? activeContent.slice(selectionRange.start, selectionRange.end)
       : ''
-    const textToCopy = rawSelection || editorSelection || content
+    const textToCopy = rawSelection || editorSelection || activeContent
 
     try {
       await navigator.clipboard.writeText(textToCopy)
@@ -202,30 +308,50 @@ function App() {
     } catch (error) {
       setPromptError(error?.message ?? 'Unable to copy text to the clipboard.')
     }
-  }
+  }, [activeContent, selectionRange.end, selectionRange.start, setPromptError])
 
-  const handlePromptOpen = useCallback((payload = {}) => {
-    if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
-      setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
-    }
-  }, [])
+  const handlePromptOpen = useCallback(
+    (payload = {}) => {
+      if (!activeTabId) return
+      if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
+        setSelectionRangesByTab((currentRanges) => ({
+          ...currentRanges,
+          [activeTabId]: { start: payload.selectionStart, end: payload.selectionEnd },
+        }))
+      }
+    },
+    [activeTabId],
+  )
 
-  const handleSelectionChange = useCallback((payload = {}) => {
-    if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
-      setSelectionRange({ start: payload.selectionStart, end: payload.selectionEnd })
-    }
-  }, [])
+  const handleSelectionChange = useCallback(
+    (payload = {}) => {
+      if (!activeTabId) return
+      if (typeof payload?.selectionStart === 'number' && typeof payload?.selectionEnd === 'number') {
+        setSelectionRangesByTab((currentRanges) => ({
+          ...currentRanges,
+          [activeTabId]: { start: payload.selectionStart, end: payload.selectionEnd },
+        }))
+      }
+    },
+    [activeTabId],
+  )
 
   const handlePreviewCheckboxToggle = useCallback(
     (event) => {
       const checkbox = event.target
       if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return
       const sourceLine = Number(checkbox.dataset.sourceLine)
-      if (!Number.isInteger(sourceLine)) return
+      if (!Number.isInteger(sourceLine) || !activeTabId) return
 
-      setContent((currentContent) => toggleCheckboxOnLine(currentContent, sourceLine, checkbox.checked))
+      setTabs((currentTabs) => {
+        const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
+        if (!targetTab) return currentTabs
+
+        const nextContent = toggleCheckboxOnLine(targetTab.content, sourceLine, checkbox.checked)
+        return updateTabContent(currentTabs, activeTabId, nextContent)
+      })
     },
-    [setContent],
+    [activeTabId],
   )
 
   const handleAlwaysOnTopToggle = useCallback(() => {
@@ -286,6 +412,13 @@ function App() {
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>
       {showDragRegion && <div className="app__drag-region" aria-hidden="true" />}
+      <TabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onSelectTab={handleTabSelect}
+        onCreateTab={handleNew}
+        onCloseTab={handleCloseTab}
+      />
       <main className="app__main">
         <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
@@ -299,8 +432,11 @@ function App() {
             </section>
           ) : (
             <Editor
-              value={content}
-              onChange={setContent}
+              value={activeContent}
+              onChange={(nextValue) => {
+                if (!activeTabId) return
+                setTabContentById(activeTabId, nextValue)
+              }}
               onPromptOpen={handlePromptOpen}
               onSelectionChange={handleSelectionChange}
               selectionRange={selectionRange}
@@ -356,7 +492,7 @@ function App() {
         ref={fileInputRef}
         className="doc-actions__file"
         type="file"
-        accept={".md,text/markdown,text/plain"}
+        accept={'.md,text/markdown,text/plain'}
         onChange={handleLoadFile}
       />
       <AppModals
@@ -365,9 +501,6 @@ function App() {
         fileName={fileName}
         setFileName={setFileName}
         handleSaveConfirm={handleSaveConfirm}
-        isNewConfirmOpen={isNewConfirmOpen}
-        setIsNewConfirmOpen={setIsNewConfirmOpen}
-        handleConfirmNew={handleConfirmNew}
         isAboutOpen={isAboutOpen}
         setIsAboutOpen={setIsAboutOpen}
         appName={appName}
