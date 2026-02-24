@@ -7,13 +7,13 @@
 [x] Make it so when the file has a name, and the user clicks cmd+s it just saves without dialog
 [x] When changes are made to file, add * to tab headline text.
 [x] Hide .md in tab headlines
-[ ] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash 
-[ ] In markdown preview - if user hits “exit” it takes them back to text editor
+[x] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash 
+[x] In markdown preview - if user hits “exit” it takes them back to text editor
 [x] In “view” - add feature to “Hide Tab Bar”
 
 
 ## Edge Cases
-[ ] Tabbed list problem —> tabbed-problem.png
+[x] Tabbed list problem —> tabbed-problem.png
 
 ## LLM Integration Bugs
 [ ] Make sure LLM generation never deletes what is currently written
