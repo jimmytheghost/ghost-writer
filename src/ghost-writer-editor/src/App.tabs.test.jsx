@@ -49,7 +49,7 @@ describe('App tabs', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Save document'))
 
-    expect(screen.getByRole('tab', { name: 'Switch to Untitled.md' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('closing the only tab creates a new untitled tab', () => {

@@ -1,9 +1,15 @@
+function formatTabLabel(title = '') {
+  const withoutExtension = title.replace(/\.md$/i, '').trim()
+  return withoutExtension || title
+}
+
 function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
   return (
     <div className="tab-bar" role="tablist" aria-label="Document tabs">
       <div className="tab-bar__tabs">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId
+          const displayTitle = formatTabLabel(tab.title)
 
           return (
             <button
@@ -12,16 +18,16 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
               role="tab"
               className={`tab-bar__tab${isActive ? ' tab-bar__tab--active' : ''}`}
               aria-selected={isActive}
-              aria-label={`Switch to ${tab.title}`}
+              aria-label={`Switch to ${displayTitle}`}
               onClick={() => onSelectTab(tab.id)}
             >
-              <span className="tab-bar__label">{tab.title}</span>
+              <span className="tab-bar__label">{displayTitle}</span>
               <span
                 role="button"
                 tabIndex={0}
                 className="tab-bar__close"
-                aria-label={`Close ${tab.title}`}
-                title={`Close ${tab.title}`}
+                aria-label={`Close ${displayTitle}`}
+                title={`Close ${displayTitle}`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onCloseTab(tab.id)

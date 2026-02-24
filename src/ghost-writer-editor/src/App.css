@@ -530,7 +530,7 @@
   border: none;
   background: var(--color-gray-100);
   resize: none;
-  line-height: var(--line-height-relaxed);
+  line-height: 1.45;
   color: var(--color-gray-800);
   position: relative;
   z-index: 1;
@@ -561,7 +561,7 @@
   box-sizing: border-box;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-base);
-  line-height: var(--line-height-relaxed);
+  line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
   color: transparent;
@@ -579,7 +579,7 @@
   box-sizing: border-box;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-base);
-  line-height: var(--line-height-relaxed);
+  line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
   color: transparent;

@@ -1,3 +1,5 @@
+import { isDesktopRuntime, openExternalUrl } from '../lib/desktopRuntime'
+
 function AppModals({
   isAboutOpen,
   setIsAboutOpen,
@@ -9,6 +11,16 @@ function AppModals({
   appName,
   appVersion,
 }) {
+  const handleAboutLinkClick = (event) => {
+    const anchor = event.target.closest('a[href]')
+    if (!(anchor instanceof HTMLAnchorElement)) return
+
+    if (isDesktopRuntime()) {
+      event.preventDefault()
+      void openExternalUrl(anchor.href)
+    }
+  }
+
   return (
     <>
       {isSettingsOpen && (
@@ -106,7 +118,7 @@ function AppModals({
               </div>
             </div>
             <hr className="about-modal__divider" />
-            <div className="about-modal__body">
+            <div className="about-modal__body" onClick={handleAboutLinkClick}>
               <p>
                 Ghost Writer is a private, distraction-free markdown editor. It uses private, local LLMs to help you write.
               </p>

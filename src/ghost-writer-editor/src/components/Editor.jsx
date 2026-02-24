@@ -386,7 +386,7 @@ function Editor({
           }}
           autoCapitalize="off"
           autoComplete="off"
-          autoCorrect={spellCheckEnabled ? 'on' : 'off'}
+          autoCorrect="off"
           spellCheck={spellCheckEnabled}
           lang="en-US"
           data-gramm="false"
