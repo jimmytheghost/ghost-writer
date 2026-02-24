@@ -4,6 +4,7 @@ export function useGlobalShortcuts({
   saveActionRef,
   openActionRef,
   newActionRef,
+  closeActionRef,
   onToggleAlwaysOnTop,
   onTogglePreview,
 }) {
@@ -30,6 +31,12 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && !event.altKey && key === 'w') {
+        event.preventDefault()
+        closeActionRef.current?.()
+        return
+      }
+
       if (hasMod && !event.altKey && key === 't') {
         event.preventDefault()
         onToggleAlwaysOnTop()
@@ -46,5 +53,5 @@ export function useGlobalShortcuts({
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown)
     }
-  }, [newActionRef, onToggleAlwaysOnTop, onTogglePreview, openActionRef, saveActionRef])
+  }, [closeActionRef, newActionRef, onToggleAlwaysOnTop, onTogglePreview, openActionRef, saveActionRef])
 }

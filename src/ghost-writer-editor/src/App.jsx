@@ -86,6 +86,7 @@ function App() {
   const saveActionRef = useRef(() => {})
   const openActionRef = useRef(() => {})
   const newActionRef = useRef(() => {})
+  const closeActionRef = useRef(() => {})
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
@@ -273,6 +274,13 @@ function App() {
     newActionRef.current = handleNew
   }, [handleLoadClick, handleNew, handleSaveClick])
 
+  useEffect(() => {
+    closeActionRef.current = () => {
+      if (!activeTabId) return
+      handleCloseTab(activeTabId)
+    }
+  }, [activeTabId, handleCloseTab])
+
   const handleLoadFile = useCallback(
     (event) => {
       const file = event.target.files?.[0]
@@ -398,6 +406,7 @@ function App() {
     saveActionRef,
     openActionRef,
     newActionRef,
+    closeActionRef,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onTogglePreview: handleTogglePreview,
   })

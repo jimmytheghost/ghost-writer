@@ -80,4 +80,16 @@ describe('App keyboard shortcuts', () => {
     expect(editor.selectionStart).toBe(0)
     expect(editor.selectionEnd).toBe('select this whole line'.length)
   })
+
+  it('closes active tab with Ctrl+W', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(window, { key: 'w', ctrlKey: true })
+
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled 2' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+  })
 })

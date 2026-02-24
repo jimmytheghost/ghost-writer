@@ -115,7 +115,7 @@
 
 .tab-bar__close {
   position: absolute;
-  right: var(--space-2);
+  left: var(--space-2);
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
