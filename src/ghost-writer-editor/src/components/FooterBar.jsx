@@ -88,12 +88,12 @@ function FooterBar({
               type="button"
               className={`doc-actions__button${isPreviewOpen ? ' doc-actions__button--active' : ''}`}
               onClick={handleTogglePreview}
-              aria-label="Toggle markdown preview"
+              aria-label={isPreviewOpen ? 'Exit markdown preview' : 'Toggle markdown preview'}
               aria-pressed={isPreviewOpen}
-              title={`Preview (${modKeyLabel}+M)`}
+              title={isPreviewOpen ? `Exit preview (${modKeyLabel}+M)` : `Preview (${modKeyLabel}+M)`}
             >
               <span className="material-symbols-rounded" aria-hidden="true">
-                preview
+                {isPreviewOpen ? 'close' : 'preview'}
               </span>
             </button>
           </div>

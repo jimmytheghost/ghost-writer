@@ -51,6 +51,20 @@ export async function saveMarkdownWithNativeDialog(content, suggestedName) {
   }
 }
 
+export async function saveMarkdownToPath(content, path) {
+  if (!isDesktopRuntime()) return null
+
+  try {
+    return await invoke('save_markdown_to_path', {
+      content,
+      path,
+    })
+  } catch (error) {
+    console.warn('Failed to save markdown to existing path:', error)
+    return null
+  }
+}
+
 export async function openExternalUrl(url) {
   if (!isDesktopRuntime()) return false
 

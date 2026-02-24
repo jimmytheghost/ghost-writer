@@ -23,6 +23,7 @@ import {
   loadSettings,
   markRendererInteractive,
   openExternalUrl,
+  saveMarkdownToPath,
   saveMarkdownWithNativeDialog,
   saveSettings,
   setAlwaysOnTop,
@@ -31,7 +32,6 @@ import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import {
   closeTabById,
   createNewTab,
-  renameActiveTab,
   replaceActiveTab,
   updateTabContent,
 } from './lib/tabState'
@@ -322,11 +322,37 @@ function App() {
     const suggestedName = ensureMarkdownFileName(activeTab?.title ?? 'untitled')
 
     if (isDesktopRuntime()) {
+      if (activeTab?.filePath) {
+        const savedPath = await saveMarkdownToPath(activeContent, activeTab.filePath)
+        if (!savedPath) return
+
+        const savedName = ensureMarkdownFileName(fileNameFromPath(savedPath))
+        setTabs((currentTabs) =>
+          replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+            ...tab,
+            title: savedName,
+            filePath: savedPath,
+            lastSavedContent: activeContent,
+            isDirty: false,
+          })),
+        )
+        setPromptError('')
+        return
+      }
+
       const savedPath = await saveMarkdownWithNativeDialog(activeContent, suggestedName)
       if (!savedPath) return
 
       const savedName = ensureMarkdownFileName(fileNameFromPath(savedPath))
-      setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, savedName))
+      setTabs((currentTabs) =>
+        replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+          ...tab,
+          title: savedName,
+          filePath: savedPath,
+          lastSavedContent: activeContent,
+          isDirty: false,
+        })),
+      )
       setPromptError('')
       return
     }
@@ -341,7 +367,14 @@ function App() {
     link.remove()
     URL.revokeObjectURL(url)
 
-    setTabs((currentTabs) => renameActiveTab(currentTabs, activeTabId, suggestedName))
+    setTabs((currentTabs) =>
+      replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+        ...tab,
+        title: suggestedName,
+        lastSavedContent: activeContent,
+        isDirty: false,
+      })),
+    )
     setPromptError('')
   }, [activeContent, activeTab, activeTabId, setPromptError])
 
@@ -382,6 +415,9 @@ function App() {
             ...tab,
             content: loadedContent,
             title: file.name,
+            filePath: '',
+            lastSavedContent: loadedContent,
+            isDirty: false,
           })),
         )
         setSelectionRangesByTab((currentRanges) => ({

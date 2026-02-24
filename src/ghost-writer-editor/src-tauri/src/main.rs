@@ -123,6 +123,18 @@ fn save_markdown_file(content: String, suggested_name: String) -> Result<Option<
 }
 
 #[tauri::command]
+fn save_markdown_to_path(content: String, path: String) -> Result<String, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Missing file path".to_string());
+    }
+
+    let destination = PathBuf::from(trimmed);
+    fs::write(&destination, content).map_err(|error| error.to_string())?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     open::that(url).map_err(|error| error.to_string())
 }
@@ -225,6 +237,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             save_markdown_file,
+            save_markdown_to_path,
             open_external_url,
             load_settings,
             save_settings

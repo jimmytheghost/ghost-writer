@@ -39,4 +39,15 @@ describe('App UI behaviors', () => {
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toBeInTheDocument()
   })
+
+  it('exits markdown preview back to the editor from footer exit control', () => {
+    render(<App />)
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+    expect(document.querySelector('textarea.editor__textarea')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+    expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
+  })
 })

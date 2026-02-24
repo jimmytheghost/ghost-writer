@@ -9,7 +9,8 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
       <div className="tab-bar__tabs">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId
-          const displayTitle = formatTabLabel(tab.title)
+          const baseTitle = formatTabLabel(tab.title)
+          const displayTitle = tab.isDirty ? `${baseTitle}*` : baseTitle
 
           return (
             <button

@@ -14,6 +14,9 @@ export function createNewTab(index) {
     id: createTabId(),
     title: createUntitledTitle(index),
     content: '',
+    filePath: '',
+    lastSavedContent: '',
+    isDirty: false,
     promptText: '',
     promptError: '',
   }
@@ -27,7 +30,15 @@ export function replaceActiveTab(tabs, activeTabId, replacement) {
 }
 
 export function updateTabContent(tabs, tabId, content) {
-  return tabs.map((tab) => (tab.id === tabId ? { ...tab, content } : tab))
+  return tabs.map((tab) => {
+    if (tab.id !== tabId) return tab
+    if (tab.content === content) return tab
+    return {
+      ...tab,
+      content,
+      isDirty: content !== (tab.lastSavedContent ?? ''),
+    }
+  })
 }
 
 export function renameActiveTab(tabs, activeTabId, title) {

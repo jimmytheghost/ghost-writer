@@ -52,6 +52,22 @@ describe('App tabs', () => {
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('marks tab as dirty when content changes and clears it after save', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Unsaved changes' } })
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled*' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Save document'))
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled*' })).not.toBeInTheDocument()
+  })
+
   it('closing the only tab creates a new untitled tab', () => {
     render(<App />)
 

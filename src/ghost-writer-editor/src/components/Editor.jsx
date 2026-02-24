@@ -277,6 +277,19 @@ function Editor({
         return
       }
 
+      if (event.key === '-' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.isComposing) {
+        event.preventDefault()
+        const nextValue = `${text.slice(0, start)}-${text.slice(end)}`
+        const nextPosition = start + 1
+        onChange?.(nextValue)
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextPosition, nextPosition)
+          onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+        })
+        return
+      }
+
       if (isMod && event.shiftKey && key === 'k') {
         event.preventDefault()
         const selection = getSelectionRange()

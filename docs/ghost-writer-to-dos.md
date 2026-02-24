@@ -4,10 +4,10 @@
 [x] Links in “About” don’t work
 [x] The blinking cursor in edit mode is MASSIVE
   - It’s the size of the line and not the size of the text   
-[ ] Make it so when the file has a name, and the user clicks cmd+s it just saves without dialog
-[ ] When changes are made to file, add * to tab headline text.
+[x] Make it so when the file has a name, and the user clicks cmd+s it just saves without dialog
+[x] When changes are made to file, add * to tab headline text.
 [x] Hide .md in tab headlines
-[ ] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash
+[ ] The — emdash problem is back — if user types two or three dashes in a row it auto-converts to emdash 
 [ ] In markdown preview - if user hits “exit” it takes them back to text editor
 [ ] In “view” - add feature to “Hide Tab Bar”
 
