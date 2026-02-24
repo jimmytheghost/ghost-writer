@@ -71,6 +71,14 @@ function AppModals({
               />
               Default startup preview mode
             </label>
+            <label className="modal__checkbox">
+              <input
+                type="checkbox"
+                checked={settings.defaultSpellCheck}
+                onChange={(event) => updateSetting('defaultSpellCheck', event.target.checked)}
+              />
+              Default spell check in editor
+            </label>
 
             <div className="modal__actions">
               <button type="button" className="modal__button modal__button--primary" onClick={() => setIsSettingsOpen(false)}>

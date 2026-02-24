@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   defaultAlwaysOnTop: false,
   defaultFooterCollapsed: true,
   defaultStartupPreview: false,
+  defaultSpellCheck: false,
 })
 
 function readInitialAlwaysOnTop() {
@@ -99,6 +100,7 @@ function App() {
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -202,6 +204,7 @@ function App() {
     setIsAlwaysOnTop(Boolean(nextSettings.defaultAlwaysOnTop))
     setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
     setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
+    setIsSpellCheckEnabled(Boolean(nextSettings.defaultSpellCheck))
     if (nextSettings.defaultModel) {
       setSelectedModel(nextSettings.defaultModel)
     }
@@ -512,6 +515,10 @@ function App() {
         setIsPreviewOpen(Boolean(value))
       }
 
+      if (key === 'defaultSpellCheck') {
+        setIsSpellCheckEnabled(Boolean(value))
+      }
+
       if (key === 'defaultModel') {
         setSelectedModel(value || '')
       }
@@ -596,6 +603,7 @@ function App() {
               onSelectionChange={handleSelectionChange}
               selectionRange={selectionRange}
               showSelectionOverlay={isPromptFocused}
+              spellCheckEnabled={isSpellCheckEnabled}
             />
           )}
         </div>

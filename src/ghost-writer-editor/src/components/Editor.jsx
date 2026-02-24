@@ -1,12 +1,62 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getMisspelledRanges } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
 const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(?:\[(?: |x|X)\]\s)?(.*)$/
 
-function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRange, showSelectionOverlay }) {
+function Editor({
+  value,
+  onChange,
+  onPromptOpen,
+  onSelectionChange,
+  selectionRange,
+  showSelectionOverlay,
+  spellCheckEnabled = false,
+}) {
   const textareaRef = useRef(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
+  const misspelledRanges = useMemo(() => {
+    if (!spellCheckEnabled) return []
+    return getMisspelledRanges(value ?? '')
+  }, [spellCheckEnabled, value])
+
+  const spellCheckOverlay = useMemo(() => {
+    if (!spellCheckEnabled) return null
+    if (!misspelledRanges.length) return null
+
+    const text = value ?? ''
+    const nodes = []
+    let cursor = 0
+
+    misspelledRanges.forEach((range, index) => {
+      const start = Math.max(0, Math.min(range.start, text.length))
+      const end = Math.max(start, Math.min(range.end, text.length))
+      if (start > cursor) {
+        nodes.push(
+          <span key={`spell-text-${index}-${cursor}`} className="editor__spell-overlay-text">
+            {text.slice(cursor, start)}
+          </span>,
+        )
+      }
+      nodes.push(
+        <span key={`spell-error-${index}-${start}`} className="editor__spell-overlay-error">
+          {text.slice(start, end)}
+        </span>,
+      )
+      cursor = end
+    })
+
+    if (cursor < text.length) {
+      nodes.push(
+        <span key={`spell-text-tail-${cursor}`} className="editor__spell-overlay-text">
+          {text.slice(cursor)}
+        </span>,
+      )
+    }
+
+    return nodes
+  }, [misspelledRanges, spellCheckEnabled, value])
 
   const selectionOverlay = useMemo(() => {
     if (!showSelectionOverlay) return null
@@ -301,6 +351,15 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
   return (
     <section className="editor">
       <div className="editor__field">
+        {spellCheckOverlay && (
+          <div
+            className="editor__spell-overlay"
+            style={{ transform: `translateY(${-scrollTop}px)`, minHeight: contentHeight || '100%' }}
+            aria-hidden="true"
+          >
+            {spellCheckOverlay}
+          </div>
+        )}
         {selectionOverlay && (
           <div
             className="editor__selection-overlay"
@@ -327,8 +386,9 @@ function Editor({ value, onChange, onPromptOpen, onSelectionChange, selectionRan
           }}
           autoCapitalize="off"
           autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
+          autoCorrect={spellCheckEnabled ? 'on' : 'off'}
+          spellCheck={spellCheckEnabled}
+          lang="en-US"
           data-gramm="false"
           data-lt-active="false"
         />

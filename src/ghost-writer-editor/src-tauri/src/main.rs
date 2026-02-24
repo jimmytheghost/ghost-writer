@@ -24,6 +24,8 @@ struct AppSettings {
     default_always_on_top: bool,
     default_footer_collapsed: bool,
     default_startup_preview: bool,
+    #[serde(default)]
+    default_spell_check: bool,
 }
 
 impl Default for AppSettings {
@@ -34,6 +36,7 @@ impl Default for AppSettings {
             default_always_on_top: false,
             default_footer_collapsed: true,
             default_startup_preview: false,
+            default_spell_check: false,
         }
     }
 }
