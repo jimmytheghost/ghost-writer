@@ -21,6 +21,7 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
                 tabIndex={0}
                 className="tab-bar__close"
                 aria-label={`Close ${tab.title}`}
+                title={`Close ${tab.title}`}
                 onClick={(event) => {
                   event.stopPropagation()
                   onCloseTab(tab.id)

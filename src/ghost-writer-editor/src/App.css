@@ -61,6 +61,7 @@
 .tab-bar__tab {
   flex: 1 1 0;
   min-width: 0;
+  position: relative;
   border: none;
   border-right: 1px solid color-mix(in srgb, var(--color-gray-500) 38%, transparent);
   background: color-mix(in srgb, #232222 88%, #2d2c2c);
@@ -113,6 +114,10 @@
 }
 
 .tab-bar__close {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
   width: 14px;
   height: 14px;
   border-radius: var(--radius-full);
@@ -121,6 +126,15 @@
   justify-content: center;
   font-size: 12px;
   line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.tab-bar__tab:hover .tab-bar__close,
+.tab-bar__tab:focus-within .tab-bar__close {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .tab-bar__close:hover {
