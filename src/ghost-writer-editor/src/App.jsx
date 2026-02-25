@@ -23,6 +23,7 @@ import {
   isMacDesktopRuntime,
   loadSettings,
   markRendererInteractive,
+  openMarkdownWithNativeDialog,
   openExternalUrl,
   saveMarkdownToPath,
   saveMarkdownWithNativeDialog,
@@ -31,6 +32,7 @@ import {
 } from './lib/desktopRuntime'
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import { printRenderedMarkdown } from './lib/print'
+import { DEFAULT_CUSTOM_WORD_LIST, setCustomSpellcheckWords } from './lib/spellcheck'
 import {
   closeTabById,
   createNewTab,
@@ -50,7 +52,33 @@ const DEFAULT_SETTINGS = Object.freeze({
   defaultFooterCollapsed: true,
   defaultStartupPreview: false,
   defaultSpellCheck: false,
+  customWordList: [...DEFAULT_CUSTOM_WORD_LIST],
+  customWordListDisabled: [],
 })
+
+function toWordSet(values = []) {
+  const set = new Set()
+  for (const value of values) {
+    const normalized = String(value ?? '').trim().toLowerCase()
+    if (!normalized) continue
+    set.add(normalized)
+  }
+  return set
+}
+
+function resolveEnabledCustomWords(customWordList = [], customWordListDisabled = []) {
+  const disabledSet = toWordSet(customWordListDisabled)
+  const enabledWords = []
+
+  for (const value of customWordList) {
+    const word = String(value ?? '').trim()
+    if (!word) continue
+    if (disabledSet.has(word.toLowerCase())) continue
+    enabledWords.push(word)
+  }
+
+  return enabledWords
+}
 
 function readInitialAlwaysOnTop() {
   if (typeof window === 'undefined') return false
@@ -96,6 +124,7 @@ function App() {
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isWordListOpen, setIsWordListOpen] = useState(false)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
@@ -213,6 +242,13 @@ function App() {
     setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
     setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
     setIsSpellCheckEnabled(Boolean(nextSettings.defaultSpellCheck))
+    const customWordList = Array.isArray(nextSettings.customWordList)
+      ? nextSettings.customWordList
+      : DEFAULT_SETTINGS.customWordList
+    const customWordListDisabled = Array.isArray(nextSettings.customWordListDisabled)
+      ? nextSettings.customWordListDisabled
+      : DEFAULT_SETTINGS.customWordListDisabled
+    setCustomSpellcheckWords(resolveEnabledCustomWords(customWordList, customWordListDisabled))
     if (nextSettings.defaultModel) {
       setSelectedModel(nextSettings.defaultModel)
     }
@@ -386,9 +422,41 @@ function App() {
     setPromptError('')
   }, [activeContent, activeTab, activeTabId, setPromptError])
 
-  const handleLoadClick = useCallback(() => {
+  const handleLoadClick = useCallback(async () => {
+    if (isDesktopRuntime()) {
+      if (!activeTabId) return
+      const openedFile = await openMarkdownWithNativeDialog()
+      if (!openedFile) return
+
+      const path = typeof openedFile.path === 'string' ? openedFile.path.trim() : ''
+      const loadedContent = typeof openedFile.content === 'string' ? openedFile.content : ''
+      if (!path) {
+        setPromptError('Unable to open the selected file.')
+        return
+      }
+
+      const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
+      setTabs((currentTabs) =>
+        replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+          ...tab,
+          content: loadedContent,
+          title: fileTitle,
+          filePath: path,
+          lastSavedContent: loadedContent,
+          isDirty: false,
+        })),
+      )
+      setSelectionRangesByTab((currentRanges) => ({
+        ...currentRanges,
+        [activeTabId]: { start: 0, end: 0 },
+      }))
+      resetGenerationState({ tabId: activeTabId })
+      setPromptError('')
+      return
+    }
+
     fileInputRef.current?.click()
-  }, [])
+  }, [activeTabId, resetGenerationState, setPromptError])
 
   useEffect(() => {
     saveActionRef.current = handleSaveClick
@@ -642,6 +710,29 @@ function App() {
     setIsTabBarVisible((previous) => !previous)
   }, [])
 
+  const handleWordListSave = useCallback(
+    (nextWordList = [], nextWordListDisabled = []) => {
+      const normalizedWordList = Array.isArray(nextWordList) ? nextWordList : DEFAULT_SETTINGS.customWordList
+      const normalizedDisabled = Array.isArray(nextWordListDisabled)
+        ? nextWordListDisabled
+        : DEFAULT_SETTINGS.customWordListDisabled
+
+      const nextSettings = {
+        ...settings,
+        customWordList: normalizedWordList,
+        customWordListDisabled: normalizedDisabled,
+      }
+
+      setSettings(nextSettings)
+      setCustomSpellcheckWords(resolveEnabledCustomWords(normalizedWordList, normalizedDisabled))
+
+      if (isDesktopRuntime()) {
+        void saveSettings(nextSettings)
+      }
+    },
+    [settings],
+  )
+
   useGlobalShortcuts({
     saveActionRef,
     openActionRef,
@@ -665,7 +756,14 @@ function App() {
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
-    onShowSettings: () => setIsSettingsOpen(true),
+    onShowSettings: () => {
+      setIsWordListOpen(false)
+      setIsSettingsOpen(true)
+    },
+    onShowWordList: () => {
+      setIsSettingsOpen(false)
+      setIsWordListOpen(true)
+    },
     onShowAbout: () => setIsAboutOpen(true),
   })
 
@@ -791,8 +889,11 @@ function App() {
         setIsAboutOpen={setIsAboutOpen}
         isSettingsOpen={isSettingsOpen}
         setIsSettingsOpen={setIsSettingsOpen}
+        isWordListOpen={isWordListOpen}
+        setIsWordListOpen={setIsWordListOpen}
         settings={settings}
         updateSetting={updateSetting}
+        saveWordListSettings={handleWordListSave}
         models={models}
         appName={appName}
         appVersion={appVersion}

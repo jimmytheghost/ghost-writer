@@ -15,6 +15,7 @@ export function useTauriMenuEvents({
   onToggleFooter,
   onToggleTabBar,
   onShowSettings,
+  onShowWordList,
   onShowAbout,
 }) {
   useEffect(() => {
@@ -37,6 +38,7 @@ export function useTauriMenuEvents({
         listen('ghost-writer://menu-toggle-footer', () => onToggleFooter()),
         listen('ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()),
         listen('ghost-writer://menu-settings', () => onShowSettings()),
+        listen('ghost-writer://menu-word-list', () => onShowWordList()),
         listen('ghost-writer://menu-about', () => onShowAbout()),
       ])
 
@@ -65,6 +67,7 @@ export function useTauriMenuEvents({
     onShowMarkdown,
     onShowPreview,
     onShowSettings,
+    onShowWordList,
     onToggleAlwaysOnTop,
     onToggleFooter,
     onToggleTabBar,

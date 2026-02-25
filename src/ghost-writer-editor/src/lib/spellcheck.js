@@ -5,6 +5,35 @@ import dic from 'dictionary-en-us/index.dic?raw'
 const spellChecker = new NSpell(aff, dic)
 const WORD_PATTERN = /[A-Za-z]+(?:['-][A-Za-z]+)*/g
 const TRAILING_PUNCTUATION_PATTERN = /[)\]}",.!?:;'`]+/
+export const DEFAULT_CUSTOM_WORD_LIST = Object.freeze([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.md',
+  '.txt',
+  '.pdf',
+])
+
+const customWords = new Set()
+
+function normalizeWord(value) {
+  const trimmed = String(value ?? '').trim().toLowerCase()
+  if (!trimmed) return ''
+  return trimmed.replace(/^[^a-z]+|[^a-z]+$/g, '')
+}
+
+export function setCustomSpellcheckWords(words = []) {
+  customWords.clear()
+
+  for (const word of words) {
+    const normalized = normalizeWord(word)
+    if (!normalized) continue
+    customWords.add(normalized)
+  }
+}
 
 function shouldSkipWord(word) {
   if (word.length <= 1) return true
@@ -41,6 +70,7 @@ export function getMisspelledRanges(text = '') {
     if (!isCommittedWord(text, start + word.length)) continue
 
     const normalized = word.toLowerCase()
+    if (customWords.has(normalized)) continue
     if (spellChecker.correct(normalized)) continue
 
     ranges.push({
@@ -51,3 +81,5 @@ export function getMisspelledRanges(text = '') {
 
   return ranges
 }
+
+setCustomSpellcheckWords(DEFAULT_CUSTOM_WORD_LIST)

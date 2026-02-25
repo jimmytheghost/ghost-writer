@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest'
-import { getMisspelledRanges } from './spellcheck'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  DEFAULT_CUSTOM_WORD_LIST,
+  getMisspelledRanges,
+  setCustomSpellcheckWords,
+} from './spellcheck'
 
 describe('spellcheck', () => {
+  afterEach(() => {
+    setCustomSpellcheckWords(DEFAULT_CUSTOM_WORD_LIST)
+  })
+
   it('does not underline a misspelled word while it is still being typed', () => {
     expect(getMisspelledRanges('asdfghj')).toEqual([])
   })
@@ -16,5 +24,15 @@ describe('spellcheck', () => {
     const ranges = getMisspelledRanges('asdfghj, next')
     expect(ranges).toHaveLength(1)
     expect(ranges[0]).toEqual({ start: 0, end: 7 })
+  })
+
+  it('does not underline custom dictionary words', () => {
+    setCustomSpellcheckWords(['ghostwriter'])
+    expect(getMisspelledRanges('ghostwriter ')).toEqual([])
+  })
+
+  it('treats extension-style words in custom list as valid tokens', () => {
+    setCustomSpellcheckWords(['.png'])
+    expect(getMisspelledRanges('Use image.png here ')).toEqual([])
   })
 })

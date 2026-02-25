@@ -33,8 +33,26 @@ struct AppSettings {
     default_startup_preview: bool,
     #[serde(default)]
     default_spell_check: bool,
+    #[serde(default = "default_custom_word_list")]
+    custom_word_list: Vec<String>,
+    #[serde(default)]
+    custom_word_list_disabled: Vec<String>,
     #[serde(default)]
     recent_files: Vec<String>,
+}
+
+fn default_custom_word_list() -> Vec<String> {
+    vec![
+        ".png".to_string(),
+        ".jpg".to_string(),
+        ".jpeg".to_string(),
+        ".gif".to_string(),
+        ".webp".to_string(),
+        ".svg".to_string(),
+        ".md".to_string(),
+        ".txt".to_string(),
+        ".pdf".to_string(),
+    ]
 }
 
 impl Default for AppSettings {
@@ -46,6 +64,8 @@ impl Default for AppSettings {
             default_footer_collapsed: true,
             default_startup_preview: false,
             default_spell_check: false,
+            custom_word_list: default_custom_word_list(),
+            custom_word_list_disabled: Vec::new(),
             recent_files: Vec::new(),
         }
     }
@@ -97,6 +117,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
 
     let settings_open = MenuItem::with_id(app, "settings_open", "Settings", true, None::<&str>)?;
+    let settings_word_list =
+        MenuItem::with_id(app, "settings_word_list", "Word List", true, None::<&str>)?;
 
     let ghost_writer_menu = Submenu::with_items(app, "Ghost Writer", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
@@ -139,7 +161,12 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &view_pin_top,
         ],
     )?;
-    let settings_menu = Submenu::with_items(app, "Settings", true, &[&settings_open])?;
+    let settings_menu = Submenu::with_items(
+        app,
+        "Settings",
+        true,
+        &[&settings_open, &settings_word_list],
+    )?;
 
     Menu::with_items(
         app,
@@ -203,6 +230,24 @@ fn save_markdown_to_path(
     fs::write(&destination, content).map_err(|error| error.to_string())?;
     push_recent_file_path(&app, &destination);
     Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>, String> {
+    let selected_path: Option<PathBuf> = rfd::FileDialog::new()
+        .add_filter("Markdown", &["md"])
+        .pick_file();
+
+    let Some(path) = selected_path else {
+        return Ok(None);
+    };
+
+    let content = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    push_recent_file_path(&app, &path);
+    Ok(Some(OpenRecentPayload {
+        path: path.to_string_lossy().into_owned(),
+        content,
+    }))
 }
 
 #[tauri::command]
@@ -463,6 +508,7 @@ fn main() {
             set_always_on_top,
             save_markdown_file,
             save_markdown_to_path,
+            open_markdown_file,
             open_external_url,
             print_current_webview,
             load_settings,
@@ -525,6 +571,7 @@ fn main() {
                 "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),
+                "settings_word_list" => emit_menu_event("ghost-writer://menu-word-list"),
                 "about_show" => emit_menu_event("ghost-writer://menu-about"),
                 _ => {}
             }
