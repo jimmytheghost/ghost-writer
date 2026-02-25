@@ -46,9 +46,11 @@ const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
+const TEXT_ZOOM_OPTIONS = Object.freeze(['50%', '100%', '150%', '200%'])
 const DEFAULT_SETTINGS = Object.freeze({
   defaultModel: '',
   defaultTheme: 'dark',
+  defaultTextZoom: '100%',
   defaultAlwaysOnTop: false,
   defaultFooterCollapsed: true,
   defaultStartupPreview: false,
@@ -81,6 +83,14 @@ function resolveEnabledCustomWords(customWordList = [], customWordListDisabled =
   }
 
   return enabledWords
+}
+
+function normalizeTextZoom(value) {
+  const raw = String(value ?? '').trim()
+  if (!TEXT_ZOOM_OPTIONS.includes(raw)) return 100
+  const parsed = Number.parseInt(raw, 10)
+  if (!Number.isFinite(parsed)) return 100
+  return parsed
 }
 
 function readInitialAlwaysOnTop() {
@@ -128,6 +138,7 @@ function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isWordListOpen, setIsWordListOpen] = useState(false)
+  const [isTextZoomOpen, setIsTextZoomOpen] = useState(false)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
@@ -136,6 +147,9 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
+  const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
+    normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
+  )
   const [hasLoadedDesktopSettings, setHasLoadedDesktopSettings] = useState(() => !isDesktopRuntime())
 
   const isDark = theme === 'dark'
@@ -243,6 +257,7 @@ function App() {
 
   const applySettings = useCallback((nextSettings) => {
     setTheme(nextSettings.defaultTheme === 'light' ? 'light' : 'dark')
+    setEditorTextZoomPercent(normalizeTextZoom(nextSettings.defaultTextZoom))
     setIsAlwaysOnTop(Boolean(nextSettings.defaultAlwaysOnTop))
     setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
     setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
@@ -754,6 +769,10 @@ function App() {
         setTheme(value === 'light' ? 'light' : 'dark')
       }
 
+      if (key === 'defaultTextZoom') {
+        setEditorTextZoomPercent(normalizeTextZoom(value))
+      }
+
       if (key === 'defaultAlwaysOnTop') {
         setIsAlwaysOnTop(Boolean(value))
       }
@@ -845,11 +864,18 @@ function App() {
     onToggleTabBar: handleToggleTabBar,
     onShowSettings: () => {
       setIsWordListOpen(false)
+      setIsTextZoomOpen(false)
       setIsSettingsOpen(true)
     },
     onShowWordList: () => {
       setIsSettingsOpen(false)
+      setIsTextZoomOpen(false)
       setIsWordListOpen(true)
+    },
+    onShowTextZoom: () => {
+      setIsSettingsOpen(false)
+      setIsWordListOpen(false)
+      setIsTextZoomOpen(true)
     },
     onShowAbout: () => setIsAboutOpen(true),
   })
@@ -917,6 +943,7 @@ function App() {
               selectionRange={selectionRange}
               showSelectionOverlay={isPromptFocused}
               spellCheckEnabled={isSpellCheckEnabled}
+              textZoomPercent={editorTextZoomPercent}
             />
           )}
         </div>
@@ -978,9 +1005,12 @@ function App() {
         setIsSettingsOpen={setIsSettingsOpen}
         isWordListOpen={isWordListOpen}
         setIsWordListOpen={setIsWordListOpen}
+        isTextZoomOpen={isTextZoomOpen}
+        setIsTextZoomOpen={setIsTextZoomOpen}
         settings={settings}
         updateSetting={updateSetting}
         saveWordListSettings={handleWordListSave}
+        textZoomOptions={TEXT_ZOOM_OPTIONS}
         models={models}
         appName={appName}
         appVersion={appVersion}

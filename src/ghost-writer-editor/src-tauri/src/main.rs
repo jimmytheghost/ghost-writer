@@ -28,6 +28,8 @@ const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
 struct AppSettings {
     default_model: String,
     default_theme: String,
+    #[serde(default = "default_text_zoom")]
+    default_text_zoom: String,
     default_always_on_top: bool,
     default_footer_collapsed: bool,
     default_startup_preview: bool,
@@ -59,11 +61,16 @@ fn default_custom_word_list() -> Vec<String> {
     ]
 }
 
+fn default_text_zoom() -> String {
+    "100%".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             default_model: String::new(),
             default_theme: "dark".to_string(),
+            default_text_zoom: default_text_zoom(),
             default_always_on_top: false,
             default_footer_collapsed: true,
             default_startup_preview: false,
@@ -125,6 +132,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let settings_open = MenuItem::with_id(app, "settings_open", "Settings", true, None::<&str>)?;
     let settings_word_list =
         MenuItem::with_id(app, "settings_word_list", "Word List", true, None::<&str>)?;
+    let settings_text_zoom =
+        MenuItem::with_id(app, "settings_text_zoom", "Text Zoom", true, None::<&str>)?;
 
     let ghost_writer_menu = Submenu::with_items(app, "Ghost Writer", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
@@ -171,7 +180,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app,
         "Settings",
         true,
-        &[&settings_open, &settings_word_list],
+        &[&settings_open, &settings_word_list, &settings_text_zoom],
     )?;
 
     Menu::with_items(
@@ -603,6 +612,7 @@ fn main() {
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),
                 "settings_word_list" => emit_menu_event("ghost-writer://menu-word-list"),
+                "settings_text_zoom" => emit_menu_event("ghost-writer://menu-text-zoom"),
                 "about_show" => emit_menu_event("ghost-writer://menu-about"),
                 _ => {}
             }

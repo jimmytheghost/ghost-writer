@@ -178,9 +178,12 @@ function AppModals({
   setIsSettingsOpen,
   isWordListOpen,
   setIsWordListOpen,
+  isTextZoomOpen,
+  setIsTextZoomOpen,
   settings,
   updateSetting,
   saveWordListSettings,
+  textZoomOptions = ['50%', '100%', '150%', '200%'],
   models,
   appName,
   appVersion,
@@ -286,6 +289,40 @@ function AppModals({
           onClose={() => setIsWordListOpen(false)}
           onSave={saveWordListSettings}
         />
+      )}
+      {isTextZoomOpen && (
+        <div className="modal-overlay" onClick={() => setIsTextZoomOpen(false)}>
+          <div className="modal modal--settings" onClick={(event) => event.stopPropagation()}>
+            <h2 className="modal__title">Text Zoom</h2>
+            <p className="modal__description">Applies to text editor view only.</p>
+
+            <label className="modal__label" htmlFor="settings-text-zoom">
+              Editor text zoom
+            </label>
+            <select
+              id="settings-text-zoom"
+              className="modal__input modal__select"
+              value={settings.defaultTextZoom ?? '100%'}
+              onChange={(event) => updateSetting('defaultTextZoom', event.target.value)}
+            >
+              {textZoomOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+
+            <div className="modal__actions">
+              <button
+                type="button"
+                className="modal__button modal__button--primary"
+                onClick={() => setIsTextZoomOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {isAboutOpen && (
         <div className="modal-overlay" onClick={() => setIsAboutOpen(false)}>

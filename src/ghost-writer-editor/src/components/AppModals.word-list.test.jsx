@@ -15,9 +15,12 @@ describe('AppModals word list', () => {
         setIsSettingsOpen={() => {}}
         isWordListOpen
         setIsWordListOpen={() => {}}
+        isTextZoomOpen={false}
+        setIsTextZoomOpen={() => {}}
         settings={{
           defaultModel: '',
           defaultTheme: 'dark',
+          defaultTextZoom: '100%',
           defaultAlwaysOnTop: false,
           defaultFooterCollapsed: true,
           defaultStartupPreview: false,

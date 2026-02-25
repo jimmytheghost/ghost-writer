@@ -13,6 +13,7 @@ function Editor({
   selectionRange,
   showSelectionOverlay,
   spellCheckEnabled = false,
+  textZoomPercent = 100,
 }) {
   const textareaRef = useRef(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -438,13 +439,24 @@ function Editor({
     })
   }
 
+  const editorTextStyle = useMemo(() => {
+    const normalized = Number.isFinite(Number(textZoomPercent)) ? Number(textZoomPercent) : 100
+    return {
+      fontSize: `calc(var(--font-size-base) * ${normalized / 100})`,
+    }
+  }, [textZoomPercent])
+
   return (
     <section className="editor">
       <div className="editor__field">
         {spellCheckOverlay && (
           <div
             className="editor__spell-overlay"
-            style={{ transform: `translateY(${-scrollTop}px)`, minHeight: contentHeight || '100%' }}
+            style={{
+              transform: `translateY(${-scrollTop}px)`,
+              minHeight: contentHeight || '100%',
+              ...editorTextStyle,
+            }}
             aria-hidden="true"
           >
             {spellCheckOverlay}
@@ -453,7 +465,11 @@ function Editor({
         {inlinePromptOverlay && (
           <div
             className="editor__inline-prompt-overlay"
-            style={{ transform: `translateY(${-scrollTop}px)`, minHeight: contentHeight || '100%' }}
+            style={{
+              transform: `translateY(${-scrollTop}px)`,
+              minHeight: contentHeight || '100%',
+              ...editorTextStyle,
+            }}
             aria-hidden="true"
           >
             {inlinePromptOverlay}
@@ -462,7 +478,11 @@ function Editor({
         {selectionOverlay && (
           <div
             className="editor__selection-overlay"
-            style={{ transform: `translateY(${-scrollTop}px)`, minHeight: contentHeight || '100%' }}
+            style={{
+              transform: `translateY(${-scrollTop}px)`,
+              minHeight: contentHeight || '100%',
+              ...editorTextStyle,
+            }}
             aria-hidden="true"
           >
             <span className="editor__selection-overlay-text">{selectionOverlay.before}</span>
@@ -474,6 +494,7 @@ function Editor({
           ref={textareaRef}
           className="editor__textarea"
           value={value ?? ''}
+          style={editorTextStyle}
           onChange={handleTextareaChange}
           onBeforeInput={(event) => {
             const nativeEvent = event.nativeEvent
