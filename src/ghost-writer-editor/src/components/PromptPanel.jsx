@@ -10,7 +10,7 @@ function PromptPanel({
   setIsPromptFocused,
   showStoppedToast,
   isLoadingPrompt,
-  selectedModel,
+  canSubmitPrompt,
   handlePrimaryPromptAction,
   handleUndoToggle,
   canUndoGeneration,
@@ -60,7 +60,7 @@ function PromptPanel({
               className={`prompt-panel__button prompt-panel__button--primary${
                 isLoadingPrompt ? ' prompt-panel__button--busy' : ''
               }`}
-              disabled={!isLoadingPrompt && (!promptText.trim() || !selectedModel.trim())}
+              disabled={!isLoadingPrompt && !canSubmitPrompt}
               aria-label={isLoadingPrompt ? 'Stop generation' : 'Send prompt'}
               title={isLoadingPrompt ? 'Stop' : 'Send'}
               onClick={handlePrimaryPromptAction}

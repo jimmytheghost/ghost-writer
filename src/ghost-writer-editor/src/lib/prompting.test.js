@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGenerationPrompt } from './prompting'
+import { buildGenerationPrompt, buildInlineGenerationPrompt } from './prompting'
 
 describe('buildGenerationPrompt', () => {
   it('builds selection-edit prompt when selected text is present', () => {
@@ -50,5 +50,30 @@ describe('buildGenerationPrompt', () => {
     expect(prompt).toContain('Return only plain markdown content.')
     expect(prompt).toContain('Do not include prefaces, explanations, labels, or quotes.')
     expect(prompt).toContain('Do not wrap the output in code fences.')
+  })
+
+  it('builds inline prompt with global and inline instructions', () => {
+    const prompt = buildInlineGenerationPrompt({
+      globalPromptText: 'Keep wording concise.',
+      inlinePromptText: 'Give a README example sentence.',
+      documentText: '# Doc\nText {{Give a README example sentence.}}',
+    })
+
+    expect(prompt).toContain('You are filling an inline placeholder in a markdown document.')
+    expect(prompt).toContain('Global request:\nKeep wording concise.')
+    expect(prompt).toContain('Inline request:\nGive a README example sentence.')
+    expect(prompt).toContain('Document context:\n# Doc\nText {{Give a README example sentence.}}')
+    expect(prompt).toContain('Do not include curly braces in the output.')
+  })
+
+  it('builds inline prompt without global request when prompt input is empty', () => {
+    const prompt = buildInlineGenerationPrompt({
+      globalPromptText: '   ',
+      inlinePromptText: 'expand this sentence',
+      documentText: 'Body {{expand this sentence}}',
+    })
+
+    expect(prompt).not.toContain('Global request:')
+    expect(prompt).toContain('Inline request:\nexpand this sentence')
   })
 })

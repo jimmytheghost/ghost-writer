@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   collectCheckboxLineIndexes,
+  extractInlinePromptTokens,
+  hasInlinePromptTokens,
   normalizeCustomCheckboxLines,
   stripAssistantLeadIn,
   toggleCheckboxOnLine,
@@ -28,5 +30,42 @@ describe('content transforms', () => {
   it('strips common assistant lead-ins repeatedly until content starts', () => {
     const input = 'Sure:\nHere is the output:\nResponse:\n## Final text'
     expect(stripAssistantLeadIn(input)).toBe('## Final text')
+  })
+
+  it('extracts inline prompt tokens with source ranges', () => {
+    const markdown = 'Lead {{first prompt}} middle {{ second prompt }} tail'
+    expect(extractInlinePromptTokens(markdown)).toEqual([
+      {
+        start: 5,
+        end: 21,
+        raw: '{{first prompt}}',
+        innerText: 'first prompt',
+      },
+      {
+        start: 29,
+        end: 48,
+        raw: '{{ second prompt }}',
+        innerText: ' second prompt ',
+      },
+    ])
+  })
+
+  it('ignores whitespace-only and unmatched inline prompt tokens', () => {
+    const markdown = 'One {{   }} two {{valid}} three {{broken'
+    expect(extractInlinePromptTokens(markdown)).toEqual([
+      {
+        start: 16,
+        end: 25,
+        raw: '{{valid}}',
+        innerText: 'valid',
+      },
+    ])
+  })
+
+  it('supports multiline inline prompts and quick token checks', () => {
+    const markdown = 'Intro {{line one\nline two}} outro'
+    expect(hasInlinePromptTokens(markdown)).toBe(true)
+    expect(extractInlinePromptTokens(markdown)[0]?.innerText).toBe('line one\nline two')
+    expect(hasInlinePromptTokens('No tokens here')).toBe(false)
   })
 })

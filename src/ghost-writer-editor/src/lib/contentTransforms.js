@@ -1,5 +1,37 @@
 const CHECKBOX_LINE_PATTERN = /^(\s*)(?:([-*+])\s+)?\[( |x|X)\](.*)$/
 
+export function extractInlinePromptTokens(markdown = '') {
+  const tokens = []
+  let searchIndex = 0
+
+  while (searchIndex < markdown.length) {
+    const openIndex = markdown.indexOf('{{', searchIndex)
+    if (openIndex === -1) break
+
+    const closeIndex = markdown.indexOf('}}', openIndex + 2)
+    if (closeIndex === -1) break
+
+    const raw = markdown.slice(openIndex, closeIndex + 2)
+    const innerText = markdown.slice(openIndex + 2, closeIndex)
+    if (innerText.trim().length > 0) {
+      tokens.push({
+        start: openIndex,
+        end: closeIndex + 2,
+        raw,
+        innerText,
+      })
+    }
+
+    searchIndex = closeIndex + 2
+  }
+
+  return tokens
+}
+
+export function hasInlinePromptTokens(markdown = '') {
+  return extractInlinePromptTokens(markdown).length > 0
+}
+
 export function normalizeCustomCheckboxLines(markdown = '') {
   return markdown
     .split('\n')

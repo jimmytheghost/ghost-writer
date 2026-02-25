@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { extractInlinePromptTokens } from '../lib/contentTransforms'
 import { getMisspelledRanges } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
@@ -57,6 +58,46 @@ function Editor({
 
     return nodes
   }, [misspelledRanges, spellCheckEnabled, value])
+
+  const inlinePromptOverlay = useMemo(() => {
+    const text = value ?? ''
+    const tokens = extractInlinePromptTokens(text)
+    if (!tokens.length) return null
+
+    const nodes = []
+    let cursor = 0
+
+    tokens.forEach((token, index) => {
+      const start = Math.max(0, Math.min(token.start, text.length))
+      const end = Math.max(start, Math.min(token.end, text.length))
+
+      if (start > cursor) {
+        nodes.push(
+          <span key={`inline-text-${index}-${cursor}`} className="editor__inline-prompt-overlay-text">
+            {text.slice(cursor, start)}
+          </span>,
+        )
+      }
+
+      nodes.push(
+        <span key={`inline-token-${index}-${start}`} className="editor__inline-prompt-overlay-token">
+          {text.slice(start, end)}
+        </span>,
+      )
+
+      cursor = end
+    })
+
+    if (cursor < text.length) {
+      nodes.push(
+        <span key={`inline-text-tail-${cursor}`} className="editor__inline-prompt-overlay-text">
+          {text.slice(cursor)}
+        </span>,
+      )
+    }
+
+    return nodes
+  }, [value])
 
   const selectionOverlay = useMemo(() => {
     if (!showSelectionOverlay) return null
@@ -407,6 +448,15 @@ function Editor({
             aria-hidden="true"
           >
             {spellCheckOverlay}
+          </div>
+        )}
+        {inlinePromptOverlay && (
+          <div
+            className="editor__inline-prompt-overlay"
+            style={{ transform: `translateY(${-scrollTop}px)`, minHeight: contentHeight || '100%' }}
+            aria-hidden="true"
+          >
+            {inlinePromptOverlay}
           </div>
         )}
         {selectionOverlay && (

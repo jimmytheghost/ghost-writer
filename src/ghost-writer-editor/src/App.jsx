@@ -151,6 +151,7 @@ function App() {
   const {
     abortGeneration,
     canRedoGeneration,
+    canSubmitPrompt,
     canUndoGeneration,
     handleClearPrompt,
     handlePromptKeyDown,
@@ -683,7 +684,7 @@ function App() {
             setIsPromptFocused={setIsPromptFocused}
             showStoppedToast={showStoppedToast}
             isLoadingPrompt={isLoadingPrompt}
-            selectedModel={selectedModel}
+            canSubmitPrompt={canSubmitPrompt}
             handlePrimaryPromptAction={handlePrimaryPromptAction}
             handleUndoToggle={handleUndoToggle}
             canUndoGeneration={canUndoGeneration}

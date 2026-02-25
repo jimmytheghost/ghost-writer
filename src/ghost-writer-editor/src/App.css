@@ -581,10 +581,28 @@
   color: transparent;
   pointer-events: none;
   overflow: hidden;
-  z-index: 3;
+  z-index: 4;
 }
 
 .editor__spell-overlay {
+  position: absolute;
+  inset: 0;
+  padding: var(--space-6);
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: transparent;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+}
+
+.editor__inline-prompt-overlay {
   position: absolute;
   inset: 0;
   padding: var(--space-6);
@@ -613,6 +631,18 @@
   text-decoration-color: #ef4444;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
+}
+
+.editor__inline-prompt-overlay-text {
+  color: transparent;
+}
+
+.editor__inline-prompt-overlay-token {
+  color: #2563eb;
+}
+
+.app--dark .editor__inline-prompt-overlay-token {
+  color: #60a5fa;
 }
 
 .editor__selection-overlay-text {

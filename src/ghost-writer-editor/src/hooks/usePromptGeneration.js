@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { stripAssistantLeadIn } from '../lib/contentTransforms'
+import { extractInlinePromptTokens, hasInlinePromptTokens, stripAssistantLeadIn } from '../lib/contentTransforms'
 import {
   buildOllamaUrl,
   fetchWithTimeout,
 } from '../lib/ollama'
-import { buildGenerationPrompt } from '../lib/prompting'
+import { buildGenerationPrompt, buildInlineGenerationPrompt } from '../lib/prompting'
 
 const EMPTY_HISTORY = Object.freeze({
   undoSnapshot: '',
@@ -55,6 +55,10 @@ export function usePromptGeneration({
   const historyForActiveTab = activeTabId ? historyByTab[activeTabId] ?? EMPTY_HISTORY : EMPTY_HISTORY
   const promptText = activeTab?.promptText ?? ''
   const promptError = activeTab?.promptError ?? ''
+  const hasInlinePrompts = useMemo(() => hasInlinePromptTokens(activeTab?.content ?? ''), [activeTab?.content])
+  const hasPromptText = promptText.trim().length > 0
+  const hasSelectedModel = selectedModel.trim().length > 0
+  const canSubmitPrompt = hasSelectedModel && (hasPromptText || hasInlinePrompts)
 
   const setPromptError = useCallback(
     (value, tabId = activeTabId) => {
@@ -144,11 +148,117 @@ export function usePromptGeneration({
     abortControllerRef.current?.abort()
   }, [])
 
+  const streamPromptIntoRange = useCallback(
+    async ({ tabId, baseContent, range, refinedPrompt }) => {
+      abortControllerRef.current = new AbortController()
+      streamTabIdRef.current = tabId
+      streamBaseRef.current = baseContent
+      streamSelectionRef.current = range
+      streamBufferRef.current = ''
+
+      const response = await fetchWithTimeout(
+        buildOllamaUrl('/api/generate'),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: abortControllerRef.current.signal,
+          body: JSON.stringify({
+            model: selectedModel,
+            prompt: refinedPrompt,
+            stream: true,
+            options: {
+              num_predict: -1,
+            },
+          }),
+        },
+        0,
+      )
+
+      if (!response.ok) {
+        throw new Error('Ollama request failed. Is the server running?')
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Streaming response not available.')
+      }
+
+      const decoder = new TextDecoder()
+      let bufferedText = ''
+
+      const applyStreamChunk = (chunk) => {
+        if (!chunk) return
+        const streamTabId = streamTabIdRef.current
+        if (!streamTabId || !getTabById(streamTabId)) {
+          abortControllerRef.current?.abort()
+          return
+        }
+
+        streamBufferRef.current += chunk
+        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
+        const streamBase = streamBaseRef.current
+        const { start, end } = streamSelectionRef.current
+        const safeStart = Math.min(start, streamBase.length)
+        const safeEnd = Math.min(end, streamBase.length)
+        setTabContentById(streamTabId, `${streamBase.slice(0, safeStart)}${cleanedStreamText}${streamBase.slice(safeEnd)}`)
+      }
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        bufferedText += decoder.decode(value, { stream: true })
+        const lines = bufferedText.split('\n')
+        bufferedText = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const payload = JSON.parse(trimmed)
+            if (payload?.response) {
+              applyStreamChunk(payload.response)
+            }
+          } catch {
+            // Ignore malformed lines
+          }
+        }
+      }
+
+      const finalLine = bufferedText.trim()
+      if (finalLine) {
+        try {
+          const payload = JSON.parse(finalLine)
+          if (payload?.response) {
+            applyStreamChunk(payload.response)
+          }
+        } catch {
+          // Ignore final parse errors
+        }
+      }
+
+      const generatedText = stripAssistantLeadIn(streamBufferRef.current)
+      const { start, end } = range
+      const safeStart = Math.min(start, baseContent.length)
+      const safeEnd = Math.min(end, baseContent.length)
+      const nextContent = `${baseContent.slice(0, safeStart)}${generatedText}${baseContent.slice(safeEnd)}`
+      setTabContentById(tabId, nextContent)
+      return { generatedText, nextContent }
+    },
+    [getTabById, selectedModel, setTabContentById],
+  )
+
   const handlePromptSubmit = useCallback(
     async (event) => {
       event.preventDefault()
       const tab = getActiveTab()
-      if (!tab || !tab.promptText.trim()) return
+      if (!tab) return
+
+      const tabInlinePrompts = extractInlinePromptTokens(tab.content)
+      const hasTabInlinePrompts = tabInlinePrompts.length > 0
+      const hasTabPromptText = tab.promptText.trim().length > 0
+      if (!hasTabPromptText && !hasTabInlinePrompts) return
 
       const submittingTabId = tab.id
       const tabContent = tab.content
@@ -172,107 +282,50 @@ export function usePromptGeneration({
           abortControllerRef.current.abort()
         }
 
-        abortControllerRef.current = new AbortController()
-        streamTabIdRef.current = submittingTabId
+        if (hasTabInlinePrompts) {
+          let currentContent = tabContent
+          let offsetDelta = 0
 
-        const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
-        const selectedText = hasRangeSelection
-          ? tabContent.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
-          : ''
+          for (const inlinePrompt of tabInlinePrompts) {
+            const start = inlinePrompt.start + offsetDelta
+            const end = inlinePrompt.end + offsetDelta
+            const refinedPrompt = buildInlineGenerationPrompt({
+              globalPromptText: tab.promptText,
+              inlinePromptText: inlinePrompt.innerText,
+              documentText: currentContent,
+            })
 
-        streamBaseRef.current = tabContent
-        const cursorPosition = Math.max(0, Math.min(selectionRange.start ?? 0, tabContent.length))
-        streamSelectionRef.current = hasRangeSelection
-          ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
-          : { start: cursorPosition, end: cursorPosition }
-        streamBufferRef.current = ''
+            const result = await streamPromptIntoRange({
+              tabId: submittingTabId,
+              baseContent: currentContent,
+              range: { start, end },
+              refinedPrompt,
+            })
 
-        const refinedPrompt = buildGenerationPrompt({
-          promptText: tab.promptText,
-          documentText: tabContent,
-          selectedText,
-        })
-
-        const response = await fetchWithTimeout(
-          buildOllamaUrl('/api/generate'),
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            signal: abortControllerRef.current.signal,
-            body: JSON.stringify({
-              model: selectedModel,
-              prompt: refinedPrompt,
-              stream: true,
-              options: {
-                num_predict: -1,
-              },
-            }),
-          },
-          0,
-        )
-
-        if (!response.ok) {
-          throw new Error('Ollama request failed. Is the server running?')
-        }
-
-        const reader = response.body?.getReader()
-        if (!reader) {
-          throw new Error('Streaming response not available.')
-        }
-
-        const decoder = new TextDecoder()
-        let bufferedText = ''
-
-        const applyStreamChunk = (chunk) => {
-          if (!chunk) return
-          const streamTabId = streamTabIdRef.current
-          if (!streamTabId || !getTabById(streamTabId)) {
-            abortControllerRef.current?.abort()
-            return
+            offsetDelta += result.generatedText.length - (end - start)
+            currentContent = result.nextContent
           }
+        } else {
+          const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
+          const selectedText = hasRangeSelection
+            ? tabContent.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
+            : ''
+          const cursorPosition = Math.max(0, Math.min(selectionRange.start ?? 0, tabContent.length))
+          const range = hasRangeSelection
+            ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
+            : { start: cursorPosition, end: cursorPosition }
+          const refinedPrompt = buildGenerationPrompt({
+            promptText: tab.promptText,
+            documentText: tabContent,
+            selectedText,
+          })
 
-          streamBufferRef.current += chunk
-          const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
-          const base = streamBaseRef.current
-          const { start, end } = streamSelectionRef.current
-          const safeStart = Math.min(start, base.length)
-          const safeEnd = Math.min(end, base.length)
-          setTabContentById(streamTabId, `${base.slice(0, safeStart)}${cleanedStreamText}${base.slice(safeEnd)}`)
-        }
-
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) break
-          bufferedText += decoder.decode(value, { stream: true })
-          const lines = bufferedText.split('\n')
-          bufferedText = lines.pop() ?? ''
-
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed) continue
-            try {
-              const payload = JSON.parse(trimmed)
-              if (payload?.response) {
-                applyStreamChunk(payload.response)
-              }
-            } catch {
-              // Ignore malformed lines
-            }
-          }
-        }
-
-        const finalLine = bufferedText.trim()
-        if (finalLine) {
-          try {
-            const payload = JSON.parse(finalLine)
-            if (payload?.response) {
-              applyStreamChunk(payload.response)
-            }
-          } catch {
-            // Ignore final parse errors
-          }
+          await streamPromptIntoRange({
+            tabId: submittingTabId,
+            baseContent: tabContent,
+            range,
+            refinedPrompt,
+          })
         }
       } catch (error) {
         if (error?.name === 'AbortError') {
@@ -289,13 +342,12 @@ export function usePromptGeneration({
     },
     [
       getActiveTab,
-      getTabById,
       patchHistory,
       selectedModel,
       selectionRange.end,
       selectionRange.start,
       setPromptError,
-      setTabContentById,
+      streamPromptIntoRange,
     ],
   )
 
@@ -308,7 +360,7 @@ export function usePromptGeneration({
       return
     }
 
-    if (!tab.promptText.trim() || !selectedModel.trim()) return
+    if (!canSubmitPrompt) return
     const form = promptFormRef.current
     if (!form) return
 
@@ -318,7 +370,7 @@ export function usePromptGeneration({
     }
 
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-  }, [abortGeneration, getActiveTab, isLoadingPrompt, promptFormRef, selectedModel])
+  }, [abortGeneration, canSubmitPrompt, getActiveTab, isLoadingPrompt, promptFormRef])
 
   const handlePromptKeyDown = useCallback(
     (event) => {
@@ -328,10 +380,10 @@ export function usePromptGeneration({
         handlePrimaryPromptAction()
         return
       }
-      if (!isLoadingPrompt && promptText.trim() && selectedModel.trim()) return
+      if (!isLoadingPrompt && canSubmitPrompt) return
       event.preventDefault()
     },
-    [handlePrimaryPromptAction, isLoadingPrompt, promptText, selectedModel],
+    [canSubmitPrompt, handlePrimaryPromptAction, isLoadingPrompt],
   )
 
   const handleClearPrompt = useCallback(() => {
@@ -343,6 +395,7 @@ export function usePromptGeneration({
   return {
     abortGeneration,
     canRedoGeneration: historyForActiveTab.canRedoGeneration,
+    canSubmitPrompt,
     canUndoGeneration: historyForActiveTab.canUndoGeneration,
     handleClearPrompt,
     handlePromptKeyDown,

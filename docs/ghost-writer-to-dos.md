@@ -29,7 +29,7 @@
 
 ### Inline prompts
 
-[ ] New Feature- In the editor a user can put text in some kind of syntax, like {{ }} or something but if a user uses that code the “send” button in the prompt input is activated. If the user clicks send, it reads all text, finds all {{}} and reads the text in those brackets as prompts.
+[x] New Feature- In the editor a user can put text in some kind of syntax, like {{ }} or something but if a user uses that code the “send” button in the prompt input is activated. If the user clicks send, it reads all text, finds all {{}} and reads the text in those brackets as prompts.
 
 Example:
 Markdown has become a widely accepted and easy-to-read markup language.  It's used for documentation, README files, and even some websites. {{Give a quick example of what readme files are}}. The simplicity of Markdown makes it appealing to users who want to create content without extensive knowledge of HTML or other markup languages.
