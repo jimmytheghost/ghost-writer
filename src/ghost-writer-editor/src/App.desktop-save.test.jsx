@@ -8,6 +8,7 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   saveMarkdownWithNativeDialog: vi.fn(async () => null),
   saveMarkdownToPath: vi.fn(async () => null),
   openMarkdownWithNativeDialog: vi.fn(async () => null),
+  loadMarkdownFilesByPaths: vi.fn(async () => []),
   markRendererInteractive: vi.fn(),
   openExternalUrl: vi.fn(async () => true),
 }))
@@ -29,6 +30,7 @@ vi.mock('./lib/desktopRuntime', async () => ({
   saveMarkdownWithNativeDialog: desktopRuntimeMocks.saveMarkdownWithNativeDialog,
   saveMarkdownToPath: desktopRuntimeMocks.saveMarkdownToPath,
   openMarkdownWithNativeDialog: desktopRuntimeMocks.openMarkdownWithNativeDialog,
+  loadMarkdownFilesByPaths: desktopRuntimeMocks.loadMarkdownFilesByPaths,
   markRendererInteractive: desktopRuntimeMocks.markRendererInteractive,
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
 }))

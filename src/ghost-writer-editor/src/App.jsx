@@ -22,6 +22,7 @@ import {
   isDesktopRuntime,
   isMacDesktopRuntime,
   loadSettings,
+  loadMarkdownFilesByPaths,
   markRendererInteractive,
   openMarkdownWithNativeDialog,
   openExternalUrl,
@@ -54,6 +55,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   defaultSpellCheck: false,
   customWordList: [...DEFAULT_CUSTOM_WORD_LIST],
   customWordListDisabled: [],
+  sessionSavedTabPaths: [],
+  sessionActiveTabPath: '',
 })
 
 function toWordSet(values = []) {
@@ -133,6 +136,7 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
+  const [hasLoadedDesktopSettings, setHasLoadedDesktopSettings] = useState(() => !isDesktopRuntime())
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -148,6 +152,7 @@ function App() {
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
+  const lastPersistedSessionRef = useRef({ paths: [], activePath: '' })
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
@@ -259,7 +264,10 @@ function App() {
 
     const loadDesktopSettings = async () => {
       const payload = await loadSettings()
-      if (!payload?.settings) return
+      if (!payload?.settings) {
+        setHasLoadedDesktopSettings(true)
+        return
+      }
 
       let nextSettings = {
         ...DEFAULT_SETTINGS,
@@ -279,10 +287,89 @@ function App() {
 
       setSettings(nextSettings)
       applySettings(nextSettings)
+      lastPersistedSessionRef.current = {
+        paths: Array.isArray(nextSettings.sessionSavedTabPaths) ? nextSettings.sessionSavedTabPaths : [],
+        activePath: String(nextSettings.sessionActiveTabPath || ''),
+      }
+
+      const sessionSavedTabPaths = Array.isArray(nextSettings.sessionSavedTabPaths)
+        ? nextSettings.sessionSavedTabPaths.filter(Boolean)
+        : []
+      if (sessionSavedTabPaths.length) {
+        const restoredFiles = await loadMarkdownFilesByPaths(sessionSavedTabPaths)
+        if (restoredFiles.length) {
+          let highestUntitledIndex = 1
+          const restoredTabs = restoredFiles.map((file) => {
+            const base = createNewTab(1)
+            const title = ensureMarkdownFileName(fileNameFromPath(file.path))
+            const untitledMatch = /^Untitled(?:\s+(\d+))?$/i.exec(title.replace(/\.md$/i, ''))
+            if (untitledMatch) {
+              const value = Number(untitledMatch[1] ?? '1')
+              if (Number.isFinite(value)) highestUntitledIndex = Math.max(highestUntitledIndex, value)
+            }
+
+            return {
+              ...base,
+              title,
+              content: file.content,
+              filePath: file.path,
+              lastSavedContent: file.content,
+              isDirty: false,
+            }
+          })
+
+          setTabs(restoredTabs)
+          setSelectionRangesByTab(
+            restoredTabs.reduce((acc, tab) => {
+              acc[tab.id] = { start: 0, end: 0 }
+              return acc
+            }, {}),
+          )
+
+          const restoredActivePath = (nextSettings.sessionActiveTabPath || '').trim()
+          const restoredActiveTab =
+            restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
+          setActiveTabId(restoredActiveTab.id)
+          setNextUntitledIndex(highestUntitledIndex + 1)
+        }
+      }
+
+      setHasLoadedDesktopSettings(true)
     }
 
     void loadDesktopSettings()
   }, [applySettings])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return
+    if (!hasLoadedDesktopSettings) return
+
+    const sessionSavedTabPaths = tabs
+      .map((tab) => tab.filePath?.trim() ?? '')
+      .filter(Boolean)
+    const activeTabPath = (tabs.find((tab) => tab.id === activeTabId)?.filePath ?? '').trim()
+
+    const persistedPaths = Array.isArray(lastPersistedSessionRef.current.paths)
+      ? lastPersistedSessionRef.current.paths
+      : []
+    const samePaths =
+      persistedPaths.length === sessionSavedTabPaths.length &&
+      persistedPaths.every((path, index) => path === sessionSavedTabPaths[index])
+    const sameActivePath = (lastPersistedSessionRef.current.activePath || '').trim() === activeTabPath
+
+    if (samePaths && sameActivePath) return
+
+    lastPersistedSessionRef.current = {
+      paths: sessionSavedTabPaths,
+      activePath: activeTabPath,
+    }
+
+    void saveSettings({
+      ...settings,
+      sessionSavedTabPaths,
+      sessionActiveTabPath: activeTabPath,
+    })
+  }, [activeTabId, hasLoadedDesktopSettings, settings, tabs])
 
   useEffect(() => {
     if (!settings.defaultModel || !models.length) return

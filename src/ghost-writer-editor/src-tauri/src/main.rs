@@ -38,6 +38,10 @@ struct AppSettings {
     #[serde(default)]
     custom_word_list_disabled: Vec<String>,
     #[serde(default)]
+    session_saved_tab_paths: Vec<String>,
+    #[serde(default)]
+    session_active_tab_path: String,
+    #[serde(default)]
     recent_files: Vec<String>,
 }
 
@@ -66,6 +70,8 @@ impl Default for AppSettings {
             default_spell_check: false,
             custom_word_list: default_custom_word_list(),
             custom_word_list_disabled: Vec::new(),
+            session_saved_tab_paths: Vec::new(),
+            session_active_tab_path: String::new(),
             recent_files: Vec::new(),
         }
     }
@@ -248,6 +254,30 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
         path: path.to_string_lossy().into_owned(),
         content,
     }))
+}
+
+#[tauri::command]
+fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayload>, String> {
+    let mut results = Vec::new();
+
+    for raw_path in paths {
+        let trimmed = raw_path.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let content = match fs::read_to_string(trimmed) {
+            Ok(content) => content,
+            Err(_) => continue,
+        };
+
+        results.push(OpenRecentPayload {
+            path: trimmed.to_string(),
+            content,
+        });
+    }
+
+    Ok(results)
 }
 
 #[tauri::command]
@@ -509,6 +539,7 @@ fn main() {
             save_markdown_file,
             save_markdown_to_path,
             open_markdown_file,
+            load_markdown_files_by_paths,
             open_external_url,
             print_current_webview,
             load_settings,

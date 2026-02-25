@@ -76,6 +76,17 @@ export async function openMarkdownWithNativeDialog() {
   }
 }
 
+export async function loadMarkdownFilesByPaths(paths = []) {
+  if (!isDesktopRuntime()) return []
+
+  try {
+    return await invoke('load_markdown_files_by_paths', { paths })
+  } catch (error) {
+    console.warn('Failed to load markdown files by paths:', error)
+    return []
+  }
+}
+
 export async function openExternalUrl(url) {
   if (!isDesktopRuntime()) return false
 
