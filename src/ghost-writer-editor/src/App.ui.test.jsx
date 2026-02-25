@@ -50,4 +50,21 @@ describe('App UI behaviors', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
+
+  it('hides unresolved inline prompt tokens in markdown preview', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Before {{hidden inline prompt}} after' } })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent?.textContent ?? '').toContain('Before')
+    expect(previewContent?.textContent ?? '').toContain('after')
+    expect(previewContent?.textContent ?? '').not.toContain('hidden inline prompt')
+    expect(previewContent?.textContent ?? '').not.toContain('{{')
+  })
 })

@@ -15,6 +15,7 @@ import { useTauriMenuEvents } from './hooks/useTauriMenuEvents'
 import {
   collectCheckboxLineIndexes,
   normalizeCustomCheckboxLines,
+  stripInlinePromptTokensForPresentation,
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
 import {
@@ -29,6 +30,7 @@ import {
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
+import { printRenderedMarkdown } from './lib/print'
 import {
   closeTabById,
   createNewTab,
@@ -113,6 +115,7 @@ function App() {
   const openActionRef = useRef(() => {})
   const newActionRef = useRef(() => {})
   const closeActionRef = useRef(() => {})
+  const printActionRef = useRef(() => {})
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
@@ -182,7 +185,10 @@ function App() {
     [activeContent, isPreviewOpen],
   )
   const normalizedPreviewMarkdown = useMemo(
-    () => (isPreviewOpen ? normalizeCustomCheckboxLines(activeContent) : ''),
+    () =>
+      isPreviewOpen
+        ? normalizeCustomCheckboxLines(stripInlinePromptTokensForPresentation(activeContent))
+        : '',
     [activeContent, isPreviewOpen],
   )
   const renderedMarkdown = useMemo(
@@ -453,6 +459,16 @@ function App() {
     }
   }, [activeContent, selectionRange.end, selectionRange.start, setPromptError])
 
+  const handlePrintClick = useCallback(() => {
+    if (!activeTab) return
+    const title = `${activeTab.title || 'Untitled'} - Ghost Writer`
+    printRenderedMarkdown(activeContent, { title })
+  }, [activeContent, activeTab])
+
+  useEffect(() => {
+    printActionRef.current = handlePrintClick
+  }, [handlePrintClick])
+
   const handlePromptOpen = useCallback(
     (payload = {}) => {
       if (!activeTabId) return
@@ -589,6 +605,7 @@ function App() {
     openActionRef,
     newActionRef,
     closeActionRef,
+    printActionRef,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onTogglePreview: handleTogglePreview,
     onToggleFooter: handleToggleFooter,
@@ -598,6 +615,7 @@ function App() {
     onNew: handleNew,
     onOpen: handleLoadClick,
     onSave: handleSaveClick,
+    onPrint: handlePrintClick,
     onShowPreview: handleShowPreview,
     onShowMarkdown: handleShowMarkdown,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,

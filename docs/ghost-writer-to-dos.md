@@ -63,6 +63,9 @@ If they clicked the send button it would read whatever is in the prompt input fi
 ### Export / Share
 [ ] Export and Share options similar to Byword
 
+### Save
+[ ] When a user opens / edits a file with a known file name and file path and then clicks cmd/ctrl+s -- it should not trigger the OS save as pop up.  It should just save. 
+
 ## Stretch Goals
 
 [ ] Enable / Disable Line focus

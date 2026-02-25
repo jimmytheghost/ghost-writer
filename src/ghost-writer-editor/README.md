@@ -49,6 +49,7 @@ Keyboard shortcuts:
 - `Cmd/Ctrl + S` save
 - `Cmd/Ctrl + O` open
 - `Cmd/Ctrl + N` new
+- `Cmd/Ctrl + P` print rendered markdown
 - `Cmd/Ctrl + M` preview toggle
 - `Cmd/Ctrl + T` always-on-top toggle (desktop/Tauri)
 - `Cmd/Ctrl + Enter` send prompt

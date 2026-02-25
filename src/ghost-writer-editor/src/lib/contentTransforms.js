@@ -32,6 +32,26 @@ export function hasInlinePromptTokens(markdown = '') {
   return extractInlinePromptTokens(markdown).length > 0
 }
 
+export function stripInlinePromptTokensForPresentation(markdown = '') {
+  if (!markdown) return markdown
+
+  const tokens = extractInlinePromptTokens(markdown)
+  if (!tokens.length) return markdown
+
+  let cursor = 0
+  let result = ''
+
+  tokens.forEach((token) => {
+    const safeStart = Math.max(0, Math.min(token.start, markdown.length))
+    const safeEnd = Math.max(safeStart, Math.min(token.end, markdown.length))
+    result += markdown.slice(cursor, safeStart)
+    cursor = safeEnd
+  })
+
+  result += markdown.slice(cursor)
+  return result
+}
+
 export function normalizeCustomCheckboxLines(markdown = '') {
   return markdown
     .split('\n')

@@ -4,6 +4,7 @@ import {
   extractInlinePromptTokens,
   hasInlinePromptTokens,
   normalizeCustomCheckboxLines,
+  stripInlinePromptTokensForPresentation,
   stripAssistantLeadIn,
   toggleCheckboxOnLine,
 } from './contentTransforms'
@@ -67,5 +68,17 @@ describe('content transforms', () => {
     expect(hasInlinePromptTokens(markdown)).toBe(true)
     expect(extractInlinePromptTokens(markdown)[0]?.innerText).toBe('line one\nline two')
     expect(hasInlinePromptTokens('No tokens here')).toBe(false)
+  })
+
+  it('strips inline prompt tokens for presentation while preserving unmatched braces', () => {
+    expect(stripInlinePromptTokensForPresentation('Before {{prompt}} after')).toBe('Before  after')
+    expect(stripInlinePromptTokensForPresentation('A {{one}}{{two}} B')).toBe('A  B')
+    expect(stripInlinePromptTokensForPresentation('A {{   }} B')).toBe('A {{   }} B')
+    expect(stripInlinePromptTokensForPresentation('A {{broken B')).toBe('A {{broken B')
+  })
+
+  it('strips multiline inline prompt tokens for presentation', () => {
+    const markdown = 'Start {{line one\nline two}} End'
+    expect(stripInlinePromptTokensForPresentation(markdown)).toBe('Start  End')
   })
 })

@@ -52,6 +52,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let file_open = MenuItem::with_id(app, "file_open", "Open", true, Some("CmdOrCtrl+O"))?;
     let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
+    let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
 
     let view_preview =
@@ -78,8 +79,12 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     let about_show = MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
 
-    let file_menu =
-        Submenu::with_items(app, "File", true, &[&file_new, &file_open, &file_save, &file_quit])?;
+    let file_menu = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[&file_new, &file_open, &file_save, &file_print, &file_quit],
+    )?;
     let edit_menu = Submenu::with_items(
         app,
         "Edit",
@@ -151,6 +156,11 @@ fn save_markdown_to_path(content: String, path: String) -> Result<String, String
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
     open::that(url).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|error| error.to_string())
 }
 
 fn settings_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -253,6 +263,7 @@ fn main() {
             save_markdown_file,
             save_markdown_to_path,
             open_external_url,
+            print_current_webview,
             load_settings,
             save_settings
         ])
@@ -277,6 +288,7 @@ fn main() {
                 "file_new" => emit_menu_event("ghost-writer://menu-new"),
                 "file_open" => emit_menu_event("ghost-writer://menu-open"),
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
+                "file_print" => emit_menu_event("ghost-writer://menu-print"),
                 "file_quit" => app.exit(0),
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
                 "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),

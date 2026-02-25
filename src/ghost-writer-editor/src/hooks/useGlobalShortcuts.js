@@ -5,6 +5,7 @@ export function useGlobalShortcuts({
   openActionRef,
   newActionRef,
   closeActionRef,
+  printActionRef,
   onToggleAlwaysOnTop,
   onTogglePreview,
   onToggleFooter,
@@ -38,6 +39,12 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && !event.altKey && key === 'p') {
+        event.preventDefault()
+        printActionRef.current?.()
+        return
+      }
+
       if (hasMod && !event.altKey && key === 't') {
         event.preventDefault()
         onToggleAlwaysOnTop()
@@ -60,5 +67,14 @@ export function useGlobalShortcuts({
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown)
     }
-  }, [closeActionRef, newActionRef, onToggleAlwaysOnTop, onToggleFooter, onTogglePreview, openActionRef, saveActionRef])
+  }, [
+    closeActionRef,
+    newActionRef,
+    onToggleAlwaysOnTop,
+    onToggleFooter,
+    onTogglePreview,
+    openActionRef,
+    printActionRef,
+    saveActionRef,
+  ])
 }

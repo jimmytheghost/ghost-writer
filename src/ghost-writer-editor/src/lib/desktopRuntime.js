@@ -77,6 +77,18 @@ export async function openExternalUrl(url) {
   }
 }
 
+export async function printCurrentWebview() {
+  if (!isDesktopRuntime()) return false
+
+  try {
+    await invoke('print_current_webview')
+    return true
+  } catch (error) {
+    console.warn('Failed to open native print dialog:', error)
+    return false
+  }
+}
+
 export async function loadSettings() {
   if (!isDesktopRuntime()) return null
 

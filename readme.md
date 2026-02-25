@@ -43,6 +43,7 @@ When you submit a prompt:
 - `Ctrl/Cmd + S`: save document
 - `Ctrl/Cmd + O`: load document
 - `Ctrl/Cmd + N`: new document
+- `Ctrl/Cmd + P`: print rendered markdown
 - `Ctrl/Cmd + T`: toggle always-on-top (desktop/Tauri)
 - `Enter` (inside AI prompt input): send prompt
 - `Ctrl/Cmd + Enter` (inside AI prompt input): send prompt
