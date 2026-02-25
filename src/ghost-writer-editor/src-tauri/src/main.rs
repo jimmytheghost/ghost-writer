@@ -283,6 +283,40 @@ fn save_markdown_to_path(
 }
 
 #[tauri::command]
+fn save_text_file_with_dialog(
+    content: String,
+    suggested_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+) -> Result<Option<String>, String> {
+    let safe_name = if suggested_name.trim().is_empty() {
+        "export.txt".to_string()
+    } else {
+        suggested_name
+    };
+
+    let sanitized_extensions: Vec<String> = extensions
+        .into_iter()
+        .map(|value| value.trim().trim_start_matches('.').to_lowercase())
+        .filter(|value| !value.is_empty())
+        .collect();
+
+    let mut dialog = rfd::FileDialog::new().set_file_name(&safe_name);
+    if !sanitized_extensions.is_empty() {
+        let extension_refs: Vec<&str> = sanitized_extensions.iter().map(String::as_str).collect();
+        dialog = dialog.add_filter(filter_name, &extension_refs);
+    }
+
+    let selected_path: Option<PathBuf> = dialog.save_file();
+    let Some(path) = selected_path else {
+        return Ok(None);
+    };
+
+    fs::write(&path, content).map_err(|error| error.to_string())?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
 fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>, String> {
     let selected_path: Option<PathBuf> = rfd::FileDialog::new()
         .add_filter("Markdown", &["md"])
@@ -582,6 +616,7 @@ fn main() {
             set_always_on_top,
             save_markdown_file,
             save_markdown_to_path,
+            save_text_file_with_dialog,
             open_markdown_file,
             load_markdown_files_by_paths,
             open_external_url,

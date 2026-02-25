@@ -28,6 +28,7 @@ import {
   openExternalUrl,
   saveMarkdownToPath,
   saveMarkdownWithNativeDialog,
+  saveTextFileWithNativeDialog,
   saveSettings,
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
@@ -111,6 +112,35 @@ function ensureMarkdownFileName(name) {
 function fileNameFromPath(path) {
   const parts = path.split(/[\\/]/)
   return parts[parts.length - 1] || path
+}
+
+function stripExtension(name) {
+  return name.replace(/\.[^./\\]+$/, '')
+}
+
+function escapeHtml(value = '') {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function escapeRtf(value = '') {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/\r?\n/g, '\\par\n')
+}
+
+function escapeLatex(value = '') {
+  return value
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/([{}#$%&_])/g, '\\$1')
+    .replace(/\^/g, '\\textasciicircum{}')
+    .replace(/~/g, '\\textasciitilde{}')
 }
 
 function readLegacyAlwaysOnTopSetting() {
@@ -816,6 +846,115 @@ function App() {
     setIsTabBarVisible((previous) => !previous)
   }, [])
 
+  const exportMarkdownSource = useMemo(() => {
+    return normalizeCustomCheckboxLines(stripInlinePromptTokensForPresentation(activeContent))
+  }, [activeContent])
+
+  const exportHtmlDocument = useMemo(() => {
+    const body = renderMarkdownToSafeHtml(exportMarkdownSource)
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(activeTab?.title || 'Document')}</title>
+</head>
+<body>
+${body}
+</body>
+</html>
+`
+  }, [activeTab?.title, exportMarkdownSource])
+
+  const getExportBaseName = useCallback(() => {
+    const base = stripExtension(activeTab?.title || 'untitled').trim()
+    return base || 'untitled'
+  }, [activeTab?.title])
+
+  const exportWithNativeDialog = useCallback(
+    async ({ content, extension, filterName }) => {
+      const suggestedName = `${getExportBaseName()}.${extension}`
+      const savedPath = await saveTextFileWithNativeDialog({
+        content,
+        suggestedName,
+        filterName,
+        extensions: [extension],
+      })
+      return Boolean(savedPath)
+    },
+    [getExportBaseName],
+  )
+
+  const handleExportCopyHtml = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(exportHtmlDocument)
+      setPromptError('')
+    } catch (error) {
+      setPromptError(error?.message ?? 'Unable to copy HTML to the clipboard.')
+    }
+  }, [exportHtmlDocument, setPromptError])
+
+  const handleExportCopyRichText = useCallback(async () => {
+    const plainText = exportMarkdownSource
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        const item = new ClipboardItem({
+          'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          'text/html': new Blob([exportHtmlDocument], { type: 'text/html' }),
+        })
+        await navigator.clipboard.write([item])
+      } else {
+        await navigator.clipboard.writeText(plainText)
+      }
+      setPromptError('')
+    } catch (error) {
+      setPromptError(error?.message ?? 'Unable to copy rich text to the clipboard.')
+    }
+  }, [exportHtmlDocument, exportMarkdownSource, setPromptError])
+
+  const handleExportHtml = useCallback(async () => {
+    await exportWithNativeDialog({
+      content: exportHtmlDocument,
+      extension: 'html',
+      filterName: 'HTML',
+    })
+  }, [exportHtmlDocument, exportWithNativeDialog])
+
+  const handleExportPdf = useCallback(async () => {
+    printRenderedMarkdown(exportMarkdownSource)
+  }, [exportMarkdownSource])
+
+  const handleExportRtf = useCallback(async () => {
+    const rtfContent = `{\\rtf1\\ansi\\deff0\n${escapeRtf(exportMarkdownSource)}\n}`
+    await exportWithNativeDialog({
+      content: rtfContent,
+      extension: 'rtf',
+      filterName: 'RTF',
+    })
+  }, [exportMarkdownSource, exportWithNativeDialog])
+
+  const handleExportWord = useCallback(async () => {
+    await exportWithNativeDialog({
+      content: exportHtmlDocument,
+      extension: 'doc',
+      filterName: 'Word',
+    })
+  }, [exportHtmlDocument, exportWithNativeDialog])
+
+  const handleExportLatex = useCallback(async () => {
+    const latex = `\\documentclass{article}
+\\usepackage[utf8]{inputenc}
+\\begin{document}
+${escapeLatex(exportMarkdownSource)}
+\\end{document}
+`
+    await exportWithNativeDialog({
+      content: latex,
+      extension: 'tex',
+      filterName: 'LaTeX',
+    })
+  }, [exportMarkdownSource, exportWithNativeDialog])
+
   const handleWordListSave = useCallback(
     (nextWordList = [], nextWordListDisabled = []) => {
       const normalizedWordList = Array.isArray(nextWordList) ? nextWordList : DEFAULT_SETTINGS.customWordList
@@ -876,6 +1015,27 @@ function App() {
       setIsSettingsOpen(false)
       setIsWordListOpen(false)
       setIsTextZoomOpen(true)
+    },
+    onExportCopyHtml: () => {
+      void handleExportCopyHtml()
+    },
+    onExportCopyRichText: () => {
+      void handleExportCopyRichText()
+    },
+    onExportHtml: () => {
+      void handleExportHtml()
+    },
+    onExportPdf: () => {
+      void handleExportPdf()
+    },
+    onExportRtf: () => {
+      void handleExportRtf()
+    },
+    onExportWord: () => {
+      void handleExportWord()
+    },
+    onExportLatex: () => {
+      void handleExportLatex()
     },
     onShowAbout: () => setIsAboutOpen(true),
   })

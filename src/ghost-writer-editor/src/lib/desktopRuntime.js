@@ -65,6 +65,27 @@ export async function saveMarkdownToPath(content, path) {
   }
 }
 
+export async function saveTextFileWithNativeDialog({
+  content,
+  suggestedName,
+  filterName,
+  extensions,
+}) {
+  if (!isDesktopRuntime()) return null
+
+  try {
+    return await invoke('save_text_file_with_dialog', {
+      content,
+      suggestedName,
+      filterName,
+      extensions,
+    })
+  } catch (error) {
+    console.warn('Failed to save export file with native dialog:', error)
+    return null
+  }
+}
+
 export async function openMarkdownWithNativeDialog() {
   if (!isDesktopRuntime()) return null
 
