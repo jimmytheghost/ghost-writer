@@ -31,10 +31,11 @@ export function buildGenerationPrompt({ promptText, documentText, selectedText }
   }
 
   return [
-    'You are editing an entire markdown document.',
+    'You are adding content into an existing markdown document.',
     ...sharedRules,
-    'Return the full updated document only.',
+    'Return only the text to insert at the cursor.',
+    'Do not return the full document.',
     `User request:\n${request}`,
-    `Current document:\n${documentText}`,
+    `Document context:\n${documentText}`,
   ].join('\n\n')
 }

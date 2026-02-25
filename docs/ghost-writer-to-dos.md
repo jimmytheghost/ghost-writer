@@ -17,9 +17,10 @@
 [x] Tabbed list problem —> tabbed-problem.png
 
 ## LLM Integration Bugs
-[ ] Make sure LLM generation never deletes what is currently written
-[ ] If no text is highlighted - LLM generation should insert where cursor is - if text is highlighted it should replace that text and any {{}} text and leave everything else untouched 
-[ ] Stop button is buggy
+[x] Ensure LLM generation never deletes what is currently written
+[x] If no text is highlighted - LLM generation should insert where cursor is - if text is highlighted it should replace that text and any {{}} text and leave everything else untouched 
+[ ] Stop button is buggy -- when a message is generating, the stop button works.  But once it starts streaming tokens in the main editor, when the user clicks “stop” nothing happens - it keeps generating. It should stop.
+[ ] When the clicks stop and the “STOPPED” pill displays, when it fades away, the text behind the prompt should reappear. Instead it stays missing until the user clicks the prompt input.
 
 ## New Features
 

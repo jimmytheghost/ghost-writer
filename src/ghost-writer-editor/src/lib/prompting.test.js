@@ -27,16 +27,17 @@ describe('buildGenerationPrompt', () => {
     expect(prompt).not.toContain('Current document:')
   })
 
-  it('builds full-document edit prompt when no selection is provided', () => {
+  it('builds insertion prompt when no selection is provided', () => {
     const prompt = buildGenerationPrompt({
       promptText: 'make this clearer',
       documentText: '# Notes\nline one',
       selectedText: '   ',
     })
 
-    expect(prompt).toContain('You are editing an entire markdown document.')
-    expect(prompt).toContain('Return the full updated document only.')
-    expect(prompt).toContain('Current document:\n# Notes\nline one')
+    expect(prompt).toContain('You are adding content into an existing markdown document.')
+    expect(prompt).toContain('Return only the text to insert at the cursor.')
+    expect(prompt).toContain('Do not return the full document.')
+    expect(prompt).toContain('Document context:\n# Notes\nline one')
   })
 
   it('always includes output-hardening instructions', () => {

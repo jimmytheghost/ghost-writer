@@ -182,9 +182,10 @@ export function usePromptGeneration({
           : ''
 
         streamBaseRef.current = tabContent
+        const cursorPosition = Math.max(0, Math.min(selectionRange.start ?? 0, tabContent.length))
         streamSelectionRef.current = hasRangeSelection
           ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
-          : { start: 0, end: tabContent.length }
+          : { start: cursorPosition, end: cursorPosition }
         streamBufferRef.current = ''
 
         const refinedPrompt = buildGenerationPrompt({
