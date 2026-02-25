@@ -5,6 +5,8 @@ import { isDesktopRuntime } from '../lib/desktopRuntime'
 export function useTauriMenuEvents({
   onNew,
   onOpen,
+  onOpenRecent,
+  onOpenRecentError,
   onSave,
   onPrint,
   onShowPreview,
@@ -25,6 +27,8 @@ export function useTauriMenuEvents({
       const listeners = await Promise.all([
         listen('ghost-writer://menu-new', () => onNew()),
         listen('ghost-writer://menu-open', () => onOpen()),
+        listen('ghost-writer://menu-open-recent', (event) => onOpenRecent(event.payload)),
+        listen('ghost-writer://menu-open-recent-error', (event) => onOpenRecentError(event.payload)),
         listen('ghost-writer://menu-save', () => onSave()),
         listen('ghost-writer://menu-print', () => onPrint()),
         listen('ghost-writer://menu-preview', () => onShowPreview()),
@@ -53,6 +57,8 @@ export function useTauriMenuEvents({
   }, [
     onNew,
     onOpen,
+    onOpenRecent,
+    onOpenRecentError,
     onPrint,
     onSave,
     onShowAbout,

@@ -1,5 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(target_os = "macos")]
+use objc2_app_kit::NSPrintInfo;
+#[cfg(target_os = "macos")]
+use objc2_web_kit::WKWebView;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::{SocketAddr, TcpStream};
@@ -9,16 +13,15 @@ use std::thread;
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
-#[cfg(target_os = "macos")]
-use objc2_app_kit::NSPrintInfo;
-#[cfg(target_os = "macos")]
-use objc2_web_kit::WKWebView;
 
 const OLLAMA_ADDR: &str = "127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
 const SETTINGS_FILE_NAME: &str = "settings.json";
+const MAX_RECENT_FILES: usize = 10;
+const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
+const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +33,8 @@ struct AppSettings {
     default_startup_preview: bool,
     #[serde(default)]
     default_spell_check: bool,
+    #[serde(default)]
+    recent_files: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -41,6 +46,7 @@ impl Default for AppSettings {
             default_footer_collapsed: true,
             default_startup_preview: false,
             default_spell_check: false,
+            recent_files: Vec::new(),
         }
     }
 }
@@ -52,12 +58,23 @@ struct SettingsResponse {
     has_file: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenRecentPayload {
+    path: String,
+    content: String,
+}
+
 fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let about_show =
+        MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
+
     let file_new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let file_open = MenuItem::with_id(app, "file_open", "Open", true, Some("CmdOrCtrl+O"))?;
     let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
     let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
+    let open_recent_menu = build_open_recent_menu(app)?;
 
     let view_preview =
         MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
@@ -81,13 +98,20 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     let settings_open = MenuItem::with_id(app, "settings_open", "Settings", true, None::<&str>)?;
 
-    let about_show = MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
-
+    let ghost_writer_menu = Submenu::with_items(app, "Ghost Writer", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
         app,
         "File",
         true,
-        &[&file_new, &file_open, &file_save, &file_print, &file_quit],
+        &[
+            &file_new,
+            &file_save,
+            &file_open,
+            &open_recent_menu,
+            &PredefinedMenuItem::separator(app)?,
+            &file_print,
+            &file_quit,
+        ],
     )?;
     let edit_menu = Submenu::with_items(
         app,
@@ -107,12 +131,26 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app,
         "View",
         true,
-        &[&view_preview, &view_markdown, &view_toggle_footer, &view_toggle_tab_bar, &view_pin_top],
+        &[
+            &view_preview,
+            &view_markdown,
+            &view_toggle_footer,
+            &view_toggle_tab_bar,
+            &view_pin_top,
+        ],
     )?;
     let settings_menu = Submenu::with_items(app, "Settings", true, &[&settings_open])?;
-    let about_menu = Submenu::with_items(app, "About", true, &[&about_show])?;
 
-    Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &settings_menu, &about_menu])
+    Menu::with_items(
+        app,
+        &[
+            &ghost_writer_menu,
+            &file_menu,
+            &edit_menu,
+            &view_menu,
+            &settings_menu,
+        ],
+    )
 }
 
 #[tauri::command]
@@ -123,7 +161,11 @@ fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), 
 }
 
 #[tauri::command]
-fn save_markdown_file(content: String, suggested_name: String) -> Result<Option<String>, String> {
+fn save_markdown_file(
+    app: tauri::AppHandle,
+    content: String,
+    suggested_name: String,
+) -> Result<Option<String>, String> {
     let safe_name = if suggested_name.trim().is_empty() {
         "untitled.md".to_string()
     } else if suggested_name.to_lowercase().ends_with(".md") {
@@ -142,11 +184,16 @@ fn save_markdown_file(content: String, suggested_name: String) -> Result<Option<
     };
 
     fs::write(&path, content).map_err(|error| error.to_string())?;
+    push_recent_file_path(&app, &path);
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
-fn save_markdown_to_path(content: String, path: String) -> Result<String, String> {
+fn save_markdown_to_path(
+    app: tauri::AppHandle,
+    content: String,
+    path: String,
+) -> Result<String, String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("Missing file path".to_string());
@@ -154,6 +201,7 @@ fn save_markdown_to_path(content: String, path: String) -> Result<String, String
 
     let destination = PathBuf::from(trimmed);
     fs::write(&destination, content).map_err(|error| error.to_string())?;
+    push_recent_file_path(&app, &destination);
     Ok(destination.to_string_lossy().into_owned())
 }
 
@@ -198,34 +246,161 @@ fn settings_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir)
 }
 
-#[tauri::command]
-fn load_settings(app: tauri::AppHandle) -> Result<SettingsResponse, String> {
-    let settings_path = settings_file_path(&app)?;
+fn read_settings(app: &tauri::AppHandle) -> Result<(AppSettings, bool), String> {
+    let settings_path = settings_file_path(app)?;
     if !settings_path.exists() {
-        return Ok(SettingsResponse {
-            settings: AppSettings::default(),
-            has_file: false,
-        });
+        return Ok((AppSettings::default(), false));
     }
 
     let raw = fs::read_to_string(&settings_path).map_err(|error| error.to_string())?;
     let settings = serde_json::from_str::<AppSettings>(&raw).unwrap_or_default();
-
-    Ok(SettingsResponse {
-        settings,
-        has_file: true,
-    })
+    Ok((settings, true))
 }
 
-#[tauri::command]
-fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<SettingsResponse, String> {
-    let settings_path = settings_file_path(&app)?;
+fn write_settings(app: &tauri::AppHandle, settings: &AppSettings) -> Result<(), String> {
+    let settings_path = settings_file_path(app)?;
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
 
-    let payload = serde_json::to_string_pretty(&settings).map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
     fs::write(&settings_path, payload).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn normalize_recent_files(paths: &[String]) -> Vec<String> {
+    let mut unique = Vec::new();
+    for raw_path in paths {
+        let trimmed = raw_path.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if unique.iter().any(|existing| existing == trimmed) {
+            continue;
+        }
+        unique.push(trimmed.to_string());
+        if unique.len() >= MAX_RECENT_FILES {
+            break;
+        }
+    }
+    unique
+}
+
+fn build_recent_item_label(path: &str) -> String {
+    let path_buf = PathBuf::from(path);
+    let file_name = path_buf
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or(path);
+    format!("{file_name} ({path})")
+}
+
+fn build_open_recent_menu(app: &tauri::AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
+    let (settings, _) = read_settings(app).unwrap_or((AppSettings::default(), false));
+    let recent_files = normalize_recent_files(&settings.recent_files);
+
+    let mut items: Vec<MenuItem<tauri::Wry>> = Vec::new();
+    if recent_files.is_empty() {
+        let empty_item = MenuItem::with_id(
+            app,
+            OPEN_RECENT_EMPTY_ITEM_ID,
+            "No Recent Files",
+            false,
+            None::<&str>,
+        )?;
+        items.push(empty_item);
+    } else {
+        for (index, path) in recent_files.iter().enumerate() {
+            let item_id = format!("{OPEN_RECENT_PREFIX}{index}");
+            let item_label = build_recent_item_label(path);
+            let item = MenuItem::with_id(app, item_id, item_label, true, None::<&str>)?;
+            items.push(item);
+        }
+    }
+
+    let item_refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = items
+        .iter()
+        .map(|item| item as &dyn tauri::menu::IsMenuItem<tauri::Wry>)
+        .collect();
+    Submenu::with_items(app, "Open Recent", true, &item_refs)
+}
+
+fn refresh_app_menu(app: &tauri::AppHandle) {
+    match build_app_menu(app) {
+        Ok(menu) => {
+            if let Err(error) = app.set_menu(menu) {
+                eprintln!("Failed to refresh app menu: {error}");
+            }
+        }
+        Err(error) => {
+            eprintln!("Failed to rebuild app menu: {error}");
+        }
+    }
+}
+
+fn push_recent_file_path(app: &tauri::AppHandle, path: &PathBuf) {
+    let value = path.to_string_lossy().trim().to_string();
+    if value.is_empty() {
+        return;
+    }
+
+    let mut settings = read_settings(app)
+        .map(|(settings, _)| settings)
+        .unwrap_or_default();
+    settings.recent_files.retain(|existing| existing != &value);
+    settings.recent_files.insert(0, value);
+    settings.recent_files.truncate(MAX_RECENT_FILES);
+
+    if let Err(error) = write_settings(app, &settings) {
+        eprintln!("Failed to update recent files: {error}");
+        return;
+    }
+
+    refresh_app_menu(app);
+}
+
+fn load_recent_file_by_index(
+    app: &tauri::AppHandle,
+    index: usize,
+) -> Result<OpenRecentPayload, String> {
+    let (settings, _) = read_settings(app)?;
+    let recent_files = normalize_recent_files(&settings.recent_files);
+    let Some(path) = recent_files.get(index).cloned() else {
+        return Err("Recent file entry no longer exists.".to_string());
+    };
+
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) => {
+            let mut next_settings = settings.clone();
+            next_settings.recent_files.retain(|entry| entry != &path);
+            if write_settings(app, &next_settings).is_ok() {
+                refresh_app_menu(app);
+            }
+            return Err(error.to_string());
+        }
+    };
+    push_recent_file_path(app, &PathBuf::from(&path));
+    Ok(OpenRecentPayload { path, content })
+}
+
+#[tauri::command]
+fn load_settings(app: tauri::AppHandle) -> Result<SettingsResponse, String> {
+    let (settings, has_file) = read_settings(&app)?;
+    Ok(SettingsResponse { settings, has_file })
+}
+
+#[tauri::command]
+fn save_settings(
+    app: tauri::AppHandle,
+    mut settings: AppSettings,
+) -> Result<SettingsResponse, String> {
+    let current_recent_files = read_settings(&app)
+        .map(|(existing, _)| existing.recent_files)
+        .unwrap_or_default();
+    settings.recent_files = current_recent_files;
+    write_settings(&app, &settings)?;
 
     Ok(SettingsResponse {
         settings,
@@ -316,6 +491,34 @@ fn main() {
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
                 "file_print" => emit_menu_event("ghost-writer://menu-print"),
                 "file_quit" => app.exit(0),
+                id if id.starts_with(OPEN_RECENT_PREFIX) => {
+                    if id == OPEN_RECENT_EMPTY_ITEM_ID {
+                        return;
+                    }
+                    let index = id
+                        .strip_prefix(OPEN_RECENT_PREFIX)
+                        .and_then(|value| value.parse::<usize>().ok());
+                    let Some(index) = index else {
+                        return;
+                    };
+
+                    match load_recent_file_by_index(app, index) {
+                        Ok(payload) => {
+                            if let Err(error) =
+                                window.emit("ghost-writer://menu-open-recent", payload)
+                            {
+                                eprintln!("Failed to emit open-recent event: {error}");
+                            }
+                        }
+                        Err(error_message) => {
+                            if let Err(error) =
+                                window.emit("ghost-writer://menu-open-recent-error", error_message)
+                            {
+                                eprintln!("Failed to emit open-recent-error event: {error}");
+                            }
+                        }
+                    }
+                }
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
                 "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),
                 "view_toggle_footer" => emit_menu_event("ghost-writer://menu-toggle-footer"),

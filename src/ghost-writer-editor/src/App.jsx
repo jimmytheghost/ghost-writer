@@ -443,6 +443,49 @@ function App() {
     [activeTabId, resetGenerationState, setPromptError],
   )
 
+  const handleOpenRecent = useCallback(
+    (payload = {}) => {
+      if (!activeTabId) return
+
+      const path = typeof payload?.path === 'string' ? payload.path.trim() : ''
+      const content = typeof payload?.content === 'string' ? payload.content : ''
+      if (!path) {
+        setPromptError('Unable to open recent file: missing file path.')
+        return
+      }
+
+      const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
+      setTabs((currentTabs) =>
+        replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+          ...tab,
+          content,
+          title: fileTitle,
+          filePath: path,
+          lastSavedContent: content,
+          isDirty: false,
+        })),
+      )
+      setSelectionRangesByTab((currentRanges) => ({
+        ...currentRanges,
+        [activeTabId]: { start: 0, end: 0 },
+      }))
+      resetGenerationState({ tabId: activeTabId })
+      setPromptError('')
+    },
+    [activeTabId, resetGenerationState, setPromptError],
+  )
+
+  const handleOpenRecentError = useCallback(
+    (payload) => {
+      const message =
+        typeof payload === 'string' && payload.trim()
+          ? payload.trim()
+          : 'Unable to open recent file.'
+      setPromptError(message)
+    },
+    [setPromptError],
+  )
+
   const handleCopyClick = useCallback(async () => {
     const rawSelection = document.getSelection()?.toString() ?? ''
     const hasRangeSelection = selectionRange.start !== selectionRange.end
@@ -613,6 +656,8 @@ function App() {
   useTauriMenuEvents({
     onNew: handleNew,
     onOpen: handleLoadClick,
+    onOpenRecent: handleOpenRecent,
+    onOpenRecentError: handleOpenRecentError,
     onSave: handleSaveClick,
     onPrint: handlePrintClick,
     onShowPreview: handleShowPreview,
