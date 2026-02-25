@@ -108,6 +108,40 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
     let open_recent_menu = build_open_recent_menu(app)?;
+    let export_copy_html = MenuItem::with_id(
+        app,
+        "file_export_copy_html",
+        "Copy HTML",
+        true,
+        None::<&str>,
+    )?;
+    let export_copy_rich_text = MenuItem::with_id(
+        app,
+        "file_export_copy_rich_text",
+        "Copy Rich Text",
+        true,
+        None::<&str>,
+    )?;
+    let export_html = MenuItem::with_id(app, "file_export_html", "HTML...", true, None::<&str>)?;
+    let export_pdf = MenuItem::with_id(app, "file_export_pdf", "PDF...", true, None::<&str>)?;
+    let export_rtf = MenuItem::with_id(app, "file_export_rtf", "RTF...", true, None::<&str>)?;
+    let export_word = MenuItem::with_id(app, "file_export_word", "Word...", true, None::<&str>)?;
+    let export_latex = MenuItem::with_id(app, "file_export_latex", "LaTeX...", true, None::<&str>)?;
+    let export_menu = Submenu::with_items(
+        app,
+        "Export",
+        true,
+        &[
+            &export_copy_html,
+            &export_copy_rich_text,
+            &PredefinedMenuItem::separator(app)?,
+            &export_html,
+            &export_pdf,
+            &export_rtf,
+            &export_word,
+            &export_latex,
+        ],
+    )?;
 
     let view_preview =
         MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
@@ -145,6 +179,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &file_save,
             &file_open,
             &open_recent_menu,
+            &export_menu,
             &PredefinedMenuItem::separator(app)?,
             &file_print,
             &file_quit,
@@ -577,6 +612,15 @@ fn main() {
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
                 "file_print" => emit_menu_event("ghost-writer://menu-print"),
                 "file_quit" => app.exit(0),
+                "file_export_copy_html" => emit_menu_event("ghost-writer://menu-export-copy-html"),
+                "file_export_copy_rich_text" => {
+                    emit_menu_event("ghost-writer://menu-export-copy-rich-text")
+                }
+                "file_export_html" => emit_menu_event("ghost-writer://menu-export-html"),
+                "file_export_pdf" => emit_menu_event("ghost-writer://menu-export-pdf"),
+                "file_export_rtf" => emit_menu_event("ghost-writer://menu-export-rtf"),
+                "file_export_word" => emit_menu_event("ghost-writer://menu-export-word"),
+                "file_export_latex" => emit_menu_event("ghost-writer://menu-export-latex"),
                 id if id.starts_with(OPEN_RECENT_PREFIX) => {
                     if id == OPEN_RECENT_EMPTY_ITEM_ID {
                         return;
