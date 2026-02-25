@@ -3,7 +3,6 @@ import { stripAssistantLeadIn } from '../lib/contentTransforms'
 import {
   buildOllamaUrl,
   fetchWithTimeout,
-  OLLAMA_REQUEST_TIMEOUT_MS,
 } from '../lib/ollama'
 import { buildGenerationPrompt } from '../lib/prompting'
 
@@ -206,9 +205,12 @@ export function usePromptGeneration({
               model: selectedModel,
               prompt: refinedPrompt,
               stream: true,
+              options: {
+                num_predict: -1,
+              },
             }),
           },
-          OLLAMA_REQUEST_TIMEOUT_MS,
+          0,
         )
 
         if (!response.ok) {

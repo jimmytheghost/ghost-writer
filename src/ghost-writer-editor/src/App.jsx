@@ -189,7 +189,7 @@ function App() {
     [isPreviewOpen, normalizedPreviewMarkdown],
   )
 
-  useFooterHeightSync(appRef, footerRef)
+  useFooterHeightSync(appRef, footerRef, isFooterCollapsed ? 'collapsed' : 'expanded')
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
@@ -575,6 +575,10 @@ function App() {
     setIsPreviewOpen((previous) => !previous)
   }, [])
 
+  const handleToggleFooter = useCallback(() => {
+    setIsFooterCollapsed((previous) => !previous)
+  }, [])
+
   const handleToggleTabBar = useCallback(() => {
     setIsTabBarVisible((previous) => !previous)
   }, [])
@@ -586,6 +590,7 @@ function App() {
     closeActionRef,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onTogglePreview: handleTogglePreview,
+    onToggleFooter: handleToggleFooter,
   })
 
   useTauriMenuEvents({
@@ -595,6 +600,7 @@ function App() {
     onShowPreview: handleShowPreview,
     onShowMarkdown: handleShowMarkdown,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
     onShowSettings: () => setIsSettingsOpen(true),
     onShowAbout: () => setIsAboutOpen(true),

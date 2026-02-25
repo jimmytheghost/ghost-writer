@@ -871,7 +871,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  animation: stopped-toast-fade 2s ease forwards;
   pointer-events: none;
   margin-right: .25rem;
 }
@@ -1390,22 +1389,5 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes stopped-toast-fade {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  80% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-2px);
   }
 }

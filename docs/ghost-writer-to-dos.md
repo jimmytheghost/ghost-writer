@@ -19,8 +19,11 @@
 ## LLM Integration Bugs
 [x] Ensure LLM generation never deletes what is currently written
 [x] If no text is highlighted - LLM generation should insert where cursor is - if text is highlighted it should replace that text and any {{}} text and leave everything else untouched 
-[ ] Stop button is buggy -- when a message is generating, the stop button works.  But once it starts streaming tokens in the main editor, when the user clicks “stop” nothing happens - it keeps generating. It should stop.
-[ ] When the clicks stop and the “STOPPED” pill displays, when it fades away, the text behind the prompt should reappear. Instead it stays missing until the user clicks the prompt input.
+[x] Stop button is buggy -- when a message is generating, the stop button works.  But once it starts streaming tokens in the main editor, when the user clicks “stop” nothing happens - it keeps generating. It should stop.
+[x] When the clicks stop and the “STOPPED” pill displays, when it fades away, the text behind the prompt should reappear. Instead it stays missing until the user clicks the prompt input.
+[x] When user clicks stop and the “STOPPED” pill displays, instead of having it fade away, have it disappear instantly and the prompt text returns when it disappears.
+[x] Remove output token cap
+
 
 ## New Features
 

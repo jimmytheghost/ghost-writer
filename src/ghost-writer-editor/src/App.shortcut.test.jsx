@@ -92,4 +92,15 @@ describe('App keyboard shortcuts', () => {
     expect(screen.queryByRole('tab', { name: 'Switch to Untitled 2' })).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('toggles footer collapsed/open with Ctrl+Shift+B', () => {
+    render(<App />)
+    expect(screen.getByLabelText('Expand footer controls')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true, shiftKey: true })
+    expect(screen.getByLabelText('Collapse footer')).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'B', ctrlKey: true, shiftKey: true })
+    expect(screen.getByLabelText('Expand footer controls')).toBeInTheDocument()
+  })
 })

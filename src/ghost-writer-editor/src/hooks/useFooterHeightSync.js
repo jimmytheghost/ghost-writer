@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-export function useFooterHeightSync(appRef, footerRef) {
+export function useFooterHeightSync(appRef, footerRef, dependencyKey = '') {
   useEffect(() => {
     if (!appRef.current || !footerRef.current) return undefined
 
@@ -22,5 +22,5 @@ export function useFooterHeightSync(appRef, footerRef) {
       resizeObserver?.disconnect()
       window.removeEventListener('resize', syncFooterHeight)
     }
-  }, [appRef, footerRef])
+  }, [appRef, dependencyKey, footerRef])
 }

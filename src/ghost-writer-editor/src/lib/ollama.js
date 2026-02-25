@@ -34,7 +34,8 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQ
     }
   }
 
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs)
+  const shouldApplyTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+  const timeoutId = shouldApplyTimeout ? setTimeout(() => timeoutController.abort(), timeoutMs) : null
 
   try {
     return await fetch(url, {
@@ -42,7 +43,8 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQ
       signal: timeoutController.signal,
     })
   } finally {
-    clearTimeout(timeoutId)
-    externalSignal?.removeEventListener('abort', relayAbort)
+    if (timeoutId != null) {
+      clearTimeout(timeoutId)
+    }
   }
 }

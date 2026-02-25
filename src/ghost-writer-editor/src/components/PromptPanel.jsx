@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 function PromptPanel({
   isDark,
   promptFormRef,
@@ -17,11 +19,21 @@ function PromptPanel({
   handleClearPrompt,
   promptError,
 }) {
+  const promptInputRef = useRef(null)
+
+  useEffect(() => {
+    if (showStoppedToast) return
+    const input = promptInputRef.current
+    if (!input) return
+    input.scrollLeft = 0
+  }, [showStoppedToast])
+
   return (
     <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
       <form ref={promptFormRef} className="prompt-panel__form" onSubmit={handlePromptSubmit}>
         <div className="prompt-panel__row">
           <input
+            ref={promptInputRef}
             id="promptText"
             className="prompt-panel__input"
             type="text"

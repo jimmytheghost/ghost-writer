@@ -7,6 +7,7 @@ export function useGlobalShortcuts({
   closeActionRef,
   onToggleAlwaysOnTop,
   onTogglePreview,
+  onToggleFooter,
 }) {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -43,6 +44,12 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && event.shiftKey && !event.altKey && key === 'b') {
+        event.preventDefault()
+        onToggleFooter()
+        return
+      }
+
       if (!hasMod || event.altKey || key !== 'm') return
 
       event.preventDefault()
@@ -53,5 +60,5 @@ export function useGlobalShortcuts({
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown)
     }
-  }, [closeActionRef, newActionRef, onToggleAlwaysOnTop, onTogglePreview, openActionRef, saveActionRef])
+  }, [closeActionRef, newActionRef, onToggleAlwaysOnTop, onToggleFooter, onTogglePreview, openActionRef, saveActionRef])
 }
