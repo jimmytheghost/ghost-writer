@@ -9,6 +9,10 @@ use std::thread;
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
+#[cfg(target_os = "macos")]
+use objc2_app_kit::NSPrintInfo;
+#[cfg(target_os = "macos")]
+use objc2_web_kit::WKWebView;
 
 const OLLAMA_ADDR: &str = "127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
@@ -160,7 +164,29 @@ fn open_external_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.print().map_err(|error| error.to_string())
+    #[cfg(target_os = "macos")]
+    {
+        window
+            .with_webview(|webview| unsafe {
+                let view: &WKWebView = &*webview.inner().cast();
+                let print_info = NSPrintInfo::sharedPrintInfo();
+                // 72 points == 1 inch.
+                print_info.setTopMargin(72.0);
+                print_info.setRightMargin(72.0);
+                print_info.setBottomMargin(72.0);
+                print_info.setLeftMargin(72.0);
+
+                let print_operation = view.printOperationWithPrintInfo(&print_info);
+                print_operation.setCanSpawnSeparateThread(true);
+                let _ = print_operation.runOperation();
+            })
+            .map_err(|error| error.to_string())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        window.print().map_err(|error| error.to_string())
+    }
 }
 
 fn settings_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {

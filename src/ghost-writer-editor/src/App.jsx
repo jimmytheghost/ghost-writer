@@ -461,8 +461,7 @@ function App() {
 
   const handlePrintClick = useCallback(() => {
     if (!activeTab) return
-    const title = `${activeTab.title || 'Untitled'} - Ghost Writer`
-    printRenderedMarkdown(activeContent, { title })
+    printRenderedMarkdown(activeContent)
   }, [activeContent, activeTab])
 
   useEffect(() => {

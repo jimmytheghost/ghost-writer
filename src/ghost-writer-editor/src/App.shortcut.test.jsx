@@ -116,18 +116,15 @@ describe('App keyboard shortcuts', () => {
     fireEvent.change(editor, { target: { value: '# Title\nBody {{remove me}} text' } })
 
     fireEvent.keyDown(window, { key: 'p', ctrlKey: true })
-    vi.runOnlyPendingTimers()
 
     const printRoot = document.getElementById('ghost-writer-print-root')
     expect(printRoot).not.toBeNull()
-    expect(printRoot?.innerHTML ?? '').toContain('<h1 class="ghost-writer-print-title">Untitled - Ghost Writer</h1>')
     expect(printRoot?.innerHTML ?? '').toContain('<h1>Title</h1>')
     expect(printRoot?.innerHTML ?? '').toContain('<p>Body  text</p>')
     expect(printRoot?.innerHTML ?? '').not.toContain('{{remove me}}')
+    expect(printMock).toHaveBeenCalledTimes(1)
 
     vi.runOnlyPendingTimers()
-
-    expect(printMock).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 })
