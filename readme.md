@@ -162,6 +162,9 @@ For full setup, failure recovery, and cross-machine behavior, use:
 For print/PDF maintenance and margin tuning, use:
 - `docs/agent-workflows/print-and-pdf-runbook.md`
 
+For editor dash-input stability (no `-` auto-conversion or caret jump), use:
+- `docs/agent-workflows/dash-input-stability-runbook.md`
+
 Performance metrics snapshot:
 
 ```bash

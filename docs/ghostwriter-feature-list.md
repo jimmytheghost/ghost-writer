@@ -74,7 +74,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - List continuation on Enter (ordered and unordered).
 - Empty-list-item exit behavior on Enter.
 - Tab / Shift+Tab indentation and outdent across lines/selections.
-- Smart dash normalization to markdown-friendly hyphens.
+- No dash auto-conversion in editor input: `-`, `--`, and `---` stay literal with stable caret behavior.
 - Inline formatting shortcuts:
   - Bold (`Cmd/Ctrl+B`)
   - Italic (`Cmd/Ctrl+I`)

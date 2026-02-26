@@ -7,6 +7,12 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - Live inline placeholder highlighting now starts immediately when `{{` is typed and remains active until `}}` is entered.
+- Dash input stability runbook: `docs/agent-workflows/dash-input-stability-runbook.md`.
+
+### Changed
+
+- Disabled all editor dash auto-conversion behavior so `-`, `--`, and `---` remain literal while typing.
+- Fixed macOS cursor-jump regression triggered after dash sequences when pressing space.
 
 ## [0.1.2] - 2026-02-24
 
