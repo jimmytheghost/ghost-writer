@@ -95,12 +95,12 @@ Canonical runbook for developers and agents:
 ## Environment variables
 
 - `VITE_OLLAMA_BASE_URL` (optional): Override the Ollama base URL.  
-  Default: `http://localhost:11434`
+  Default: `http://127.0.0.1:11434`
 
 Example:
 
 ```bash
 # Optional if you need a non-default Ollama host:
-# echo VITE_OLLAMA_BASE_URL=http://localhost:11434 > .env
+# echo VITE_OLLAMA_BASE_URL=http://127.0.0.1:11434 > .env
 npm run dev
 ```

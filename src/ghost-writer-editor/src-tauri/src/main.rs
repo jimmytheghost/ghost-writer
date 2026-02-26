@@ -1,11 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fs;
 use std::io;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -733,8 +737,29 @@ fn is_ollama_running() -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(OLLAMA_CONNECT_TIMEOUT_MS)).is_ok()
 }
 
-fn launch_ollama_server() {
-    let mut command = Command::new("ollama");
+#[cfg(target_os = "windows")]
+fn ollama_exe_fallback() -> Option<PathBuf> {
+    env::var_os("LOCALAPPDATA").and_then(|local_app_data| {
+        let path = Path::new(&local_app_data)
+            .join("Programs")
+            .join("Ollama")
+            .join("ollama.exe");
+        if path.is_file() {
+            Some(path)
+        } else {
+            None
+        }
+    })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn ollama_exe_fallback() -> Option<PathBuf> {
+    None
+}
+
+fn launch_ollama_server() -> Result<(), String> {
+    let exe = "ollama";
+    let mut command = Command::new(exe);
     command
         .arg("serve")
         .stdin(Stdio::null())
@@ -749,30 +774,156 @@ fn launch_ollama_server() {
         command.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
     }
 
-    if let Err(error) = command.spawn() {
-        eprintln!("Failed to launch Ollama (`ollama serve`): {error}");
+    match command.spawn() {
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            #[cfg(target_os = "windows")]
+            if let Some(fallback) = ollama_exe_fallback() {
+                let mut cmd = Command::new(&fallback);
+                cmd.arg("serve")
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
+                use std::os::windows::process::CommandExt;
+                const DETACHED_PROCESS: u32 = 0x0000_0008;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                cmd.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
+                return cmd
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(|e| format!("Failed to start Ollama: {e}"));
+            }
+            Err("Ollama not found. Install from https://ollama.com and ensure it is on your PATH (or in %LOCALAPPDATA%\\Programs\\Ollama on Windows).".to_string())
+        }
+        Err(e) => Err(format!("Failed to launch Ollama: {e}")),
     }
 }
 
-fn ensure_ollama_running() {
+fn ensure_ollama_running_result() -> Result<(), String> {
     if is_ollama_running() {
-        return;
+        return Ok(());
     }
 
-    launch_ollama_server();
+    launch_ollama_server()?;
 
     for _ in 0..OLLAMA_BOOT_WAIT_RETRIES {
         if is_ollama_running() {
-            return;
+            return Ok(());
         }
         thread::sleep(Duration::from_millis(OLLAMA_BOOT_WAIT_INTERVAL_MS));
     }
 
-    eprintln!("Ollama did not become reachable at {OLLAMA_ADDR} after launch attempt.");
+    Err(format!(
+        "Ollama did not become reachable at {OLLAMA_ADDR} after launch (wait a few seconds and try again)."
+    ))
+}
+
+fn ensure_ollama_running() {
+    if let Err(e) = ensure_ollama_running_result() {
+        eprintln!("{e}");
+    }
+}
+
+#[tauri::command]
+fn ensure_ollama_running_command() -> Result<(), String> {
+    ensure_ollama_running_result()
+}
+
+/// Shared flag so the frontend can cancel an in-flight Ollama stream.
+pub struct OllamaStreamCancel(pub Arc<AtomicBool>);
+
+#[tauri::command]
+async fn ollama_generate_stream(
+    app: tauri::AppHandle,
+    model: String,
+    prompt: String,
+    cancel: tauri::State<'_, OllamaStreamCancel>,
+) -> Result<(), String> {
+    cancel.0.store(false, Ordering::SeqCst);
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+
+    let url = format!("http://{OLLAMA_ADDR}/api/generate");
+    let body = serde_json::json!({
+        "model": model,
+        "prompt": prompt,
+        "stream": true,
+        "options": { "num_predict": -1 }
+    });
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3600))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let res = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        let msg = format!("Ollama request failed: {}", res.status());
+        let _ = window.emit("ollama-stream-error", &msg);
+        return Err(msg);
+    }
+
+    let mut stream = res.bytes_stream();
+    let mut buf: Vec<u8> = Vec::new();
+
+    while let Some(item) = stream.next().await {
+        if cancel.0.load(Ordering::SeqCst) {
+            let _ = window.emit("ollama-stream-cancelled", ());
+            return Ok(());
+        }
+
+        let chunk = item.map_err(|e| e.to_string())?;
+        buf.extend_from_slice(&chunk);
+
+        while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+            let line_bytes: Vec<u8> = buf.drain(..=pos).collect();
+            let line = String::from_utf8_lossy(&line_bytes).trim().to_string();
+            if line.is_empty() {
+                continue;
+            }
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
+                if let Some(response) = parsed.get("response").and_then(|v| v.as_str()) {
+                    if window.emit("ollama-stream-chunk", response).is_err() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+
+    if !buf.is_empty() {
+        let line = String::from_utf8_lossy(&buf).trim().to_string();
+        if !line.is_empty() {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
+                if let Some(response) = parsed.get("response").and_then(|v| v.as_str()) {
+                    let _ = window.emit("ollama-stream-chunk", response);
+                }
+            }
+        }
+    }
+
+    let _ = window.emit("ollama-stream-done", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn ollama_cancel_stream(cancel: tauri::State<'_, OllamaStreamCancel>) {
+    cancel.0.store(true, Ordering::SeqCst);
 }
 
 fn main() {
+    let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
+
     tauri::Builder::default()
+        .manage(ollama_cancel)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             save_markdown_file,
@@ -784,7 +935,10 @@ fn main() {
             open_external_url,
             print_current_webview,
             load_settings,
-            save_settings
+            save_settings,
+            ensure_ollama_running_command,
+            ollama_generate_stream,
+            ollama_cancel_stream
         ])
         .setup(|app| {
             let menu = build_app_menu(&app.handle())?;

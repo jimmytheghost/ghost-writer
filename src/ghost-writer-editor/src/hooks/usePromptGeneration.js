@@ -3,7 +3,11 @@ import { extractInlinePromptTokens, hasInlinePromptTokens, stripAssistantLeadIn 
 import {
   buildOllamaUrl,
   fetchWithTimeout,
+  getOllamaBaseUrl,
 } from '../lib/ollama'
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import { ensureOllamaRunning, isDesktopRuntime, ollamaCancelStream } from '../lib/desktopRuntime'
 import { buildGenerationPrompt, buildInlineGenerationPrompt } from '../lib/prompting'
 
 const EMPTY_HISTORY = Object.freeze({
@@ -145,17 +149,80 @@ export function usePromptGeneration({
   }, [handleRedoGeneration, handleUndoGeneration, historyForActiveTab])
 
   const abortGeneration = useCallback(() => {
-    abortControllerRef.current?.abort()
+    if (isDesktopRuntime()) {
+      ollamaCancelStream()
+    } else {
+      abortControllerRef.current?.abort()
+    }
   }, [])
 
   const streamPromptIntoRange = useCallback(
     async ({ tabId, baseContent, range, refinedPrompt }) => {
-      abortControllerRef.current = new AbortController()
       streamTabIdRef.current = tabId
       streamBaseRef.current = baseContent
       streamSelectionRef.current = range
       streamBufferRef.current = ''
 
+      const applyStreamChunk = (chunk) => {
+        if (!chunk) return
+        const streamTabId = streamTabIdRef.current
+        if (!streamTabId || !getTabById(streamTabId)) return
+        streamBufferRef.current += chunk
+        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
+        const streamBase = streamBaseRef.current
+        const { start, end } = streamSelectionRef.current
+        const safeStart = Math.min(start, streamBase.length)
+        const safeEnd = Math.min(end, streamBase.length)
+        setTabContentById(streamTabId, `${streamBase.slice(0, safeStart)}${cleanedStreamText}${streamBase.slice(safeEnd)}`)
+      }
+
+      if (isDesktopRuntime()) {
+        const cancelledRef = { current: false }
+        const unlistenChunk = await listen('ollama-stream-chunk', (e) => {
+          applyStreamChunk(e.payload)
+        })
+        const unlistenDone = await listen('ollama-stream-done', () => {})
+        const unlistenError = await listen('ollama-stream-error', (e) => {
+          setPromptError(e.payload ?? 'Ollama error', tabId)
+        })
+        const unlistenCancelled = await listen('ollama-stream-cancelled', () => {
+          cancelledRef.current = true
+        })
+
+        const unlistenAll = () => {
+          unlistenChunk()
+          unlistenDone()
+          unlistenError()
+          unlistenCancelled()
+        }
+
+        try {
+          await invoke('ollama_generate_stream', {
+            model: selectedModel,
+            prompt: refinedPrompt,
+          })
+        } catch (err) {
+          unlistenAll()
+          throw err
+        }
+        unlistenAll()
+
+        if (cancelledRef.current) {
+          const abortErr = new Error('Generation stopped.')
+          abortErr.name = 'AbortError'
+          throw abortErr
+        }
+
+        const generatedText = stripAssistantLeadIn(streamBufferRef.current)
+        const { start, end } = range
+        const safeStart = Math.min(start, baseContent.length)
+        const safeEnd = Math.min(end, baseContent.length)
+        const nextContent = `${baseContent.slice(0, safeStart)}${generatedText}${baseContent.slice(safeEnd)}`
+        setTabContentById(tabId, nextContent)
+        return { generatedText, nextContent }
+      }
+
+      abortControllerRef.current = new AbortController()
       const response = await fetchWithTimeout(
         buildOllamaUrl('/api/generate'),
         {
@@ -187,23 +254,6 @@ export function usePromptGeneration({
 
       const decoder = new TextDecoder()
       let bufferedText = ''
-
-      const applyStreamChunk = (chunk) => {
-        if (!chunk) return
-        const streamTabId = streamTabIdRef.current
-        if (!streamTabId || !getTabById(streamTabId)) {
-          abortControllerRef.current?.abort()
-          return
-        }
-
-        streamBufferRef.current += chunk
-        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
-        const streamBase = streamBaseRef.current
-        const { start, end } = streamSelectionRef.current
-        const safeStart = Math.min(start, streamBase.length)
-        const safeEnd = Math.min(end, streamBase.length)
-        setTabContentById(streamTabId, `${streamBase.slice(0, safeStart)}${cleanedStreamText}${streamBase.slice(safeEnd)}`)
-      }
 
       while (true) {
         const { value, done } = await reader.read()
@@ -246,7 +296,7 @@ export function usePromptGeneration({
       setTabContentById(tabId, nextContent)
       return { generatedText, nextContent }
     },
-    [getTabById, selectedModel, setTabContentById],
+    [getTabById, selectedModel, setPromptError, setTabContentById],
   )
 
   const handlePromptSubmit = useCallback(
@@ -276,6 +326,14 @@ export function usePromptGeneration({
       try {
         if (!selectedModel) {
           throw new Error('Please select a model to continue.')
+        }
+
+        if (isDesktopRuntime()) {
+          const ensure = await ensureOllamaRunning()
+          if (!ensure.ok) {
+            setPromptError(ensure.error ?? 'Ollama could not be started.', submittingTabId)
+            return
+          }
         }
 
         if (abortControllerRef.current) {
@@ -333,7 +391,12 @@ export function usePromptGeneration({
           requestAnimationFrame(() => setShowStoppedToast(true))
           return
         }
-        setPromptError(error?.message ?? 'Unable to reach Ollama.', submittingTabId)
+        const rawMessage = error?.message ?? ''
+        const friendlyMessage =
+          rawMessage === 'Failed to fetch'
+            ? `Cannot reach Ollama. Is it running? (Check ${getOllamaBaseUrl()})`
+            : rawMessage || 'Unable to reach Ollama.'
+        setPromptError(friendlyMessage, submittingTabId)
       } finally {
         setIsLoadingPrompt(false)
         abortControllerRef.current = null

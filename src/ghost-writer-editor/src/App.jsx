@@ -19,6 +19,7 @@ import {
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
 import {
+  ensureOllamaRunning,
   isDesktopRuntime,
   isMacDesktopRuntime,
   loadSettings,
@@ -193,6 +194,18 @@ function App() {
     })
     return () => cancelAnimationFrame(frameId)
   }, [])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return
+    let cancelled = false
+    ensureOllamaRunning().then((result) => {
+      if (cancelled || result.ok) return
+      setPromptError(result.error ?? 'Ollama could not be started.')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [setPromptError])
 
   useDesktopAppMetadata({ setAppName, setAppVersion })
 

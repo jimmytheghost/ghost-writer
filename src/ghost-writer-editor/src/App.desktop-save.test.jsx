@@ -24,6 +24,7 @@ vi.mock('./hooks/useTauriMenuEvents', () => ({
 }))
 
 vi.mock('./lib/desktopRuntime', async () => ({
+  ensureOllamaRunning: vi.fn(async () => ({ ok: true })),
   isDesktopRuntime: () => true,
   isMacDesktopRuntime: () => false,
   loadSettings: desktopRuntimeMocks.loadSettings,

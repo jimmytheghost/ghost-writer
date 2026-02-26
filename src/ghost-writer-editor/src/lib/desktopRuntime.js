@@ -167,3 +167,28 @@ export async function saveSettings(settings) {
     return null
   }
 }
+
+/**
+ * Ensures Ollama is running (checks and starts it if needed). Desktop/Tauri only.
+ * @returns {{ ok: true }} on success, or {{ ok: false, error: string }} on failure.
+ */
+export async function ensureOllamaRunning() {
+  if (!isDesktopRuntime()) return { ok: true }
+
+  try {
+    await invoke('ensure_ollama_running_command')
+    return { ok: true }
+  } catch (error) {
+    const message = error?.message ?? String(error)
+    console.warn('ensureOllamaRunning:', message)
+    return { ok: false, error: message }
+  }
+}
+
+/**
+ * Ask the host to cancel the current Ollama stream. Desktop/Tauri only.
+ */
+export function ollamaCancelStream() {
+  if (!isDesktopRuntime()) return
+  invoke('ollama_cancel_stream').catch(() => {})
+}

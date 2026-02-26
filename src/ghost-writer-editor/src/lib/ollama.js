@@ -1,4 +1,4 @@
-const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434'
+const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
 
 export const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
 
