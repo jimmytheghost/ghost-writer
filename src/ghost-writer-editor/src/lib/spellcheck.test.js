@@ -1,11 +1,18 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   DEFAULT_CUSTOM_WORD_LIST,
   getMisspelledRanges,
+  isSpellcheckReady,
+  preloadSpellcheck,
   setCustomSpellcheckWords,
 } from './spellcheck'
 
 describe('spellcheck', () => {
+  beforeAll(async () => {
+    await preloadSpellcheck()
+    expect(isSpellcheckReady()).toBe(true)
+  })
+
   afterEach(() => {
     setCustomSpellcheckWords(DEFAULT_CUSTOM_WORD_LIST)
   })

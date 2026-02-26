@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { extractInlinePromptTokens } from '../lib/contentTransforms'
-import { getMisspelledRanges } from '../lib/spellcheck'
+import { getMisspelledRanges, isSpellcheckReady, preloadSpellcheck } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
 const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
@@ -200,6 +200,7 @@ function Editor({
   const textareaRef = useRef(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
+  const [spellcheckReadyAt, setSpellcheckReadyAt] = useState(() => (isSpellcheckReady() ? 1 : 0))
   const text = value ?? ''
   const lineCount = useMemo(() => {
     if (!text) return 1
@@ -208,10 +209,22 @@ function Editor({
   const useLightweightOverlays =
     text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
 
+  useEffect(() => {
+    if (!spellCheckEnabled || isSpellcheckReady()) return
+    let isMounted = true
+    void preloadSpellcheck().then((loaded) => {
+      if (!loaded || !isMounted) return
+      setSpellcheckReadyAt(Date.now())
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [spellCheckEnabled])
+
   const misspelledRanges = useMemo(() => {
-    if (!spellCheckEnabled || useLightweightOverlays) return []
+    if (!spellCheckEnabled || !spellcheckReadyAt || useLightweightOverlays) return []
     return getMisspelledRanges(text)
-  }, [spellCheckEnabled, text, useLightweightOverlays])
+  }, [spellCheckEnabled, spellcheckReadyAt, text, useLightweightOverlays])
 
   const spellCheckOverlay = useMemo(() => {
     if (!spellCheckEnabled) return null
