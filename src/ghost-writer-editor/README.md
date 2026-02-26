@@ -9,6 +9,7 @@ This folder contains the Vite + React web app for Ghost Writer.
 - Footer includes always-on-top toggle (`Cmd/Ctrl + T`) in Tauri builds.
 - Narrow-width footer mode (`<=430px`) uses compact square controls, including a model selector icon button.
 - Model list is snapshot-based and refreshed by `npm run sync:models` (no in-app reload button).
+- Inline prompt highlighting starts as soon as `{{` is typed and closes when `}}` is typed.
 
 ## Commands
 

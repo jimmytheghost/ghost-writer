@@ -8,6 +8,7 @@ It is designed for fast drafting, rewriting, and iterative editing without leavi
 - Focused markdown editor with matching markdown preview mode
 - Local model integration via Ollama (`http://localhost:11434`)
 - Selection-aware AI insertion/replacement
+- Inline placeholder workflow with `{{...}}` tokens
 - Streaming generation with Stop/Undo/Redo
 - Save/Load markdown files (`.md`)
 - Copy full document or current selection
@@ -34,6 +35,12 @@ When you submit a prompt:
 - If text is selected in the editor, AI output replaces that selection.
 - If no text is selected, AI output inserts at the cursor location.
 - Output streams into the document as it is generated.
+
+Inline placeholder behavior:
+
+- Typing `{{` immediately starts inline placeholder highlighting in blue.
+- Text remains highlighted while the placeholder is open.
+- Typing `}}` closes the placeholder highlight state.
 
 ## Keyboard Shortcuts
 

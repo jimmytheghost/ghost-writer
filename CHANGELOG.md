@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3] - 2026-02-26
+
+### Added
+
+- Live inline placeholder highlighting now starts immediately when `{{` is typed and remains active until `}}` is entered.
+
 ## [0.1.2] - 2026-02-24
 
 ### Added

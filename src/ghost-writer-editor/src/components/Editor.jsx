@@ -556,6 +556,20 @@ function Editor({
         return
       }
 
+      const isSpaceKey = event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space'
+      if (isSpaceKey && !event.metaKey && !event.ctrlKey && !event.altKey && !event.isComposing) {
+        event.preventDefault()
+        const nextValue = `${text.slice(0, start)} ${text.slice(end)}`
+        const nextPosition = start + 1
+        onChange?.(nextValue)
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextPosition, nextPosition)
+          onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+        })
+        return
+      }
+
       if (isMod && event.shiftKey && key === 'k') {
         event.preventDefault()
         const selection = getSelectionRange()
@@ -630,35 +644,50 @@ function Editor({
   const handleTextareaChange = (event) => {
     const target = event.target
     const inputValue = target.value
-    const selectionStart = target.selectionStart ?? inputValue.length
     const previousValue = value ?? ''
-    const smartDashWindowStart = Math.max(0, selectionStart - 6)
-    const smartDashWindowEnd = Math.min(inputValue.length, selectionStart + 2)
-    const smartDashWindow = inputValue.slice(smartDashWindowStart, smartDashWindowEnd)
-    const localIndex = Math.max(smartDashWindow.lastIndexOf('—'), smartDashWindow.lastIndexOf('–'))
 
-    if (localIndex === -1) {
+    if (!inputValue.includes('—') && !inputValue.includes('–')) {
       onChange(inputValue)
       return
     }
 
-    const absoluteIndex = smartDashWindowStart + localIndex
-    const matchedDash = inputValue[absoluteIndex]
-    const collapseAmount = Math.max(0, previousValue.length - inputValue.length)
-    const replacement = matchedDash === '—' ? (collapseAmount >= 1 ? '---' : '--') : '-'
-    const nextValue = `${inputValue.slice(0, absoluteIndex)}${replacement}${inputValue.slice(absoluteIndex + 1)}`
-    const lengthDelta = replacement.length - 1
-    const nextPosition = absoluteIndex < selectionStart ? selectionStart + lengthDelta : selectionStart
-    const resolvedPosition = Math.max(0, Math.min(nextPosition, nextValue.length))
+    let didRestore = false
+    const restoredValue = Array.from(inputValue)
+      .map((char, index) => {
+        if (char !== '—' && char !== '–') return char
 
-    onChange(nextValue)
+        let runStart = index
+        while (runStart > 0 && previousValue[runStart - 1] === '-') {
+          runStart -= 1
+        }
+        let runEnd = index
+        while (runEnd < previousValue.length && previousValue[runEnd] === '-') {
+          runEnd += 1
+        }
+        const runLength = runEnd - runStart
+        if (runLength < 2) return char
+        didRestore = true
+        return '-'.repeat(runLength)
+      })
+      .join('')
+
+    if (!didRestore) {
+      onChange(inputValue)
+      return
+    }
+
+    const selectionStart = target.selectionStart ?? inputValue.length
+    const caretDelta = restoredValue.length - inputValue.length
+    const nextPosition = Math.max(0, Math.min(selectionStart + caretDelta, restoredValue.length))
+
+    onChange(restoredValue)
 
     requestAnimationFrame(() => {
       target.focus()
-      target.setSelectionRange(resolvedPosition, resolvedPosition)
+      target.setSelectionRange(nextPosition, nextPosition)
       onSelectionChange?.({
-        selectionStart: resolvedPosition,
-        selectionEnd: resolvedPosition,
+        selectionStart: nextPosition,
+        selectionEnd: nextPosition,
       })
     })
   }
@@ -735,29 +764,14 @@ function Editor({
           onChange={handleTextareaChange}
           onBeforeInput={(event) => {
             const nativeEvent = event.nativeEvent
-            if (nativeEvent?.inputType !== 'insertText') return
-            if (nativeEvent?.data !== '—' && nativeEvent?.data !== '–') return
-
+            const inputType = nativeEvent?.inputType
+            const inputData = nativeEvent?.data
+            if (inputType === 'insertReplacementText') {
+              event.preventDefault()
+              return
+            }
+            if (inputData !== '—' && inputData !== '–') return
             event.preventDefault()
-            const target = event.target
-            if (!(target instanceof HTMLTextAreaElement)) return
-
-            const start = target.selectionStart ?? 0
-            const end = target.selectionEnd ?? start
-            const text = value ?? ''
-            const replacement = nativeEvent?.data === '—' ? '--' : '-'
-            const nextValue = `${text.slice(0, start)}${replacement}${text.slice(end)}`
-            const nextPosition = start + replacement.length
-            onChange(nextValue)
-
-            requestAnimationFrame(() => {
-              target.focus()
-              target.setSelectionRange(nextPosition, nextPosition)
-              onSelectionChange?.({
-                selectionStart: nextPosition,
-                selectionEnd: nextPosition,
-              })
-            })
           }}
           onScroll={(event) => setScrollTop(event.target.scrollTop)}
           onSelect={(event) => {

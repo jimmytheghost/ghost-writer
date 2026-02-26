@@ -1,6 +1,7 @@
 {
   "models": [
     "devstral-small-2:24b",
+    "dolphin3:latest",
     "gemma3:27b",
     "glm-4.7-flash:latest",
     "glm-5:cloud",
