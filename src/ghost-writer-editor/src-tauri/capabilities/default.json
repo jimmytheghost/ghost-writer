@@ -3,5 +3,14 @@
   "identifier": "default",
   "description": "Default desktop capability for Ghost Writer",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "core:window:deny-create",
+    "core:window:deny-destroy",
+    "core:window:deny-get-all-windows",
+    "core:webview:deny-create-webview",
+    "core:webview:deny-create-webview-window",
+    "core:webview:deny-get-all-webviews",
+    "core:webview:deny-clear-all-browsing-data"
+  ]
 }

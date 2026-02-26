@@ -3,6 +3,8 @@ import { extractInlinePromptTokens } from '../lib/contentTransforms'
 import { getMisspelledRanges } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
+const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
+const OVERLAY_HEAVY_LINE_LIMIT = 2_500
 const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(?:\[(?: |x|X)\]\s)?(.*)$/
 const INLINE_TOKEN_PATTERN =
   /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|<https?:\/\/[^>]+>|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_/g
@@ -198,16 +200,23 @@ function Editor({
   const textareaRef = useRef(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
+  const text = value ?? ''
+  const lineCount = useMemo(() => {
+    if (!text) return 1
+    return text.split('\n').length
+  }, [text])
+  const useLightweightOverlays =
+    text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
+
   const misspelledRanges = useMemo(() => {
-    if (!spellCheckEnabled) return []
-    return getMisspelledRanges(value ?? '')
-  }, [spellCheckEnabled, value])
+    if (!spellCheckEnabled || useLightweightOverlays) return []
+    return getMisspelledRanges(text)
+  }, [spellCheckEnabled, text, useLightweightOverlays])
 
   const spellCheckOverlay = useMemo(() => {
     if (!spellCheckEnabled) return null
     if (!misspelledRanges.length) return null
 
-    const text = value ?? ''
     const nodes = []
     let cursor = 0
 
@@ -238,10 +247,10 @@ function Editor({
     }
 
     return nodes
-  }, [misspelledRanges, spellCheckEnabled, value])
+  }, [misspelledRanges, spellCheckEnabled, text])
 
   const inlinePromptOverlay = useMemo(() => {
-    const text = value ?? ''
+    if (useLightweightOverlays) return null
     const tokens = extractInlinePromptTokens(text)
     if (!tokens.length) return null
 
@@ -278,11 +287,10 @@ function Editor({
     }
 
     return nodes
-  }, [value])
+  }, [text, useLightweightOverlays])
 
   const selectionOverlay = useMemo(() => {
-    if (!showSelectionOverlay) return null
-    const text = value ?? ''
+    if (!showSelectionOverlay || useLightweightOverlays) return null
     const start = Math.min(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
     const end = Math.max(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
     if (start === end) return null
@@ -294,10 +302,10 @@ function Editor({
       selection: selectionText.length ? selectionText : ' ',
       after: text.slice(safeEnd),
     }
-  }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, value])
+  }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, text, useLightweightOverlays])
 
   const syntaxOverlay = useMemo(() => {
-    const text = value ?? ''
+    if (useLightweightOverlays) return null
     const lines = text.split('\n')
     const nodes = []
 
@@ -317,7 +325,7 @@ function Editor({
     })
 
     return nodes
-  }, [value])
+  }, [text, useLightweightOverlays])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -652,17 +660,19 @@ function Editor({
   return (
     <section className="editor">
       <div className="editor__field">
-        <div
-          className="editor__syntax-overlay"
-          style={{
-            transform: `translateY(${-scrollTop}px)`,
-            minHeight: contentHeight || '100%',
-            ...editorTextStyle,
-          }}
-          aria-hidden="true"
-        >
-          {syntaxOverlay}
-        </div>
+        {!useLightweightOverlays && (
+          <div
+            className="editor__syntax-overlay"
+            style={{
+              transform: `translateY(${-scrollTop}px)`,
+              minHeight: contentHeight || '100%',
+              ...editorTextStyle,
+            }}
+            aria-hidden="true"
+          >
+            {syntaxOverlay}
+          </div>
+        )}
         {spellCheckOverlay && (
           <div
             className="editor__spell-overlay"
