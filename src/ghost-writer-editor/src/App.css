@@ -528,6 +528,7 @@
   display: flex;
   overflow: hidden;
   border-radius: var(--radius-2xl);
+  background: var(--color-gray-100);
 }
 
 .editor__textarea {
@@ -542,12 +543,12 @@
   font-weight: var(--font-weight-normal);
   border-radius: var(--radius-2xl);
   border: none;
-  background: var(--color-gray-100);
+  background: transparent;
   resize: none;
   line-height: 1.45;
   color: var(--color-gray-800);
   position: relative;
-  z-index: 1;
+  z-index: 5;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
@@ -558,7 +559,7 @@
 }
 
 .app--dark .editor__textarea {
-  background: var(--color-gray-800);
+  background: transparent;
   color: var(--color-gray-100);
 }
 
@@ -581,7 +582,7 @@
   color: transparent;
   pointer-events: none;
   overflow: hidden;
-  z-index: 4;
+  z-index: 8;
 }
 
 .editor__spell-overlay {
@@ -599,7 +600,7 @@
   color: transparent;
   pointer-events: none;
   overflow: hidden;
-  z-index: 3;
+  z-index: 7;
 }
 
 .editor__inline-prompt-overlay {
@@ -617,7 +618,85 @@
   color: transparent;
   pointer-events: none;
   overflow: hidden;
+  z-index: 6;
+}
+
+.editor__syntax-overlay {
+  position: absolute;
+  inset: 0;
+  padding: var(--space-6);
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+  overflow: hidden;
   z-index: 2;
+}
+
+.editor__textarea--syntax {
+  color: transparent;
+  caret-color: var(--color-gray-900);
+  -webkit-text-fill-color: transparent;
+}
+
+.editor__syntax-line {
+  display: inline;
+}
+
+.editor__syntax-text,
+.editor__syntax-punct {
+  color: #383a42;
+}
+
+.editor__syntax-heading {
+  color: #800000;
+  font-weight: 700;
+}
+
+.editor__syntax-emphasis {
+  color: #111827;
+  font-style: italic;
+}
+
+.editor__syntax-strong {
+  color: #00008b;
+  font-weight: 700;
+}
+
+.editor__syntax-list-marker {
+  color: #0451a5;
+  font-weight: 700;
+}
+
+.editor__syntax-link-label {
+  color: #a31515;
+}
+
+.editor__syntax-link-url {
+  color: #111827;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.editor__syntax-quote-marker {
+  color: #0451a5;
+  font-weight: 700;
+}
+
+.editor__syntax-checkbox-done {
+  color: #b54708;
+  font-weight: 700;
+}
+
+.editor__syntax-strikethrough {
+  color: #111827;
+  text-decoration: line-through;
 }
 
 .editor__spell-overlay-text {
@@ -643,6 +722,37 @@
 
 .app--dark .editor__inline-prompt-overlay-token {
   color: #60a5fa;
+}
+
+.app--dark .editor__field {
+  background: var(--color-gray-800);
+}
+
+.app--dark .editor__textarea--syntax {
+  caret-color: var(--color-gray-100);
+}
+
+.app--dark .editor__syntax-text,
+.app--dark .editor__syntax-punct,
+.app--dark .editor__syntax-link-url,
+.app--dark .editor__syntax-emphasis,
+.app--dark .editor__syntax-strikethrough {
+  color: #d4d4d4;
+}
+
+.app--dark .editor__syntax-heading,
+.app--dark .editor__syntax-strong,
+.app--dark .editor__syntax-list-marker {
+  color: #61afef;
+}
+
+.app--dark .editor__syntax-link-label,
+.app--dark .editor__syntax-checkbox-done {
+  color: #d19a66;
+}
+
+.app--dark .editor__syntax-quote-marker {
+  color: #6a9955;
 }
 
 .editor__selection-overlay-text {

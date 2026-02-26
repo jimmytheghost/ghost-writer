@@ -4,6 +4,186 @@ import { getMisspelledRanges } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
 const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(?:\[(?: |x|X)\]\s)?(.*)$/
+const INLINE_TOKEN_PATTERN =
+  /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|<https?:\/\/[^>]+>|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_/g
+
+function pushPlain(nodes, text, keyPrefix) {
+  if (!text) return
+  nodes.push(
+    <span key={`${keyPrefix}-plain-${nodes.length}`} className="editor__syntax-text">
+      {text}
+    </span>,
+  )
+}
+
+function appendInlineSyntax(nodes, text, keyPrefix) {
+  let cursor = 0
+  INLINE_TOKEN_PATTERN.lastIndex = 0
+  let match = INLINE_TOKEN_PATTERN.exec(text)
+
+  while (match) {
+    const token = match[0]
+    const start = match.index ?? 0
+    const end = start + token.length
+    pushPlain(nodes, text.slice(cursor, start), keyPrefix)
+
+    if (token.startsWith('![')) {
+      const image = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(token)
+      if (image) {
+        nodes.push(
+          <span key={`${keyPrefix}-img-open-${nodes.length}`} className="editor__syntax-punct">
+            ![
+          </span>,
+          <span key={`${keyPrefix}-img-label-${nodes.length}`} className="editor__syntax-link-label">
+            {image[1]}
+          </span>,
+          <span key={`${keyPrefix}-img-mid-${nodes.length}`} className="editor__syntax-punct">
+            ](
+          </span>,
+          <span key={`${keyPrefix}-img-url-${nodes.length}`} className="editor__syntax-link-url">
+            {image[2]}
+          </span>,
+          <span key={`${keyPrefix}-img-close-${nodes.length}`} className="editor__syntax-punct">
+            )
+          </span>,
+        )
+      } else {
+        pushPlain(nodes, token, keyPrefix)
+      }
+    } else if (token.startsWith('[')) {
+      const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
+      if (link) {
+        nodes.push(
+          <span key={`${keyPrefix}-lnk-open-${nodes.length}`} className="editor__syntax-punct">
+            [
+          </span>,
+          <span key={`${keyPrefix}-lnk-label-${nodes.length}`} className="editor__syntax-link-label">
+            {link[1]}
+          </span>,
+          <span key={`${keyPrefix}-lnk-mid-${nodes.length}`} className="editor__syntax-punct">
+            ](
+          </span>,
+          <span key={`${keyPrefix}-lnk-url-${nodes.length}`} className="editor__syntax-link-url">
+            {link[2]}
+          </span>,
+          <span key={`${keyPrefix}-lnk-close-${nodes.length}`} className="editor__syntax-punct">
+            )
+          </span>,
+        )
+      } else {
+        pushPlain(nodes, token, keyPrefix)
+      }
+    } else if (token.startsWith('<http')) {
+      nodes.push(
+        <span key={`${keyPrefix}-auto-${nodes.length}`} className="editor__syntax-link-url">
+          {token}
+        </span>,
+      )
+    } else if (token.startsWith('~~')) {
+      nodes.push(
+        <span key={`${keyPrefix}-strike-${nodes.length}`} className="editor__syntax-strikethrough">
+          {token}
+        </span>,
+      )
+    } else if (token.startsWith('**') || token.startsWith('__')) {
+      nodes.push(
+        <span key={`${keyPrefix}-strong-${nodes.length}`} className="editor__syntax-strong">
+          {token}
+        </span>,
+      )
+    } else {
+      nodes.push(
+        <span key={`${keyPrefix}-em-${nodes.length}`} className="editor__syntax-emphasis">
+          {token}
+        </span>,
+      )
+    }
+
+    cursor = end
+    match = INLINE_TOKEN_PATTERN.exec(text)
+  }
+
+  pushPlain(nodes, text.slice(cursor), keyPrefix)
+}
+
+function renderSyntaxLine(line, lineIndex) {
+  const nodes = []
+  const keyPrefix = `syntax-${lineIndex}`
+
+  const heading = /^(\s{0,3})(#{1,6})(\s+)(.*)$/.exec(line)
+  if (heading) {
+    pushPlain(nodes, heading[1], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-hmark`} className="editor__syntax-heading">
+        {heading[2]}
+      </span>,
+      <span key={`${keyPrefix}-hspace`} className="editor__syntax-text">
+        {heading[3]}
+      </span>,
+      <span key={`${keyPrefix}-htext`} className="editor__syntax-heading">
+        {heading[4]}
+      </span>,
+    )
+    return nodes
+  }
+
+  const quote = /^(\s*)(>)(\s?)(.*)$/.exec(line)
+  if (quote) {
+    pushPlain(nodes, quote[1], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-quote`} className="editor__syntax-quote-marker">
+        {quote[2]}
+      </span>,
+    )
+    pushPlain(nodes, quote[3], keyPrefix)
+    appendInlineSyntax(nodes, quote[4], keyPrefix)
+    return nodes
+  }
+
+  const checkbox = /^(\s*)([-+*])(\s+)\[([ xX])\](\s+)(.*)$/.exec(line)
+  if (checkbox) {
+    pushPlain(nodes, checkbox[1], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-cbbullet`} className="editor__syntax-list-marker">
+        {checkbox[2]}
+      </span>,
+    )
+    pushPlain(nodes, checkbox[3], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-cbopen`} className="editor__syntax-punct">
+        [
+      </span>,
+      <span
+        key={`${keyPrefix}-cbmark`}
+        className={checkbox[4].toLowerCase() === 'x' ? 'editor__syntax-checkbox-done' : 'editor__syntax-punct'}
+      >
+        {checkbox[4]}
+      </span>,
+      <span key={`${keyPrefix}-cbclose`} className="editor__syntax-punct">
+        ]
+      </span>,
+    )
+    pushPlain(nodes, checkbox[5], keyPrefix)
+    appendInlineSyntax(nodes, checkbox[6], keyPrefix)
+    return nodes
+  }
+
+  const list = /^(\s*)([-+*])(\s+)(.*)$/.exec(line)
+  if (list) {
+    pushPlain(nodes, list[1], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-list`} className="editor__syntax-list-marker">
+        {list[2]}
+      </span>,
+    )
+    pushPlain(nodes, list[3], keyPrefix)
+    appendInlineSyntax(nodes, list[4], keyPrefix)
+    return nodes
+  }
+
+  appendInlineSyntax(nodes, line, keyPrefix)
+  return nodes
+}
 
 function Editor({
   value,
@@ -115,6 +295,29 @@ function Editor({
       after: text.slice(safeEnd),
     }
   }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, value])
+
+  const syntaxOverlay = useMemo(() => {
+    const text = value ?? ''
+    const lines = text.split('\n')
+    const nodes = []
+
+    lines.forEach((line, index) => {
+      nodes.push(
+        <span key={`syntax-line-${index}`} className="editor__syntax-line">
+          {renderSyntaxLine(line, index)}
+        </span>,
+      )
+      if (index < lines.length - 1) {
+        nodes.push(
+          <span key={`syntax-break-${index}`} className="editor__syntax-text">
+            {'\n'}
+          </span>,
+        )
+      }
+    })
+
+    return nodes
+  }, [value])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -449,6 +652,17 @@ function Editor({
   return (
     <section className="editor">
       <div className="editor__field">
+        <div
+          className="editor__syntax-overlay"
+          style={{
+            transform: `translateY(${-scrollTop}px)`,
+            minHeight: contentHeight || '100%',
+            ...editorTextStyle,
+          }}
+          aria-hidden="true"
+        >
+          {syntaxOverlay}
+        </div>
         {spellCheckOverlay && (
           <div
             className="editor__spell-overlay"
@@ -492,7 +706,7 @@ function Editor({
         )}
         <textarea
           ref={textareaRef}
-          className="editor__textarea"
+          className="editor__textarea editor__textarea--syntax"
           value={value ?? ''}
           style={editorTextStyle}
           onChange={handleTextareaChange}
