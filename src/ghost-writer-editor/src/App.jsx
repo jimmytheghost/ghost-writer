@@ -44,6 +44,7 @@ import {
 } from './lib/tabState'
 
 const MAX_LOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024
+const FILE_TOO_LARGE_MESSAGE = 'Selected file is too large. Please use a file smaller than 2 MB.'
 const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
@@ -153,6 +154,21 @@ function readLegacyAlwaysOnTopSetting() {
   } catch {
     return null
   }
+}
+
+function getTextByteSize(value = '') {
+  const text = String(value ?? '')
+  if (typeof Blob !== 'undefined') {
+    return new Blob([text]).size
+  }
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(text).length
+  }
+  return text.length
+}
+
+function exceedsLoadFileSizeLimit(value = '') {
+  return getTextByteSize(value) > MAX_LOAD_FILE_SIZE_BYTES
 }
 
 function App() {
@@ -342,7 +358,9 @@ function App() {
         ? nextSettings.sessionSavedTabPaths.filter(Boolean)
         : []
       if (sessionSavedTabPaths.length) {
-        const restoredFiles = await loadMarkdownFilesByPaths(sessionSavedTabPaths)
+        const restoredFiles = (await loadMarkdownFilesByPaths(sessionSavedTabPaths)).filter(
+          (file) => !exceedsLoadFileSizeLimit(file?.content ?? ''),
+        )
         if (restoredFiles.length) {
           let highestUntitledIndex = 1
           const restoredTabs = restoredFiles.map((file) => {
@@ -629,6 +647,10 @@ function App() {
         setPromptError('Unable to open the selected file.')
         return
       }
+      if (exceedsLoadFileSizeLimit(loadedContent)) {
+        setPromptError(FILE_TOO_LARGE_MESSAGE)
+        return
+      }
 
       const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
       setTabs((currentTabs) =>
@@ -672,7 +694,7 @@ function App() {
       if (!file || !activeTabId) return
 
       if (file.size > MAX_LOAD_FILE_SIZE_BYTES) {
-        setPromptError('Selected file is too large. Please use a file smaller than 2 MB.')
+        setPromptError(FILE_TOO_LARGE_MESSAGE)
         event.target.value = ''
         return
       }
@@ -714,6 +736,10 @@ function App() {
       const content = typeof payload?.content === 'string' ? payload.content : ''
       if (!path) {
         setPromptError('Unable to open recent file: missing file path.')
+        return
+      }
+      if (exceedsLoadFileSizeLimit(content)) {
+        setPromptError(FILE_TOO_LARGE_MESSAGE)
         return
       }
 

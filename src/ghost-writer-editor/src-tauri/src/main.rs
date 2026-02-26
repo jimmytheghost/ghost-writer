@@ -6,6 +6,7 @@ use objc2_app_kit::NSPrintInfo;
 use objc2_web_kit::WKWebView;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io;
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -20,6 +21,7 @@ const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const MAX_RECENT_FILES: usize = 10;
+const MAX_LOAD_FILE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
 const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
 const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
 
@@ -363,7 +365,17 @@ fn rename_markdown_file_with_dialog(
         return Ok(Some(source_path.to_string_lossy().into_owned()));
     }
 
-    fs::rename(&source_path, &destination_path).map_err(|error| error.to_string())?;
+    match fs::rename(&source_path, &destination_path) {
+        Ok(()) => {}
+        Err(error) => {
+            if is_cross_device_rename_error(&error) {
+                fs::copy(&source_path, &destination_path).map_err(|copy_error| copy_error.to_string())?;
+                fs::remove_file(&source_path).map_err(|remove_error| remove_error.to_string())?;
+            } else {
+                return Err(error.to_string());
+            }
+        }
+    }
     push_recent_file_path(&app, &destination_path);
     Ok(Some(destination_path.to_string_lossy().into_owned()))
 }
@@ -377,6 +389,13 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
     let Some(path) = selected_path else {
         return Ok(None);
     };
+
+    if is_file_larger_than_limit(&path)? {
+        return Err(format!(
+            "Selected file is too large. Please use a file smaller than {} MB.",
+            MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
+        ));
+    }
 
     let content = fs::read_to_string(&path).map_err(|error| error.to_string())?;
     push_recent_file_path(&app, &path);
@@ -396,7 +415,12 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
             continue;
         }
 
-        let content = match fs::read_to_string(trimmed) {
+        let path = PathBuf::from(trimmed);
+        if is_file_larger_than_limit(&path)? {
+            continue;
+        }
+
+        let content = match fs::read_to_string(&path) {
             Ok(content) => content,
             Err(_) => continue,
         };
@@ -412,6 +436,9 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
 
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
+    if !is_allowed_external_url(&url) {
+        return Err("Unsupported URL scheme. Only http, https, mailto, and tel are allowed.".to_string());
+    }
     open::that(url).map_err(|error| error.to_string())
 }
 
@@ -489,6 +516,28 @@ fn normalize_recent_files(paths: &[String]) -> Vec<String> {
         }
     }
     unique
+}
+
+fn is_allowed_external_url(raw_url: &str) -> bool {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let Ok(parsed) = url::Url::parse(trimmed) else {
+        return false;
+    };
+
+    matches!(parsed.scheme(), "http" | "https" | "mailto" | "tel")
+}
+
+fn is_cross_device_rename_error(error: &io::Error) -> bool {
+    error.raw_os_error() == Some(18)
+}
+
+fn is_file_larger_than_limit(path: &PathBuf) -> Result<bool, String> {
+    let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
+    Ok(metadata.len() > MAX_LOAD_FILE_SIZE_BYTES)
 }
 
 fn build_recent_item_label(path: &str) -> String {
@@ -574,6 +623,14 @@ fn load_recent_file_by_index(
     let Some(path) = recent_files.get(index).cloned() else {
         return Err("Recent file entry no longer exists.".to_string());
     };
+
+    let path_buf = PathBuf::from(&path);
+    if is_file_larger_than_limit(&path_buf)? {
+        return Err(format!(
+            "Recent file is too large. Please use a file smaller than {} MB.",
+            MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
+        ));
+    }
 
     let content = match fs::read_to_string(&path) {
         Ok(content) => content,
