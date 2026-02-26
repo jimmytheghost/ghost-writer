@@ -36,7 +36,6 @@
     "markdown-it-sub": "^2.0.0",
     "markdown-it-sup": "^2.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "marked": "^12.0.2",
     "nspell": "^2.1.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

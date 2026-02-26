@@ -46,5 +46,8 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = OLLAMA_REQ
     if (timeoutId != null) {
       clearTimeout(timeoutId)
     }
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', relayAbort)
+    }
   }
 }

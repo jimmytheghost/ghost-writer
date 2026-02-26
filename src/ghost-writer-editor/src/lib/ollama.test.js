@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fetchWithTimeout } from './ollama'
 
 describe('fetchWithTimeout', () => {
-  it('keeps relaying external aborts after fetch resolves', async () => {
+  it('stops relaying external aborts after fetch resolves', async () => {
     let capturedSignal = null
 
     const fetchMock = vi.fn(async (_url, options = {}) => {
@@ -19,7 +19,7 @@ describe('fetchWithTimeout', () => {
     expect(capturedSignal.aborted).toBe(false)
 
     externalController.abort()
-    expect(capturedSignal.aborted).toBe(true)
+    expect(capturedSignal.aborted).toBe(false)
 
     vi.unstubAllGlobals()
   })

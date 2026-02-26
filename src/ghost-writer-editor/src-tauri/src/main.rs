@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::net::{SocketAddr, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -284,6 +284,15 @@ fn save_markdown_to_path(
     }
 
     let destination = PathBuf::from(trimmed);
+    if !destination.exists() {
+        return Err("Target file no longer exists.".to_string());
+    }
+    if !destination.is_file() {
+        return Err("Target path is not a file.".to_string());
+    }
+    if !has_markdown_extension(&destination) {
+        return Err("Only Markdown (.md) files can be overwritten.".to_string());
+    }
     fs::write(&destination, content).map_err(|error| error.to_string())?;
     push_recent_file_path(&app, &destination);
     Ok(destination.to_string_lossy().into_owned())
@@ -360,6 +369,9 @@ fn rename_markdown_file_with_dialog(
     let Some(destination_path) = selected_path else {
         return Ok(None);
     };
+    if !has_markdown_extension(&destination_path) {
+        return Err("Renamed file must use a .md extension.".to_string());
+    }
 
     if destination_path == source_path {
         return Ok(Some(source_path.to_string_lossy().into_owned()));
@@ -389,6 +401,9 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
     let Some(path) = selected_path else {
         return Ok(None);
     };
+    if !has_markdown_extension(&path) {
+        return Err("Only Markdown (.md) files can be opened.".to_string());
+    }
 
     if is_file_larger_than_limit(&path)? {
         return Err(format!(
@@ -416,6 +431,9 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
         }
 
         let path = PathBuf::from(trimmed);
+        if !has_markdown_extension(&path) {
+            continue;
+        }
         let is_too_large = match is_file_larger_than_limit(&path) {
             Ok(value) => value,
             Err(_) => continue,
@@ -539,6 +557,14 @@ fn is_cross_device_rename_error(error: &io::Error) -> bool {
     error.raw_os_error() == Some(18)
 }
 
+fn has_markdown_extension(path: &Path) -> bool {
+    path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.eq_ignore_ascii_case("md"))
+        .unwrap_or(false)
+}
+
 fn is_file_larger_than_limit(path: &PathBuf) -> Result<bool, String> {
     let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
     Ok(metadata.len() > MAX_LOAD_FILE_SIZE_BYTES)
@@ -629,6 +655,14 @@ fn load_recent_file_by_index(
     };
 
     let path_buf = PathBuf::from(&path);
+    if !has_markdown_extension(&path_buf) {
+        let mut next_settings = settings.clone();
+        next_settings.recent_files.retain(|entry| entry != &path);
+        if write_settings(app, &next_settings).is_ok() {
+            refresh_app_menu(app);
+        }
+        return Err("Recent file is not a Markdown file.".to_string());
+    }
     match is_file_larger_than_limit(&path_buf) {
         Ok(true) => {
             return Err(format!(

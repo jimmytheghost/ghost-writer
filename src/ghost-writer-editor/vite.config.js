@@ -9,13 +9,11 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
-    cssMinify: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
           if (id.includes('react') || id.includes('scheduler')) return 'react-vendor'
-          if (id.includes('marked')) return 'markdown-vendor'
           return 'vendor'
         },
       },
