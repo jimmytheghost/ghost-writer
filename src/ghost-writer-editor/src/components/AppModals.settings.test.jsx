@@ -29,7 +29,7 @@ describe('AppModals settings', () => {
         }}
         updateSetting={updateSetting}
         saveWordListSettings={() => {}}
-        textZoomOptions={['50%', '100%', '150%', '200%']}
+        textZoomOptions={['50%', '75%', '100%', '125%', '150%']}
         models={[]}
         appName="Ghost Writer"
         appVersion="0.1.2"
@@ -67,14 +67,14 @@ describe('AppModals settings', () => {
         }}
         updateSetting={updateSetting}
         saveWordListSettings={() => {}}
-        textZoomOptions={['50%', '100%', '150%', '200%']}
+        textZoomOptions={['50%', '75%', '100%', '125%', '150%']}
         models={[]}
         appName="Ghost Writer"
         appVersion="0.1.2"
       />,
     )
 
-    fireEvent.change(screen.getByLabelText('Editor text zoom'), { target: { value: '150%' } })
+    fireEvent.change(screen.getByLabelText('Editor text zoom'), { target: { value: '4' } })
     expect(updateSetting).toHaveBeenCalledWith('defaultTextZoom', '150%')
   })
 })

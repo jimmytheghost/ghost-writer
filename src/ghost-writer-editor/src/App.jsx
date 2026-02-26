@@ -47,7 +47,7 @@ const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
-const TEXT_ZOOM_OPTIONS = Object.freeze(['50%', '100%', '150%', '200%'])
+const TEXT_ZOOM_OPTIONS = Object.freeze(['50%', '75%', '100%', '125%', '150%'])
 const DEFAULT_SETTINGS = Object.freeze({
   defaultModel: '',
   defaultTheme: 'dark',

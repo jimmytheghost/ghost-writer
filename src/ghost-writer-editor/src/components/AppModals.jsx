@@ -192,6 +192,8 @@ function AppModals({
   const normalizedDisabledWordList = Array.isArray(settings.customWordListDisabled)
     ? settings.customWordListDisabled
     : []
+  const currentTextZoomValue = settings.defaultTextZoom ?? '100%'
+  const currentTextZoomIndex = Math.max(0, textZoomOptions.indexOf(currentTextZoomValue))
 
   const handleAboutLinkClick = (event) => {
     const anchor = event.target.closest('a[href]')
@@ -299,18 +301,34 @@ function AppModals({
             <label className="modal__label" htmlFor="settings-text-zoom">
               Editor text zoom
             </label>
-            <select
+            <input
               id="settings-text-zoom"
-              className="modal__input modal__select"
-              value={settings.defaultTextZoom ?? '100%'}
-              onChange={(event) => updateSetting('defaultTextZoom', event.target.value)}
-            >
-              {textZoomOptions.map((option) => (
-                <option key={option} value={option}>
+              type="range"
+              className="text-zoom__slider"
+              min={0}
+              max={Math.max(0, textZoomOptions.length - 1)}
+              step={1}
+              value={currentTextZoomIndex}
+              onChange={(event) => {
+                const index = Number.parseInt(event.target.value, 10)
+                const option = textZoomOptions[index] ?? textZoomOptions[2] ?? '100%'
+                updateSetting('defaultTextZoom', option)
+              }}
+              aria-valuetext={currentTextZoomValue}
+            />
+            <div className="text-zoom__marks" aria-hidden="true">
+              {textZoomOptions.map((option, index) => (
+                <span
+                  key={option}
+                  className={`text-zoom__mark${index <= currentTextZoomIndex ? ' text-zoom__mark--active' : ''}`}
+                >
                   {option}
-                </option>
+                </span>
               ))}
-            </select>
+            </div>
+            <div className="text-zoom__value" aria-live="polite">
+              {currentTextZoomValue}
+            </div>
 
             <div className="modal__actions">
               <button
