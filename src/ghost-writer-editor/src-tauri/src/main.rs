@@ -416,7 +416,11 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
         }
 
         let path = PathBuf::from(trimmed);
-        if is_file_larger_than_limit(&path)? {
+        let is_too_large = match is_file_larger_than_limit(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        if is_too_large {
             continue;
         }
 
@@ -625,11 +629,22 @@ fn load_recent_file_by_index(
     };
 
     let path_buf = PathBuf::from(&path);
-    if is_file_larger_than_limit(&path_buf)? {
-        return Err(format!(
-            "Recent file is too large. Please use a file smaller than {} MB.",
-            MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
-        ));
+    match is_file_larger_than_limit(&path_buf) {
+        Ok(true) => {
+            return Err(format!(
+                "Recent file is too large. Please use a file smaller than {} MB.",
+                MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
+            ));
+        }
+        Ok(false) => {}
+        Err(_) => {
+            let mut next_settings = settings.clone();
+            next_settings.recent_files.retain(|entry| entry != &path);
+            if write_settings(app, &next_settings).is_ok() {
+                refresh_app_menu(app);
+            }
+            return Err("Recent file entry no longer exists.".to_string());
+        }
     }
 
     let content = match fs::read_to_string(&path) {
