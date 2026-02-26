@@ -9,6 +9,7 @@ export function useGlobalShortcuts({
   onToggleAlwaysOnTop,
   onTogglePreview,
   onToggleFooter,
+  onToggleTabBar,
 }) {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -58,6 +59,12 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && event.shiftKey && !event.altKey && key === 'h') {
+        event.preventDefault()
+        onToggleTabBar()
+        return
+      }
+
       if (!hasMod || event.altKey || key !== 'm') return
 
       event.preventDefault()
@@ -73,6 +80,7 @@ export function useGlobalShortcuts({
     newActionRef,
     onToggleAlwaysOnTop,
     onToggleFooter,
+    onToggleTabBar,
     onTogglePreview,
     openActionRef,
     printActionRef,

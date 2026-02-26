@@ -970,6 +970,7 @@ ${escapeLatex(exportMarkdownSource)}
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onTogglePreview: handleTogglePreview,
     onToggleFooter: handleToggleFooter,
+    onToggleTabBar: handleToggleTabBar,
   })
 
   useTauriMenuEvents({

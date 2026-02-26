@@ -163,7 +163,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "view_toggle_tab_bar",
         "Hide Tab Bar",
         true,
-        Some("CmdOrCtrl+Shift+H"),
+        Some("CmdOrCtrl+Alt+H"),
     )?;
     let view_pin_top =
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;

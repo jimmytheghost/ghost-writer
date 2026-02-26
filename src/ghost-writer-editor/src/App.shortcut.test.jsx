@@ -104,6 +104,17 @@ describe('App keyboard shortcuts', () => {
     expect(screen.getByLabelText('Expand footer controls')).toBeInTheDocument()
   })
 
+  it('toggles tab bar visibility with Ctrl+Shift+H', () => {
+    render(<App />)
+    expect(screen.getByRole('tablist', { name: 'Document tabs' })).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true, shiftKey: true })
+    expect(screen.queryByRole('tablist', { name: 'Document tabs' })).not.toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'H', ctrlKey: true, shiftKey: true })
+    expect(screen.getByRole('tablist', { name: 'Document tabs' })).toBeInTheDocument()
+  })
+
   it('opens print flow with Ctrl+P', () => {
     vi.useFakeTimers()
     const printMock = vi.fn()
