@@ -105,4 +105,21 @@ describe('App desktop save flow', () => {
       expect(screen.getByText('Selected file is too large. Please use a file smaller than 2 MB.')).toBeInTheDocument()
     })
   })
+
+  it('persists theme changes from footer toggle', async () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Switch to light mode'))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Switch to dark mode')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultTheme: 'light' }),
+      )
+    })
+  })
 })

@@ -16,7 +16,7 @@ function FooterBar({
   isLoadingModels,
   modelLoadStatus,
   isDark,
-  setTheme,
+  onToggleTheme,
   isAlwaysOnTop,
   handleAlwaysOnTopToggle,
 }) {
@@ -134,7 +134,7 @@ function FooterBar({
               className="theme-toggle"
               aria-pressed={isDark}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              onClick={onToggleTheme}
             >
               <span className="material-symbols-rounded" aria-hidden="true">
                 {isDark ? 'light_mode' : 'dark_mode'}

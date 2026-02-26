@@ -68,7 +68,7 @@ Stop script (macOS): `stop.command`
 
 ```bash
 cd src/ghost-writer-editor
-# optional when using nvm
+# if you use nvm
 # nvm use
 npm ci
 npm run dev
@@ -152,6 +152,9 @@ After launch, the footer model dropdown should show your local model list.
 For full setup, failure recovery, and cross-machine behavior, use:
 - `docs/agent-workflows/local-models-runbook.md`
 
+For print/PDF maintenance and margin tuning, use:
+- `docs/agent-workflows/print-and-pdf-runbook.md`
+
 Performance metrics snapshot:
 
 ```bash
@@ -182,6 +185,8 @@ You can override the default endpoint with `VITE_OLLAMA_BASE_URL`.
 cd src/ghost-writer-editor
 npm run check
 ```
+
+`npm run check` now includes a Node runtime preflight and fails fast when the active Node version is unsupported.
 
 ## Project Policies
 

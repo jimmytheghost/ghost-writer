@@ -122,6 +122,11 @@
   transform: translateY(-50%);
   width: 14px;
   height: 14px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;

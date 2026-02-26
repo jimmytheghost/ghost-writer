@@ -1,9 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[cfg(target_os = "macos")]
-use objc2_app_kit::NSPrintInfo;
-#[cfg(target_os = "macos")]
-use objc2_web_kit::WKWebView;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -471,16 +467,23 @@ fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
         window
             .with_webview(|webview| unsafe {
                 let view: &WKWebView = &*webview.inner().cast();
+                let ns_window: &NSWindow = &*webview.ns_window().cast();
                 let print_info = NSPrintInfo::sharedPrintInfo();
-                // 72 points == 1 inch.
-                print_info.setTopMargin(72.0);
-                print_info.setRightMargin(72.0);
-                print_info.setBottomMargin(72.0);
-                print_info.setLeftMargin(72.0);
+
+                // Values are in points (72 pt = 1 in).
+                // Keep top tighter and bottom roomier for Word-like balance.
+                print_info.setTopMargin(30.0);
+                print_info.setRightMargin(50.0);
+                print_info.setBottomMargin(78.0);
+                print_info.setLeftMargin(50.0);
 
                 let print_operation = view.printOperationWithPrintInfo(&print_info);
-                print_operation.setCanSpawnSeparateThread(true);
-                let _ = print_operation.runOperation();
+                print_operation.runOperationModalForWindow_delegate_didRunSelector_contextInfo(
+                    ns_window,
+                    None,
+                    None,
+                    std::ptr::null_mut(),
+                );
             })
             .map_err(|error| error.to_string())
     }
@@ -860,3 +863,7 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSPrintInfo, NSWindow};
+#[cfg(target_os = "macos")]
+use objc2_web_kit::WKWebView;

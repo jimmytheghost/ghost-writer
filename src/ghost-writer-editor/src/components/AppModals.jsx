@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { isDesktopRuntime, openExternalUrl } from '../lib/desktopRuntime'
 
 function uniqueWords(values = []) {
@@ -37,6 +37,23 @@ function splitWordInput(value = '') {
     .split(',')
     .map((word) => word.trim())
     .filter(Boolean)
+}
+
+function useEscapeToClose(isOpen, onClose) {
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const handleEscape = (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [isOpen, onClose])
 }
 
 function WordListModal({
@@ -103,9 +120,16 @@ function WordListModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal--word-list" onClick={(event) => event.stopPropagation()}>
-        <h2 className="modal__title">Word List</h2>
-        <p className="modal__description">
+      <div
+        className="modal modal--word-list"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="word-list-title"
+        aria-describedby="word-list-description"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="word-list-title" className="modal__title">Word List</h2>
+        <p id="word-list-description" className="modal__description">
           Toggle tags on/off to control spellcheck. On = allowed, Off = flagged.
         </p>
 
@@ -194,6 +218,10 @@ function AppModals({
     : []
   const currentTextZoomValue = settings.defaultTextZoom ?? '100%'
   const currentTextZoomIndex = Math.max(0, textZoomOptions.indexOf(currentTextZoomValue))
+  useEscapeToClose(isSettingsOpen, () => setIsSettingsOpen(false))
+  useEscapeToClose(isWordListOpen, () => setIsWordListOpen(false))
+  useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
+  useEscapeToClose(isAboutOpen, () => setIsAboutOpen(false))
 
   const handleAboutLinkClick = (event) => {
     const anchor = event.target.closest('a[href]')
@@ -209,9 +237,16 @@ function AppModals({
     <>
       {isSettingsOpen && (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal modal--settings" onClick={(event) => event.stopPropagation()}>
-            <h2 className="modal__title">Settings</h2>
-            <p className="modal__description">Defaults are applied instantly and saved for next launch.</p>
+          <div
+            className="modal modal--settings"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            aria-describedby="settings-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="settings-title" className="modal__title">Settings</h2>
+            <p id="settings-description" className="modal__description">Defaults are applied instantly and saved for next launch.</p>
 
             <label className="modal__label" htmlFor="settings-model">
               Default model
@@ -294,9 +329,16 @@ function AppModals({
       )}
       {isTextZoomOpen && (
         <div className="modal-overlay" onClick={() => setIsTextZoomOpen(false)}>
-          <div className="modal modal--settings" onClick={(event) => event.stopPropagation()}>
-            <h2 className="modal__title">Text Zoom</h2>
-            <p className="modal__description">Applies to text editor view only.</p>
+          <div
+            className="modal modal--settings"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="text-zoom-title"
+            aria-describedby="text-zoom-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="text-zoom-title" className="modal__title">Text Zoom</h2>
+            <p id="text-zoom-description" className="modal__description">Applies to text editor view only.</p>
 
             <label className="modal__label" htmlFor="settings-text-zoom">
               Editor text zoom
@@ -344,7 +386,14 @@ function AppModals({
       )}
       {isAboutOpen && (
         <div className="modal-overlay" onClick={() => setIsAboutOpen(false)}>
-          <div className="modal about-modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="modal about-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-title"
+            aria-describedby="about-description"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="about-modal__header">
               <img
                 className="about-modal__logo"
@@ -354,13 +403,13 @@ function AppModals({
                 height="64"
               />
               <div className="about-modal__title-block">
-                <h2 className="modal__title about-modal__app-name">{appName}</h2>
+                <h2 id="about-title" className="modal__title about-modal__app-name">{appName}</h2>
                 <div className="about-modal__meta">Version {appVersion}</div>
                 <div className="about-modal__meta">Vibe Coded by Jimmy Weber</div>
               </div>
             </div>
             <hr className="about-modal__divider" />
-            <div className="about-modal__body" onClick={handleAboutLinkClick}>
+            <div id="about-description" className="about-modal__body" onClick={handleAboutLinkClick}>
               <p>
                 Ghost Writer is a private, distraction-free markdown editor. It uses private, local LLMs to help you write.
               </p>

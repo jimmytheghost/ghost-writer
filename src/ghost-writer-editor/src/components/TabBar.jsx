@@ -13,19 +13,23 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
           const displayTitle = tab.isDirty ? `${baseTitle}*` : baseTitle
 
           return (
-            <button
+            <div
               key={tab.id}
-              type="button"
               role="tab"
               className={`tab-bar__tab${isActive ? ' tab-bar__tab--active' : ''}`}
               aria-selected={isActive}
               aria-label={`Switch to ${displayTitle}`}
+              tabIndex={0}
               onClick={() => onSelectTab(tab.id)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                onSelectTab(tab.id)
+              }}
             >
               <span className="tab-bar__label">{displayTitle}</span>
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 className="tab-bar__close"
                 aria-label={`Close ${displayTitle}`}
                 title={`Close ${displayTitle}`}
@@ -41,8 +45,8 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab }) {
                 }}
               >
                 ×
-              </span>
-            </button>
+              </button>
+            </div>
           )
         })}
       </div>

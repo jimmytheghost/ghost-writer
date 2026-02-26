@@ -90,6 +90,7 @@ Important:
 
 Canonical runbook for developers and agents:
 - `../../docs/agent-workflows/local-models-runbook.md`
+- `../../docs/agent-workflows/print-and-pdf-runbook.md`
 
 ## Environment variables
 

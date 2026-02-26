@@ -13,6 +13,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
+          if (id.includes('dictionary-en-us') || id.includes('/nspell/')) return 'spellcheck-vendor'
+          if (id.includes('@tauri-apps')) return 'tauri-vendor'
           if (id.includes('markdown-it')) return 'markdown-vendor'
           if (id.includes('react') || id.includes('scheduler')) return 'react-vendor'
           return 'vendor'

@@ -5,9 +5,10 @@ import { renderMarkdownToSafeHtml } from './markdown'
 const PRINT_ROOT_ID = 'ghost-writer-print-root'
 const PRINT_STYLE_ID = 'ghost-writer-print-style'
 const NATIVE_PRINT_CLASS = 'ghost-writer-native-printing'
+let desktopPrintInFlight = false
 
 function buildPrintContentHtml({ bodyHtml }) {
-  return `<article class="ghost-writer-print-main" aria-label="Print content">${bodyHtml}</article>`
+  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${bodyHtml}</article>`
 }
 
 function ensurePrintStyle() {
@@ -19,7 +20,7 @@ function ensurePrintStyle() {
   style.textContent = `
     @page {
       size: auto;
-      margin: 1in;
+      margin: 0.5in 0.7in 1in 0.7in;
     }
 
     #${PRINT_ROOT_ID} {
@@ -40,7 +41,7 @@ function ensurePrintStyle() {
     body.${NATIVE_PRINT_CLASS} #${PRINT_ROOT_ID} {
       display: block !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 0.08in 0 0.18in !important;
       box-sizing: border-box;
     }
 
@@ -48,150 +49,10 @@ function ensurePrintStyle() {
       width: 100%;
       margin: 0;
       padding: 0;
-      font-family: "Calibri", "Carlito", "Segoe UI", Arial, sans-serif;
-      font-size: 10.75pt;
-      line-height: 1.38;
-      color: #1f2937;
-      text-rendering: optimizeLegibility;
       overflow-wrap: anywhere;
       word-break: break-word;
-    }
-
-    .ghost-writer-print-main > :first-child {
-      margin-top: 0 !important;
-    }
-
-    .ghost-writer-print-main h1,
-    .ghost-writer-print-main h2,
-    .ghost-writer-print-main h3,
-    .ghost-writer-print-main h4,
-    .ghost-writer-print-main h5,
-    .ghost-writer-print-main h6 {
-      color: #111827;
-      font-family: "Calibri", "Carlito", "Segoe UI", Arial, sans-serif;
-      font-weight: 700;
-      line-height: 1.24;
-      margin-top: 1.05em;
-      margin-bottom: 0.42em;
-      break-after: avoid-page;
-      break-inside: avoid-page;
-    }
-
-    .ghost-writer-print-main h1 {
-      font-size: 18pt;
-      margin-top: 0;
-      margin-bottom: 0.5em;
-    }
-
-    .ghost-writer-print-main h2 {
-      font-size: 14pt;
-    }
-
-    .ghost-writer-print-main h3 {
-      font-size: 12.2pt;
-    }
-
-    .ghost-writer-print-main h4,
-    .ghost-writer-print-main h5,
-    .ghost-writer-print-main h6 {
-      font-size: 11.3pt;
-    }
-
-    .ghost-writer-print-main p,
-    .ghost-writer-print-main ul,
-    .ghost-writer-print-main ol,
-    .ghost-writer-print-main pre,
-    .ghost-writer-print-main blockquote,
-    .ghost-writer-print-main table,
-    .ghost-writer-print-main dl,
-    .ghost-writer-print-main hr {
-      margin-top: 0;
-      margin-bottom: 0.72em;
-    }
-
-    .ghost-writer-print-main p,
-    .ghost-writer-print-main li {
-      orphans: 3;
-      widows: 3;
-    }
-
-    .ghost-writer-print-main ul,
-    .ghost-writer-print-main ol {
-      padding-left: 1.35em;
-    }
-
-    .ghost-writer-print-main li {
-      margin-bottom: 0.16em;
-    }
-
-    .ghost-writer-print-main pre,
-    .ghost-writer-print-main code {
-      font-family: "Noto Sans Mono", "SFMono-Regular", monospace;
-      font-size: 0.92em;
-    }
-
-    .ghost-writer-print-main pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      padding: 0.64em 0.72em;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      background: #f9fafb;
-      break-inside: avoid-page;
-    }
-
-    .ghost-writer-print-main blockquote {
-      margin-left: 0;
-      margin-right: 0;
-      padding: 0.08em 0.88em;
-      border-left: 2px solid #9ca3af;
-      color: #374151;
-      break-inside: avoid-page;
-    }
-
-    .ghost-writer-print-main hr {
-      border: 0;
-      border-top: 1px solid #d1d5db;
-    }
-
-    .ghost-writer-print-main table {
-      border-collapse: collapse;
-      width: 100%;
-      table-layout: fixed;
-      font-size: 0.95em;
-      break-inside: avoid-page;
-    }
-
-    .ghost-writer-print-main th,
-    .ghost-writer-print-main td {
-      border: 1px solid #d1d5db;
-      padding: 0.3em 0.42em;
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .ghost-writer-print-main th {
-      background: #f3f4f6;
-      font-weight: 700;
-    }
-
-    .ghost-writer-print-main a {
-      color: #1d4ed8;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .ghost-writer-print-main img {
-      max-width: 100%;
-      height: auto;
-      break-inside: avoid-page;
-    }
-
-    .ghost-writer-print-main input[type='checkbox'] {
-      width: 0.9em;
-      height: 0.9em;
-      margin-right: 0.34em;
-      transform: translateY(0.02em);
+      color: #111827 !important;
+      background: #fff !important;
     }
 
     @media print {
@@ -213,7 +74,7 @@ function ensurePrintStyle() {
       #${PRINT_ROOT_ID} {
         display: block !important;
         margin: 0 !important;
-        padding: 0 !important;
+        padding: 0.08in 0 0.18in !important;
         box-sizing: border-box;
       }
 
@@ -238,8 +99,31 @@ function cleanupPrintNodes(rootNode, styleNode) {
   styleNode?.remove()
 }
 
+function createDeferredCleanup(cleanup, fallbackDelayMs = 15000) {
+  let didCleanup = false
+  let timeoutId = null
+
+  const cleanupOnce = () => {
+    if (didCleanup) return
+    didCleanup = true
+    if (timeoutId != null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    cleanup()
+  }
+
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('afterprint', cleanupOnce, { once: true })
+  }
+  timeoutId = setTimeout(cleanupOnce, fallbackDelayMs)
+
+  return cleanupOnce
+}
+
 export function printRenderedMarkdown(markdown = '') {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false
+  if (desktopPrintInFlight && isDesktopRuntime()) return false
 
   const preparedMarkdown = stripInlinePromptTokensForPresentation(markdown)
   const bodyHtml = renderMarkdownToSafeHtml(preparedMarkdown)
@@ -259,39 +143,38 @@ export function printRenderedMarkdown(markdown = '') {
   void rootNode.offsetHeight
 
   if (isDesktopRuntime()) {
+    desktopPrintInFlight = true
     document.body.classList.add(NATIVE_PRINT_CLASS)
+    const cleanupOnce = createDeferredCleanup(() => {
+      cleanup()
+      desktopPrintInFlight = false
+    }, 120000)
     void (async () => {
       const opened = await printCurrentWebview()
       if (!opened && typeof window.print === 'function') {
         try {
           window.print()
         } catch {
-          // No-op: cleanup below always runs.
+          cleanupOnce()
         }
       }
-      cleanup()
     })()
     return true
   }
 
-  if (typeof window.addEventListener === 'function') {
-    window.addEventListener('afterprint', cleanup, { once: true })
-  }
+  const cleanupOnce = createDeferredCleanup(cleanup)
 
   if (typeof window.print !== 'function') {
-    cleanup()
+    cleanupOnce()
     return false
   }
 
   try {
     window.print()
   } catch {
-    cleanup()
+    cleanupOnce()
     return false
   }
-
-  // Fallback cleanup for runtimes where `afterprint` does not fire.
-  setTimeout(cleanup, 15000)
 
   return true
 }

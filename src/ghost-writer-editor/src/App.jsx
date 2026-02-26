@@ -829,6 +829,11 @@ function App() {
     setIsTabBarVisible((previous) => !previous)
   }, [])
 
+  const handleThemeToggle = useCallback(() => {
+    const nextTheme = isDark ? 'light' : 'dark'
+    void updateSetting('defaultTheme', nextTheme)
+  }, [isDark, updateSetting])
+
   const exportMarkdownSource = useMemo(() => {
     return normalizeCustomCheckboxLines(stripInlinePromptTokensForPresentation(activeContent))
   }, [activeContent])
@@ -1069,7 +1074,7 @@ ${escapeLatex(exportMarkdownSource)}
       <main className="app__main">
         <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
-            <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`}>
+            <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`} aria-label="Markdown preview">
               <div
                 ref={previewContentRef}
                 className="preview__content"
@@ -1133,7 +1138,7 @@ ${escapeLatex(exportMarkdownSource)}
         isLoadingModels={isLoadingModels}
         modelLoadStatus={modelLoadStatus}
         isDark={isDark}
-        setTheme={setTheme}
+        onToggleTheme={handleThemeToggle}
         isAlwaysOnTop={isAlwaysOnTop}
         handleAlwaysOnTopToggle={handleAlwaysOnTopToggle}
       />

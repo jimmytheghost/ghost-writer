@@ -35,39 +35,60 @@ export function useTauriMenuEvents({
     const unlistenFns = []
 
     const registerListeners = async () => {
-      const listeners = await Promise.all([
-        listen('ghost-writer://menu-new', () => onNew()),
-        listen('ghost-writer://menu-open', () => onOpen()),
-        listen('ghost-writer://menu-duplicate', () => onDuplicate()),
-        listen('ghost-writer://menu-rename', () => onRename()),
-        listen('ghost-writer://menu-open-recent', (event) => onOpenRecent(event.payload)),
-        listen('ghost-writer://menu-open-recent-error', (event) => onOpenRecentError(event.payload)),
-        listen('ghost-writer://menu-save', () => onSave()),
-        listen('ghost-writer://menu-print', () => onPrint()),
-        listen('ghost-writer://menu-preview', () => onShowPreview()),
-        listen('ghost-writer://menu-text-edit', () => onShowTextEdit()),
-        listen('ghost-writer://menu-pin-top', () => onToggleAlwaysOnTop()),
-        listen('ghost-writer://menu-toggle-footer', () => onToggleFooter()),
-        listen('ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()),
-        listen('ghost-writer://menu-settings', () => onShowSettings()),
-        listen('ghost-writer://menu-word-list', () => onShowWordList()),
-        listen('ghost-writer://menu-text-zoom', () => onShowTextZoom()),
-        listen('ghost-writer://menu-export-copy-html', () => onExportCopyHtml()),
-        listen('ghost-writer://menu-export-copy-rich-text', () => onExportCopyRichText()),
-        listen('ghost-writer://menu-export-html', () => onExportHtml()),
-        listen('ghost-writer://menu-export-pdf', () => onExportPdf()),
-        listen('ghost-writer://menu-export-rtf', () => onExportRtf()),
-        listen('ghost-writer://menu-export-word', () => onExportWord()),
-        listen('ghost-writer://menu-export-latex', () => onExportLatex()),
-        listen('ghost-writer://menu-about', () => onShowAbout()),
-      ])
+      const listenerSpecs = [
+        ['ghost-writer://menu-new', () => onNew()],
+        ['ghost-writer://menu-open', () => onOpen()],
+        ['ghost-writer://menu-duplicate', () => onDuplicate()],
+        ['ghost-writer://menu-rename', () => onRename()],
+        ['ghost-writer://menu-open-recent', (event) => onOpenRecent(event.payload)],
+        ['ghost-writer://menu-open-recent-error', (event) => onOpenRecentError(event.payload)],
+        ['ghost-writer://menu-save', () => onSave()],
+        ['ghost-writer://menu-print', () => onPrint()],
+        ['ghost-writer://menu-preview', () => onShowPreview()],
+        ['ghost-writer://menu-text-edit', () => onShowTextEdit()],
+        ['ghost-writer://menu-pin-top', () => onToggleAlwaysOnTop()],
+        ['ghost-writer://menu-toggle-footer', () => onToggleFooter()],
+        ['ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()],
+        ['ghost-writer://menu-settings', () => onShowSettings()],
+        ['ghost-writer://menu-word-list', () => onShowWordList()],
+        ['ghost-writer://menu-text-zoom', () => onShowTextZoom()],
+        ['ghost-writer://menu-export-copy-html', () => onExportCopyHtml()],
+        ['ghost-writer://menu-export-copy-rich-text', () => onExportCopyRichText()],
+        ['ghost-writer://menu-export-html', () => onExportHtml()],
+        ['ghost-writer://menu-export-pdf', () => onExportPdf()],
+        ['ghost-writer://menu-export-rtf', () => onExportRtf()],
+        ['ghost-writer://menu-export-word', () => onExportWord()],
+        ['ghost-writer://menu-export-latex', () => onExportLatex()],
+        ['ghost-writer://menu-about', () => onShowAbout()],
+      ]
+
+      const results = await Promise.allSettled(
+        listenerSpecs.map(([eventName, handler]) => listen(eventName, handler)),
+      )
+
+      const failedEventNames = []
+      const successfulListeners = []
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          successfulListeners.push(result.value)
+          return
+        }
+        failedEventNames.push(listenerSpecs[index][0])
+      })
 
       if (disposed) {
-        listeners.forEach((unlisten) => unlisten())
+        successfulListeners.forEach((unlisten) => unlisten())
         return
       }
 
-      unlistenFns.push(...listeners)
+      unlistenFns.push(...successfulListeners)
+
+      if (failedEventNames.length > 0) {
+        console.warn(
+          `Failed to register ${failedEventNames.length} Tauri menu listener(s): ${failedEventNames.join(', ')}`,
+        )
+      }
     }
 
     void registerListeners()
