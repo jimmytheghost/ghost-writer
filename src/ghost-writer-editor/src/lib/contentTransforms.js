@@ -28,6 +28,34 @@ export function extractInlinePromptTokens(markdown = '') {
   return tokens
 }
 
+export function extractInlinePromptOverlayRanges(markdown = '') {
+  const ranges = []
+  let searchIndex = 0
+
+  while (searchIndex < markdown.length) {
+    const openIndex = markdown.indexOf('{{', searchIndex)
+    if (openIndex === -1) break
+
+    const closeIndex = markdown.indexOf('}}', openIndex + 2)
+    if (closeIndex === -1) {
+      ranges.push({
+        start: openIndex,
+        end: markdown.length,
+      })
+      break
+    }
+
+    ranges.push({
+      start: openIndex,
+      end: closeIndex + 2,
+    })
+
+    searchIndex = closeIndex + 2
+  }
+
+  return ranges
+}
+
 export function hasInlinePromptTokens(markdown = '') {
   return extractInlinePromptTokens(markdown).length > 0
 }

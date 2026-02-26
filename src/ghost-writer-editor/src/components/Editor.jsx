@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { extractInlinePromptTokens } from '../lib/contentTransforms'
+import { extractInlinePromptOverlayRanges } from '../lib/contentTransforms'
 import { getMisspelledRanges, isSpellcheckReady, preloadSpellcheck } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
@@ -264,15 +264,15 @@ function Editor({
 
   const inlinePromptOverlay = useMemo(() => {
     if (useLightweightOverlays) return null
-    const tokens = extractInlinePromptTokens(text)
-    if (!tokens.length) return null
+    const ranges = extractInlinePromptOverlayRanges(text)
+    if (!ranges.length) return null
 
     const nodes = []
     let cursor = 0
 
-    tokens.forEach((token, index) => {
-      const start = Math.max(0, Math.min(token.start, text.length))
-      const end = Math.max(start, Math.min(token.end, text.length))
+    ranges.forEach((range, index) => {
+      const start = Math.max(0, Math.min(range.start, text.length))
+      const end = Math.max(start, Math.min(range.end, text.length))
 
       if (start > cursor) {
         nodes.push(

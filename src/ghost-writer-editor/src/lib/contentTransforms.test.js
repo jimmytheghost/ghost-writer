@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   collectCheckboxLineIndexes,
+  extractInlinePromptOverlayRanges,
   extractInlinePromptTokens,
   hasInlinePromptTokens,
   normalizeCustomCheckboxLines,
@@ -68,6 +69,29 @@ describe('content transforms', () => {
     expect(hasInlinePromptTokens(markdown)).toBe(true)
     expect(extractInlinePromptTokens(markdown)[0]?.innerText).toBe('line one\nline two')
     expect(hasInlinePromptTokens('No tokens here')).toBe(false)
+  })
+
+  it('extracts inline prompt overlay ranges for closed and open tokens', () => {
+    const markdown = 'A {{closed}} B {{open token'
+    expect(extractInlinePromptOverlayRanges(markdown)).toEqual([
+      {
+        start: 2,
+        end: 12,
+      },
+      {
+        start: 15,
+        end: markdown.length,
+      },
+    ])
+  })
+
+  it('extracts inline prompt overlay range immediately after open braces', () => {
+    expect(extractInlinePromptOverlayRanges('{{')).toEqual([
+      {
+        start: 0,
+        end: 2,
+      },
+    ])
   })
 
   it('strips inline prompt tokens for presentation while preserving unmatched braces', () => {
