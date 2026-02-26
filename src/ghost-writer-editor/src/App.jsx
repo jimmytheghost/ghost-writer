@@ -26,6 +26,7 @@ import {
   markRendererInteractive,
   openMarkdownWithNativeDialog,
   openExternalUrl,
+  renameMarkdownFileWithNativeDialog,
   saveMarkdownToPath,
   saveMarkdownWithNativeDialog,
   saveTextFileWithNativeDialog,
@@ -443,6 +444,68 @@ function App() {
     createAndActivateTab()
   }, [createAndActivateTab])
 
+  const handleDuplicate = useCallback(() => {
+    if (!activeTab) return
+
+    const baseDuplicateTab = createNewTab(nextUntitledIndex)
+    const sourceTitle = stripExtension(activeTab.title || 'untitled').trim() || 'untitled'
+    const duplicateTitle = ensureMarkdownFileName(`${sourceTitle} copy`)
+    const duplicateContent = activeTab.content ?? ''
+    const duplicateTab = {
+      ...baseDuplicateTab,
+      title: duplicateTitle,
+      content: duplicateContent,
+      filePath: '',
+      lastSavedContent: '',
+      isDirty: duplicateContent.trim().length > 0,
+    }
+
+    setTabs((currentTabs) => [...currentTabs, duplicateTab])
+    setNextUntitledIndex((current) => current + 1)
+    setActiveTabId(duplicateTab.id)
+    setSelectionRangesByTab((currentRanges) => ({
+      ...currentRanges,
+      [duplicateTab.id]: { start: 0, end: 0 },
+    }))
+  }, [activeTab, nextUntitledIndex])
+
+  const handleRename = useCallback(async () => {
+    if (!activeTabId) return
+
+    if (isDesktopRuntime() && activeTab?.filePath) {
+      const currentFileName = ensureMarkdownFileName(fileNameFromPath(activeTab.filePath))
+      const renamedPath = await renameMarkdownFileWithNativeDialog(activeTab.filePath, currentFileName)
+      if (!renamedPath) return
+
+      const renamedTitle = ensureMarkdownFileName(fileNameFromPath(renamedPath))
+      setTabs((currentTabs) =>
+        currentTabs.map((tab) => {
+          if (tab.id !== activeTabId) return tab
+          return {
+            ...tab,
+            title: renamedTitle,
+            filePath: renamedPath,
+          }
+        }),
+      )
+      return
+    }
+
+    const currentTitle = activeTab?.title || 'untitled.md'
+    const nextTitle = window.prompt('Rename document', currentTitle)
+    if (typeof nextTitle !== 'string') return
+    const safeTitle = ensureMarkdownFileName(nextTitle)
+    setTabs((currentTabs) =>
+      currentTabs.map((tab) => {
+        if (tab.id !== activeTabId) return tab
+        return {
+          ...tab,
+          title: safeTitle,
+        }
+      }),
+    )
+  }, [activeTab, activeTabId])
+
   const handleTabSelect = useCallback((tabId) => {
     setActiveTabId(tabId)
   }, [])
@@ -830,7 +893,7 @@ function App() {
     setIsPreviewOpen(true)
   }, [])
 
-  const handleShowMarkdown = useCallback(() => {
+  const handleShowTextEdit = useCallback(() => {
     setIsPreviewOpen(false)
   }, [])
 
@@ -992,12 +1055,14 @@ ${escapeLatex(exportMarkdownSource)}
   useTauriMenuEvents({
     onNew: handleNew,
     onOpen: handleLoadClick,
+    onDuplicate: handleDuplicate,
+    onRename: handleRename,
     onOpenRecent: handleOpenRecent,
     onOpenRecentError: handleOpenRecentError,
     onSave: handleSaveClick,
     onPrint: handlePrintClick,
     onShowPreview: handleShowPreview,
-    onShowMarkdown: handleShowMarkdown,
+    onShowTextEdit: handleShowTextEdit,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,

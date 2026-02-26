@@ -65,6 +65,20 @@ export async function saveMarkdownToPath(content, path) {
   }
 }
 
+export async function renameMarkdownFileWithNativeDialog(currentPath, suggestedName) {
+  if (!isDesktopRuntime()) return null
+
+  try {
+    return await invoke('rename_markdown_file_with_dialog', {
+      currentPath,
+      suggestedName,
+    })
+  } catch (error) {
+    console.warn('Failed to rename markdown file with native dialog:', error)
+    return null
+  }
+}
+
 export async function saveTextFileWithNativeDialog({
   content,
   suggestedName,

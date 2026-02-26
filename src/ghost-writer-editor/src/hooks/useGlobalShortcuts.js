@@ -16,6 +16,7 @@ export function useGlobalShortcuts({
       const hasMod = event.metaKey || event.ctrlKey
 
       if (hasMod && !event.altKey && key === 's') {
+        if (event.shiftKey) return
         event.preventDefault()
         saveActionRef.current?.()
         return

@@ -105,6 +105,9 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_new = MenuItem::with_id(app, "file_new", "New", true, Some("CmdOrCtrl+N"))?;
     let file_open = MenuItem::with_id(app, "file_open", "Open", true, Some("CmdOrCtrl+O"))?;
     let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
+    let file_duplicate =
+        MenuItem::with_id(app, "file_duplicate", "Duplicate", true, Some("CmdOrCtrl+Shift+S"))?;
+    let file_rename = MenuItem::with_id(app, "file_rename", "Rename", true, None::<&str>)?;
     let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
     let open_recent_menu = build_open_recent_menu(app)?;
@@ -145,7 +148,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     let view_preview =
         MenuItem::with_id(app, "view_preview", "Preview", true, Some("CmdOrCtrl+M"))?;
-    let view_markdown = MenuItem::with_id(app, "view_markdown", "Markdown", true, None::<&str>)?;
+    let view_text_edit = MenuItem::with_id(app, "view_text_edit", "Text Edit", true, None::<&str>)?;
     let view_toggle_footer = MenuItem::with_id(
         app,
         "view_toggle_footer",
@@ -177,6 +180,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[
             &file_new,
             &file_save,
+            &file_duplicate,
+            &file_rename,
             &file_open,
             &open_recent_menu,
             &export_menu,
@@ -205,7 +210,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         &[
             &view_preview,
-            &view_markdown,
+            &view_text_edit,
             &view_toggle_footer,
             &view_toggle_tab_bar,
             &view_pin_top,
@@ -314,6 +319,53 @@ fn save_text_file_with_dialog(
 
     fs::write(&path, content).map_err(|error| error.to_string())?;
     Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
+fn rename_markdown_file_with_dialog(
+    app: tauri::AppHandle,
+    current_path: String,
+    suggested_name: String,
+) -> Result<Option<String>, String> {
+    let trimmed = current_path.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    let source_path = PathBuf::from(trimmed);
+    if !source_path.exists() {
+        return Err("Source file does not exist.".to_string());
+    }
+
+    let safe_name = if suggested_name.trim().is_empty() {
+        source_path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("untitled.md")
+            .to_string()
+    } else {
+        suggested_name
+    };
+
+    let mut dialog = rfd::FileDialog::new()
+        .set_file_name(&safe_name)
+        .add_filter("Markdown", &["md"]);
+    if let Some(parent) = source_path.parent() {
+        dialog = dialog.set_directory(parent);
+    }
+
+    let selected_path: Option<PathBuf> = dialog.save_file();
+    let Some(destination_path) = selected_path else {
+        return Ok(None);
+    };
+
+    if destination_path == source_path {
+        return Ok(Some(source_path.to_string_lossy().into_owned()));
+    }
+
+    fs::rename(&source_path, &destination_path).map_err(|error| error.to_string())?;
+    push_recent_file_path(&app, &destination_path);
+    Ok(Some(destination_path.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
@@ -617,6 +669,7 @@ fn main() {
             save_markdown_file,
             save_markdown_to_path,
             save_text_file_with_dialog,
+            rename_markdown_file_with_dialog,
             open_markdown_file,
             load_markdown_files_by_paths,
             open_external_url,
@@ -645,6 +698,8 @@ fn main() {
                 "file_new" => emit_menu_event("ghost-writer://menu-new"),
                 "file_open" => emit_menu_event("ghost-writer://menu-open"),
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
+                "file_duplicate" => emit_menu_event("ghost-writer://menu-duplicate"),
+                "file_rename" => emit_menu_event("ghost-writer://menu-rename"),
                 "file_print" => emit_menu_event("ghost-writer://menu-print"),
                 "file_quit" => app.exit(0),
                 "file_export_copy_html" => emit_menu_event("ghost-writer://menu-export-copy-html"),
@@ -685,7 +740,7 @@ fn main() {
                     }
                 }
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
-                "view_markdown" => emit_menu_event("ghost-writer://menu-markdown"),
+                "view_text_edit" => emit_menu_event("ghost-writer://menu-text-edit"),
                 "view_toggle_footer" => emit_menu_event("ghost-writer://menu-toggle-footer"),
                 "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
