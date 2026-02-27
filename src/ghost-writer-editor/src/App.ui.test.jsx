@@ -87,4 +87,28 @@ describe('App UI behaviors', () => {
     expect(document.querySelector('textarea.editor__textarea')).toHaveValue('omega beta omega')
     expect(screen.getByRole('status')).toHaveTextContent('Replaced 2 matches.')
   })
+
+  it('find and replace supports multi-word phrases', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: { value: 'And I definitely didn’t playing API fees for drafting personal essays.' },
+    })
+
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+
+    const findInput = screen.getByLabelText('Find')
+    const replaceInput = screen.getByLabelText('Replace')
+    fireEvent.change(findInput, { target: { value: 'playing API' } })
+    fireEvent.change(replaceInput, { target: { value: 'paying API' } })
+
+    fireEvent.click(screen.getByLabelText('Replace all matches'))
+
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+      'And I definitely didn’t paying API fees for drafting personal essays.',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Replaced 1 match.')
+  })
 })

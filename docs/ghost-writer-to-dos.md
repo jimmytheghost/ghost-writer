@@ -61,4 +61,4 @@
     
 [ ] Parse <-- and --> as ← and →
 
-[ ] Search - Find and Replace
+[x] Search - Find and Replace

@@ -117,6 +117,10 @@ function App() {
   const findInputRef = useRef(null)
   const lastPersistedSessionRef = useRef({ paths: [], activePath: '' })
 
+  const escapeFindQueryForRegex = useCallback((query) => {
+    return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }, [])
+
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeContent = activeTab?.content ?? ''
@@ -137,21 +141,26 @@ function App() {
   const findMatchRanges = useCallback(
     (content, query) => {
       if (!query) return []
-      const source = isFindCaseSensitive ? content : content.toLowerCase()
-      const target = isFindCaseSensitive ? query : query.toLowerCase()
-      if (!target) return []
+      const normalizedQuery = query.trim()
+      if (!normalizedQuery) return []
+
+      const escapedQuery = escapeFindQueryForRegex(normalizedQuery)
+      const whitespaceFlexiblePattern = escapedQuery.replace(/\s+/g, '\\s+')
+      const flags = isFindCaseSensitive ? 'g' : 'gi'
+      const regex = new RegExp(whitespaceFlexiblePattern, flags)
 
       const ranges = []
-      let startIndex = 0
-      while (startIndex <= source.length - target.length) {
-        const matchIndex = source.indexOf(target, startIndex)
-        if (matchIndex === -1) break
-        ranges.push({ start: matchIndex, end: matchIndex + target.length })
-        startIndex = matchIndex + target.length
+      let match = regex.exec(content)
+      while (match) {
+        const start = match.index ?? -1
+        const matchedText = match[0] ?? ''
+        if (start < 0 || !matchedText.length) break
+        ranges.push({ start, end: start + matchedText.length })
+        match = regex.exec(content)
       }
       return ranges
     },
-    [isFindCaseSensitive],
+    [escapeFindQueryForRegex, isFindCaseSensitive],
   )
 
   const findMatches = useMemo(
@@ -1373,20 +1382,28 @@ ${escapeLatex(exportMarkdownSource)}
                   onChange={(event) => setReplaceQuery(event.target.value)}
                 />
               </label>
-              <label className="find-replace__checkbox" htmlFor="find-replace-case-sensitive">
-                <input
-                  id="find-replace-case-sensitive"
-                  type="checkbox"
-                  checked={isFindCaseSensitive}
-                  onChange={(event) => {
-                    setIsFindCaseSensitive(event.target.checked)
-                    setFindStatusMessage('')
-                  }}
-                />
-                Case sensitive
-              </label>
             </div>
             <div className="find-replace__actions">
+              <div className="find-replace__meta">
+                <label className="find-replace__checkbox" htmlFor="find-replace-case-sensitive">
+                  <input
+                    id="find-replace-case-sensitive"
+                    type="checkbox"
+                    checked={isFindCaseSensitive}
+                    onChange={(event) => {
+                      setIsFindCaseSensitive(event.target.checked)
+                      setFindStatusMessage('')
+                    }}
+                  />
+                  Case sensitive
+                </label>
+                <p className="find-replace__status" role="status" aria-live="polite">
+                  {findStatusMessage ||
+                    (findQuery
+                      ? `${currentFindMatchIndex >= 0 ? currentFindMatchIndex + 1 : 0} of ${findMatches.length} match${findMatches.length === 1 ? '' : 'es'}`
+                      : '')}
+                </p>
+              </div>
               <button
                 type="button"
                 className="find-replace__button"
@@ -1427,12 +1444,6 @@ ${escapeLatex(exportMarkdownSource)}
               >
                 Close
               </button>
-              <p className="find-replace__status" role="status" aria-live="polite">
-                {findStatusMessage ||
-                  (findQuery
-                    ? `${currentFindMatchIndex >= 0 ? currentFindMatchIndex + 1 : 0} of ${findMatches.length} match${findMatches.length === 1 ? '' : 'es'}`
-                    : '')}
-              </p>
             </div>
           </section>
         )}
