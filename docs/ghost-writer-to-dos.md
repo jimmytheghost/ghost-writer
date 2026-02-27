@@ -4,12 +4,12 @@
 
 ## Bugs
 
-[ ] (PC) Around line 10, things start getting buggy with the cursor.  Not is it buggy visually but words start getting jumbled while typing. 
-    - This is an example of what it looks like        |
+[ ] (PC) Around line 10, things start getting buggy with the cursor.  Not is it buggy visually but words start getting jumbled while typing. fds
+- This is an example of what it looks like        |
     
     - (macOS/PC)Text cursor issues also appear on macOS. When a long word has a line break and the cursor deletes the final letters, the word breaks back to the top line while the cursor remains on the bottom line.
 
-[ ] (macOS/PC) In-line spell check doesn't seem to be working.
+[x] (macOS/PC) In-line spell check doesn't seem to be working.
 
 [ ] (macOS/PC) Page scrolling is “synced" between tabs. If tab one scrolls to the bottom of the doc and the user clicks on the second tab, the second tab will be at the bottom of the doc. If the user scrolls to the top of tab 2 and switches back tab 1, it will be at the top of tab 1.
   - Conversely the Markdown preview scroll is *NOT* synced to its respective text window when it should be.

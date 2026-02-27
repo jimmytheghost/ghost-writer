@@ -50,20 +50,36 @@ async function loadSpellChecker() {
         return spellChecker
       }
 
-      const [affUrlModule, dicUrlModule] = await Promise.all([
-        import('dictionary-en-us/index.aff?url'),
-        import('dictionary-en-us/index.dic?url'),
-      ])
-      const [affResponse, dicResponse] = await Promise.all([
-        fetch(affUrlModule.default, { cache: 'force-cache' }),
-        fetch(dicUrlModule.default, { cache: 'force-cache' }),
-      ])
-      if (!affResponse.ok || !dicResponse.ok) {
-        throw new Error('Unable to load spellcheck dictionaries.')
+      try {
+        const [affUrlModule, dicUrlModule] = await Promise.all([
+          import('dictionary-en-us/index.aff?url'),
+          import('dictionary-en-us/index.dic?url'),
+        ])
+        const [affResponse, dicResponse] = await Promise.all([
+          fetch(affUrlModule.default, { cache: 'force-cache' }),
+          fetch(dicUrlModule.default, { cache: 'force-cache' }),
+        ])
+        if (!affResponse.ok || !dicResponse.ok) {
+          throw new Error('Unable to load spellcheck dictionaries.')
+        }
+        const [aff, dic] = await Promise.all([affResponse.text(), dicResponse.text()])
+        spellChecker = new NSpell(aff, dic)
+        return spellChecker
+      } catch (error) {
+        // Some runtimes (notably certain desktop environments) may not support
+        // fetching bundled assets by URL. Fall back to embedding the
+        // dictionaries directly to keep inline spellcheck working.
+        try {
+          const [affModule, dicModule] = await Promise.all([
+            import('dictionary-en-us/index.aff?raw'),
+            import('dictionary-en-us/index.dic?raw'),
+          ])
+          spellChecker = new NSpell(affModule.default, dicModule.default)
+          return spellChecker
+        } catch (fallbackError) {
+          throw fallbackError
+        }
       }
-      const [aff, dic] = await Promise.all([affResponse.text(), dicResponse.text()])
-      spellChecker = new NSpell(aff, dic)
-      return spellChecker
     })
     .catch((error) => {
       spellChecker = null
