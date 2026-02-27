@@ -60,3 +60,5 @@
     - Stretch Goal - For down the line, add a Grammarly like feature where the LLM reads your doc and suggests changes to any problematic text.
     
 [ ] Parse <-- and --> as ← and →
+
+[ ] Search - Find and Replace

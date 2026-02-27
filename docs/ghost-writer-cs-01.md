@@ -108,7 +108,7 @@ You can even chain them creatively:
 
 The document becomes an executable drafting surface. It feels less like messaging an AI and more like leaving notes to yourself — except the notes can resolve instantly.
 
-This was inspired by years of writing screenplays and leaving bracketed notes like “Research what a nurse would actually do here.” Those notes used to sit for days or months. Now they can be resolved immediately.
+This was inspired by years of writing screenplays and leaving bracketed notes like “Research what a nurse would actually do here” or “translate this to Latin." Those notes used to sit for days or months. Now they can be resolved immediately.
 
 ---
 

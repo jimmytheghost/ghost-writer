@@ -67,4 +67,24 @@ describe('App UI behaviors', () => {
     expect(previewContent?.textContent ?? '').not.toContain('hidden inline prompt')
     expect(previewContent?.textContent ?? '').not.toContain('{{')
   })
+
+  it('find and replace updates editor content', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'alpha beta alpha' } })
+
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+
+    const findInput = screen.getByLabelText('Find')
+    const replaceInput = screen.getByLabelText('Replace')
+    fireEvent.change(findInput, { target: { value: 'alpha' } })
+    fireEvent.change(replaceInput, { target: { value: 'omega' } })
+
+    fireEvent.click(screen.getByLabelText('Replace all matches'))
+
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('omega beta omega')
+    expect(screen.getByRole('status')).toHaveTextContent('Replaced 2 matches.')
+  })
 })

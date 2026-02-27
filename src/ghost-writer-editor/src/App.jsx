@@ -93,6 +93,12 @@ function App() {
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
   const [hasLoadedDesktopSettings, setHasLoadedDesktopSettings] = useState(() => !isDesktopRuntime())
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [replaceQuery, setReplaceQuery] = useState('')
+  const [isFindCaseSensitive, setIsFindCaseSensitive] = useState(false)
+  const [findStatusMessage, setFindStatusMessage] = useState('')
+  const [editorFocusRequestId, setEditorFocusRequestId] = useState(0)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -108,14 +114,12 @@ function App() {
   const appRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
+  const findInputRef = useRef(null)
   const lastPersistedSessionRef = useRef({ paths: [], activePath: '' })
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeContent = activeTab?.content ?? ''
-
-  const { models, selectedModel, setSelectedModel, isLoadingModels, modelLoadStatus, loadModels } =
-    useModelLoader({ bundledModels: BUNDLED_MODELS })
 
   const updateTabById = useCallback((tabId, updater) => {
     setTabs((currentTabs) =>
@@ -129,6 +133,182 @@ function App() {
   const setTabContentById = useCallback((tabId, content) => {
     setTabs((currentTabs) => updateTabContent(currentTabs, tabId, content))
   }, [])
+
+  const findMatchRanges = useCallback(
+    (content, query) => {
+      if (!query) return []
+      const source = isFindCaseSensitive ? content : content.toLowerCase()
+      const target = isFindCaseSensitive ? query : query.toLowerCase()
+      if (!target) return []
+
+      const ranges = []
+      let startIndex = 0
+      while (startIndex <= source.length - target.length) {
+        const matchIndex = source.indexOf(target, startIndex)
+        if (matchIndex === -1) break
+        ranges.push({ start: matchIndex, end: matchIndex + target.length })
+        startIndex = matchIndex + target.length
+      }
+      return ranges
+    },
+    [isFindCaseSensitive],
+  )
+
+  const findMatches = useMemo(
+    () => findMatchRanges(activeContent, findQuery),
+    [activeContent, findMatchRanges, findQuery],
+  )
+  const activeSelectionStart = Math.min(selectionRange.start, selectionRange.end)
+  const activeSelectionEnd = Math.max(selectionRange.start, selectionRange.end)
+  const currentFindMatchIndex = useMemo(
+    () =>
+      findMatches.findIndex(
+        (match) => match.start === activeSelectionStart && match.end === activeSelectionEnd,
+      ),
+    [activeSelectionEnd, activeSelectionStart, findMatches],
+  )
+
+  const setActiveSelectionRange = useCallback(
+    (nextRange, shouldFocusEditor = false) => {
+      if (!activeTabId) return
+      setSelectionRangesByTab((currentRanges) => ({
+        ...currentRanges,
+        [activeTabId]: nextRange,
+      }))
+      if (shouldFocusEditor) {
+        setEditorFocusRequestId((current) => current + 1)
+      }
+    },
+    [activeTabId],
+  )
+
+  const jumpToFindMatch = useCallback(
+    (direction = 1) => {
+      if (!findQuery) {
+        setFindStatusMessage('Enter text to find.')
+        return
+      }
+
+      const matches = findMatchRanges(activeContent, findQuery)
+      if (!matches.length) {
+        setFindStatusMessage('No matches found.')
+        return
+      }
+
+      let targetMatch = null
+      if (currentFindMatchIndex >= 0) {
+        const offset = direction >= 0 ? 1 : -1
+        const wrappedIndex =
+          (currentFindMatchIndex + offset + matches.length) % matches.length
+        targetMatch = matches[wrappedIndex]
+      } else if (direction >= 0) {
+        targetMatch = matches.find((match) => match.start >= activeSelectionEnd) ?? matches[0]
+      } else {
+        targetMatch =
+          [...matches].reverse().find((match) => match.end <= activeSelectionStart) ??
+          matches[matches.length - 1]
+      }
+
+      if (!targetMatch) return
+      setActiveSelectionRange(targetMatch, true)
+      setFindStatusMessage('')
+    },
+    [
+      activeContent,
+      activeSelectionEnd,
+      activeSelectionStart,
+      currentFindMatchIndex,
+      findMatchRanges,
+      findQuery,
+      setActiveSelectionRange,
+    ],
+  )
+
+  const handleReplaceOne = useCallback(() => {
+    if (!activeTabId) return
+    if (!findQuery) {
+      setFindStatusMessage('Enter text to find.')
+      return
+    }
+
+    const matches = findMatchRanges(activeContent, findQuery)
+    if (!matches.length) {
+      setFindStatusMessage('No matches found.')
+      return
+    }
+
+    const selectedMatch =
+      matches.find((match) => match.start === activeSelectionStart && match.end === activeSelectionEnd) ??
+      matches.find((match) => match.start >= activeSelectionStart) ??
+      matches[0]
+    if (!selectedMatch) return
+
+    const nextContent =
+      `${activeContent.slice(0, selectedMatch.start)}${replaceQuery}${activeContent.slice(selectedMatch.end)}`
+    setTabContentById(activeTabId, nextContent)
+
+    const nextMatches = findMatchRanges(nextContent, findQuery)
+    if (!nextMatches.length) {
+      const collapsed = selectedMatch.start + replaceQuery.length
+      setActiveSelectionRange({ start: collapsed, end: collapsed }, true)
+      setFindStatusMessage('Replaced 1 match. No more matches found.')
+      return
+    }
+
+    const nextStart = selectedMatch.start + replaceQuery.length
+    const nextSelection = nextMatches.find((match) => match.start >= nextStart) ?? nextMatches[0]
+    setActiveSelectionRange(nextSelection, true)
+    setFindStatusMessage('Replaced 1 match.')
+  }, [
+    activeContent,
+    activeSelectionEnd,
+    activeSelectionStart,
+    activeTabId,
+    findMatchRanges,
+    findQuery,
+    replaceQuery,
+    setActiveSelectionRange,
+    setTabContentById,
+  ])
+
+  const handleReplaceAll = useCallback(() => {
+    if (!activeTabId) return
+    if (!findQuery) {
+      setFindStatusMessage('Enter text to find.')
+      return
+    }
+
+    const matches = findMatchRanges(activeContent, findQuery)
+    if (!matches.length) {
+      setFindStatusMessage('No matches found.')
+      return
+    }
+
+    let cursor = 0
+    let result = ''
+    matches.forEach((match) => {
+      result += activeContent.slice(cursor, match.start)
+      result += replaceQuery
+      cursor = match.end
+    })
+    result += activeContent.slice(cursor)
+
+    setTabContentById(activeTabId, result)
+    const endPosition = Math.max(0, result.length)
+    setActiveSelectionRange({ start: endPosition, end: endPosition }, true)
+    setFindStatusMessage(`Replaced ${matches.length} match${matches.length === 1 ? '' : 'es'}.`)
+  }, [
+    activeContent,
+    activeTabId,
+    findMatchRanges,
+    findQuery,
+    replaceQuery,
+    setActiveSelectionRange,
+    setTabContentById,
+  ])
+
+  const { models, selectedModel, setSelectedModel, isLoadingModels, modelLoadStatus, loadModels } =
+    useModelLoader({ bundledModels: BUNDLED_MODELS })
 
   const getActiveTab = useCallback(() => {
     return tabs.find((tab) => tab.id === activeTabId) ?? null
@@ -842,6 +1022,30 @@ function App() {
     setIsTabBarVisible((previous) => !previous)
   }, [])
 
+  const handleShowFindReplace = useCallback(() => {
+    if (!activeTabId) return
+    const selectedText =
+      selectionRange.start !== selectionRange.end
+        ? activeContent.slice(
+            Math.min(selectionRange.start, selectionRange.end),
+            Math.max(selectionRange.start, selectionRange.end),
+          )
+        : ''
+
+    if (selectedText) {
+      setFindQuery(selectedText)
+    }
+    setFindStatusMessage('')
+    setIsPreviewOpen(false)
+    setIsFindReplaceOpen(true)
+  }, [activeContent, activeTabId, selectionRange.end, selectionRange.start])
+
+  const handleCloseFindReplace = useCallback(() => {
+    setIsFindReplaceOpen(false)
+    setFindStatusMessage('')
+    setEditorFocusRequestId((current) => current + 1)
+  }, [])
+
   const handleThemeToggle = useCallback(() => {
     const nextTheme = isDark ? 'light' : 'dark'
     void updateSetting('defaultTheme', nextTheme)
@@ -989,6 +1193,7 @@ ${escapeLatex(exportMarkdownSource)}
     onTogglePreview: handleTogglePreview,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
+    onShowFindReplace: handleShowFindReplace,
   })
 
   useTauriMenuEvents({
@@ -1041,8 +1246,36 @@ ${escapeLatex(exportMarkdownSource)}
     onExportLatex: () => {
       void handleExportLatex()
     },
+    onShowFindReplace: handleShowFindReplace,
     onShowAbout: () => setIsAboutOpen(true),
   })
+
+  useEffect(() => {
+    if (!isFindReplaceOpen) return
+
+    const frameId = requestAnimationFrame(() => {
+      if (!findInputRef.current) return
+      findInputRef.current.focus()
+      findInputRef.current.select()
+    })
+
+    return () => cancelAnimationFrame(frameId)
+  }, [isFindReplaceOpen])
+
+  useEffect(() => {
+    if (!isFindReplaceOpen) return
+
+    const handleEscapeKey = (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      handleCloseFindReplace()
+    }
+
+    window.addEventListener('keydown', handleEscapeKey)
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKey)
+    }
+  }, [handleCloseFindReplace, isFindReplaceOpen])
 
   useEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
@@ -1108,9 +1341,101 @@ ${escapeLatex(exportMarkdownSource)}
               showSelectionOverlay={isPromptFocused}
               spellCheckEnabled={isSpellCheckEnabled}
               textZoomPercent={editorTextZoomPercent}
+              externalSelectionRange={selectionRange}
+              focusRequestId={editorFocusRequestId}
             />
           )}
         </div>
+        {isFindReplaceOpen && !isPreviewOpen && (
+          <section className={`find-replace${isDark ? ' find-replace--dark' : ''}`} aria-label="Find and replace panel">
+            <div className="find-replace__row">
+              <label className="find-replace__field" htmlFor="find-replace-find-input">
+                <span className="find-replace__label">Find</span>
+                <input
+                  id="find-replace-find-input"
+                  ref={findInputRef}
+                  className="find-replace__input"
+                  type="text"
+                  value={findQuery}
+                  onChange={(event) => {
+                    setFindQuery(event.target.value)
+                    setFindStatusMessage('')
+                  }}
+                />
+              </label>
+              <label className="find-replace__field" htmlFor="find-replace-replace-input">
+                <span className="find-replace__label">Replace</span>
+                <input
+                  id="find-replace-replace-input"
+                  className="find-replace__input"
+                  type="text"
+                  value={replaceQuery}
+                  onChange={(event) => setReplaceQuery(event.target.value)}
+                />
+              </label>
+              <label className="find-replace__checkbox" htmlFor="find-replace-case-sensitive">
+                <input
+                  id="find-replace-case-sensitive"
+                  type="checkbox"
+                  checked={isFindCaseSensitive}
+                  onChange={(event) => {
+                    setIsFindCaseSensitive(event.target.checked)
+                    setFindStatusMessage('')
+                  }}
+                />
+                Case sensitive
+              </label>
+            </div>
+            <div className="find-replace__actions">
+              <button
+                type="button"
+                className="find-replace__button"
+                onClick={() => jumpToFindMatch(-1)}
+                aria-label="Find previous match"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="find-replace__button"
+                onClick={() => jumpToFindMatch(1)}
+                aria-label="Find next match"
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="find-replace__button"
+                onClick={handleReplaceOne}
+                aria-label="Replace current match"
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                className="find-replace__button"
+                onClick={handleReplaceAll}
+                aria-label="Replace all matches"
+              >
+                Replace All
+              </button>
+              <button
+                type="button"
+                className="find-replace__button"
+                onClick={handleCloseFindReplace}
+                aria-label="Close find and replace"
+              >
+                Close
+              </button>
+              <p className="find-replace__status" role="status" aria-live="polite">
+                {findStatusMessage ||
+                  (findQuery
+                    ? `${currentFindMatchIndex >= 0 ? currentFindMatchIndex + 1 : 0} of ${findMatches.length} match${findMatches.length === 1 ? '' : 'es'}`
+                    : '')}
+              </p>
+            </div>
+          </section>
+        )}
         {!isPreviewOpen && (
           <PromptPanel
             isDark={isDark}

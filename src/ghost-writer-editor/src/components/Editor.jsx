@@ -193,6 +193,8 @@ function Editor({
   onPromptOpen,
   onSelectionChange,
   selectionRange,
+  externalSelectionRange,
+  focusRequestId = 0,
   showSelectionOverlay,
   spellCheckEnabled = false,
   textZoomPercent = 100,
@@ -345,6 +347,37 @@ function Editor({
     if (!textarea) return
     setContentHeight(textarea.scrollHeight)
   }, [value])
+
+  useEffect(() => {
+    if (!externalSelectionRange) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const nextStart = Math.max(
+      0,
+      Math.min(
+        Number.isFinite(Number(externalSelectionRange.start)) ? Number(externalSelectionRange.start) : 0,
+        (value ?? '').length,
+      ),
+    )
+    const nextEnd = Math.max(
+      0,
+      Math.min(
+        Number.isFinite(Number(externalSelectionRange.end)) ? Number(externalSelectionRange.end) : nextStart,
+        (value ?? '').length,
+      ),
+    )
+
+    if (textarea.selectionStart === nextStart && textarea.selectionEnd === nextEnd) return
+    textarea.setSelectionRange(nextStart, nextEnd)
+  }, [externalSelectionRange, value])
+
+  useEffect(() => {
+    if (!focusRequestId) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.focus()
+  }, [focusRequestId])
 
   const getSelectionRange = () => {
     const textarea = textareaRef.current

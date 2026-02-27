@@ -69,6 +69,15 @@ describe('App keyboard shortcuts', () => {
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('opens find and replace panel with Ctrl+F', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+
+    expect(screen.getByLabelText('Find and replace panel')).toBeInTheDocument()
+    expect(screen.getByLabelText('Find previous match')).toBeInTheDocument()
+  })
+
   it('selects all editor content with Ctrl+A', () => {
     render(<App />)
 

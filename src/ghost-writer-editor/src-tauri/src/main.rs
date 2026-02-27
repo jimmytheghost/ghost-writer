@@ -173,6 +173,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         MenuItem::with_id(app, "settings_word_list", "Word List", true, None::<&str>)?;
     let settings_text_zoom =
         MenuItem::with_id(app, "settings_text_zoom", "Text Zoom", true, None::<&str>)?;
+    let edit_find_replace = MenuItem::with_id(
+        app,
+        "edit_find_replace",
+        "Find & Replace",
+        true,
+        Some("CmdOrCtrl+F"),
+    )?;
 
     let ghost_writer_menu = Submenu::with_items(app, "Ghost Writer", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
@@ -199,6 +206,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[
             &PredefinedMenuItem::undo(app, None::<&str>)?,
             &PredefinedMenuItem::redo(app, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &edit_find_replace,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::cut(app, None::<&str>)?,
             &PredefinedMenuItem::copy(app, None::<&str>)?,
@@ -974,6 +983,7 @@ fn main() {
                 "file_export_rtf" => emit_menu_event("ghost-writer://menu-export-rtf"),
                 "file_export_word" => emit_menu_event("ghost-writer://menu-export-word"),
                 "file_export_latex" => emit_menu_event("ghost-writer://menu-export-latex"),
+                "edit_find_replace" => emit_menu_event("ghost-writer://menu-find-replace"),
                 id if id.starts_with(OPEN_RECENT_PREFIX) => {
                     if id == OPEN_RECENT_EMPTY_ITEM_ID {
                         return;

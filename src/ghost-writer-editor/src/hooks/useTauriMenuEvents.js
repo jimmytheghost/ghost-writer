@@ -27,6 +27,7 @@ export function useTauriMenuEvents({
   onExportWord,
   onExportLatex,
   onShowAbout,
+  onShowFindReplace,
 }) {
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined
@@ -59,6 +60,7 @@ export function useTauriMenuEvents({
         ['ghost-writer://menu-export-rtf', () => onExportRtf()],
         ['ghost-writer://menu-export-word', () => onExportWord()],
         ['ghost-writer://menu-export-latex', () => onExportLatex()],
+        ['ghost-writer://menu-find-replace', () => onShowFindReplace()],
         ['ghost-writer://menu-about', () => onShowAbout()],
       ]
 
@@ -119,6 +121,7 @@ export function useTauriMenuEvents({
     onExportRtf,
     onExportWord,
     onExportLatex,
+    onShowFindReplace,
     onToggleAlwaysOnTop,
     onToggleFooter,
     onToggleTabBar,

@@ -10,6 +10,7 @@ export function useGlobalShortcuts({
   onTogglePreview,
   onToggleFooter,
   onToggleTabBar,
+  onShowFindReplace,
 }) {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -26,6 +27,12 @@ export function useGlobalShortcuts({
       if (hasMod && !event.altKey && key === 'o') {
         event.preventDefault()
         openActionRef.current?.()
+        return
+      }
+
+      if (hasMod && !event.altKey && key === 'f') {
+        event.preventDefault()
+        onShowFindReplace()
         return
       }
 
@@ -82,6 +89,7 @@ export function useGlobalShortcuts({
     onToggleFooter,
     onToggleTabBar,
     onTogglePreview,
+    onShowFindReplace,
     openActionRef,
     printActionRef,
     saveActionRef,
