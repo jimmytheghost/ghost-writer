@@ -1,7 +1,6 @@
 # Ghost Writer
 
-Ghost Writer is a local-first markdown writing app with built-in Ollama assistance.
-It is designed for fast drafting, rewriting, and iterative editing without leaving the editor.
+Ghost Writer is a local-first, distraction-free Markdown editor that embeds AI assistance directly into the writing workflow using on-device LLMs via Ollama.
 
 ## Highlights
 
