@@ -91,7 +91,7 @@ describe('App desktop save flow', () => {
     expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
   })
 
-  it('rejects oversized native desktop file loads', async () => {
+  it('allows oversized native desktop file loads', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/large.md',
       content: 'a'.repeat(2 * 1024 * 1024 + 1),
@@ -103,7 +103,11 @@ describe('App desktop save flow', () => {
     fireEvent.click(screen.getByLabelText('Load document'))
 
     await waitFor(() => {
-      expect(screen.getByText('Selected file is too large. Please use a file smaller than 2 MB.')).toBeInTheDocument()
+      expect(screen.queryByText('Selected file is too large. Please use a file smaller than 2 MB.')).not.toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to large' })).toBeInTheDocument()
     })
   })
 

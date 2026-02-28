@@ -21,7 +21,6 @@ const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const MAX_RECENT_FILES: usize = 10;
-const MAX_LOAD_FILE_SIZE_BYTES: u64 = 2 * 1024 * 1024;
 const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
 const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
 
@@ -437,13 +436,6 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
         return Err("Only Markdown (.md) files can be opened.".to_string());
     }
 
-    if is_file_larger_than_limit(&path)? {
-        return Err(format!(
-            "Selected file is too large. Please use a file smaller than {} MB.",
-            MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
-        ));
-    }
-
     let content = fs::read_to_string(&path).map_err(|error| error.to_string())?;
     push_recent_file_path(&app, &path);
     Ok(Some(OpenRecentPayload {
@@ -464,13 +456,6 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
 
         let path = PathBuf::from(trimmed);
         if !has_markdown_extension(&path) {
-            continue;
-        }
-        let is_too_large = match is_file_larger_than_limit(&path) {
-            Ok(value) => value,
-            Err(_) => continue,
-        };
-        if is_too_large {
             continue;
         }
 
@@ -604,11 +589,6 @@ fn has_markdown_extension(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn is_file_larger_than_limit(path: &PathBuf) -> Result<bool, String> {
-    let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
-    Ok(metadata.len() > MAX_LOAD_FILE_SIZE_BYTES)
-}
-
 fn build_recent_item_label(path: &str) -> String {
     let path_buf = PathBuf::from(path);
     let file_name = path_buf
@@ -701,23 +681,6 @@ fn load_recent_file_by_index(
             refresh_app_menu(app);
         }
         return Err("Recent file is not a Markdown file.".to_string());
-    }
-    match is_file_larger_than_limit(&path_buf) {
-        Ok(true) => {
-            return Err(format!(
-                "Recent file is too large. Please use a file smaller than {} MB.",
-                MAX_LOAD_FILE_SIZE_BYTES / (1024 * 1024)
-            ));
-        }
-        Ok(false) => {}
-        Err(_) => {
-            let mut next_settings = settings.clone();
-            next_settings.recent_files.retain(|entry| entry != &path);
-            if write_settings(app, &next_settings).is_ok() {
-                refresh_app_menu(app);
-            }
-            return Err("Recent file entry no longer exists.".to_string());
-        }
     }
 
     let content = match fs::read_to_string(&path) {

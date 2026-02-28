@@ -60,7 +60,7 @@ describe('App error paths', () => {
     })
   })
 
-  it('rejects files larger than 2MB on load', async () => {
+  it('allows files larger than 2MB on load', async () => {
     render(<App />)
 
     const input = document.querySelector('input[type="file"]')
@@ -73,7 +73,11 @@ describe('App error paths', () => {
     fireEvent.change(input, { target: { files: [oversized] } })
 
     await waitFor(() => {
-      expect(screen.getByText('Selected file is too large. Please use a file smaller than 2 MB.')).toBeInTheDocument()
+      expect(screen.queryByText('Selected file is too large. Please use a file smaller than 2 MB.')).not.toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(document.querySelector('textarea.editor__textarea')?.value.length).toBe(2 * 1024 * 1024 + 1)
     })
   })
 })
