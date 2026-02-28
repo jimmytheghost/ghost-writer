@@ -118,4 +118,46 @@ describe('Editor input behavior', () => {
     expect(textarea).toHaveValue('*example*')
   })
 
+  it('indents a newly continued unordered list item when pressing Tab', () => {
+    render(<InteractiveEditor initialValue="- parent" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange('- parent'.length, '- parent'.length)
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(textarea).toHaveValue('- parent\n- ')
+
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    fireEvent.keyDown(textarea, { key: 'Tab' })
+    expect(textarea).toHaveValue('- parent\n  - ')
+  })
+
+  it('continues an indented unordered list item on Enter and un-indents on Backspace', () => {
+    render(<InteractiveEditor initialValue="  - child" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange('  - child'.length, '  - child'.length)
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(textarea).toHaveValue('  - child\n  - ')
+
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    fireEvent.keyDown(textarea, { key: 'Backspace' })
+    expect(textarea).toHaveValue('  - child\n- ')
+  })
+
+  it('converts ordered list continuation to indented bullet when pressing Tab', () => {
+    render(<InteractiveEditor initialValue="1. first" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange('1. first'.length, '1. first'.length)
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(textarea).toHaveValue('1. first\n2. ')
+
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+    fireEvent.keyDown(textarea, { key: 'Tab' })
+    expect(textarea).toHaveValue('1. first\n  - ')
+  })
+
 })

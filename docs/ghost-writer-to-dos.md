@@ -51,8 +51,8 @@
 
 
 
-[ ] (macOS/PC) When a user is in list mode and returns to new line, a new - is created. This is great. But we need to make it if the user then hits "tab" the new  - indents with the text.
-   - Similarly, if they are in list mode and in a tabbed list item and hit return, then a new tabbed - is created -- if the user hits "backspace" it should un-indent the -.
+[ ] (macOS/PC) When a user is in list mode and returns to new line, a new - is created. This is great. But we need to make it so if the user then hits "tab" the new  - indents with the text.
+   - Similarly, if they are in list mode and in a tabbed list item and hit return, then a new tabbed - should be created indented properly-- if the user hits "backspace" it should un-indent the -. 
 
 [ ] (macOS/PC) Related to the previous - Ordered/Numbered lists, when the user returns to the next line and indents, it should create an indented - tab.
    

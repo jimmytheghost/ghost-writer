@@ -5,7 +5,7 @@ import { getMisspelledRanges, isSpellcheckReady, preloadSpellcheck } from '../li
 const INDENT_UNIT = '  '
 const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
 const OVERLAY_HEAVY_LINE_LIMIT = 2_500
-const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)\s(?:\[(?: |x|X)\]\s)?(.*)$/
+const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)(\s+)(\[(?: |x|X)\]\s)?(.*)$/
 const INLINE_TOKEN_PATTERN =
   /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|<https?:\/\/[^>]+>|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_/g
 
@@ -524,7 +524,7 @@ function Editor({
 
       if (event.key === 'Enter' && !hasRangeSelection && listMatch) {
         event.preventDefault()
-        const [, indentation, marker, itemText] = listMatch
+        const [, indentation, marker, markerSpacing = ' ', checkboxPrefix = '', itemText] = listMatch
         const beforeLine = text.slice(0, lineStart)
         const afterLine = text.slice(lineEnd)
         const isEmptyItem = itemText.trim().length === 0
@@ -544,7 +544,7 @@ function Editor({
         const nextMarker = marker.endsWith('.')
           ? `${Number.parseInt(marker, 10) + 1}.`
           : marker
-        const inserted = `\n${indentation}${nextMarker} `
+        const inserted = `\n${indentation}${nextMarker}${markerSpacing}${checkboxPrefix}`
         const nextValue = `${text.slice(0, end)}${inserted}${text.slice(end)}`
         const nextPosition = end + inserted.length
         onChange?.(nextValue)
@@ -557,9 +557,16 @@ function Editor({
       }
 
       if (event.key === 'Backspace' && !hasRangeSelection && listMatch) {
-        const [, indentation] = listMatch
+        const [, indentation, marker = '-', markerSpacing = ' ', checkboxPrefix = '', itemText] = listMatch
         const markerOffset = lineStart + indentation.length
-        if ((start === markerOffset || start === lineStart) && indentation.length > 0) {
+        const markerTailOffset = markerOffset + marker.length + markerSpacing.length + checkboxPrefix.length
+        const isEmptyListItem = itemText.trim().length === 0
+        if (
+          indentation.length > 0 &&
+          (start === markerOffset ||
+            start === lineStart ||
+            (isEmptyListItem && start >= markerOffset && start <= markerTailOffset))
+        ) {
           event.preventDefault()
           const removeCount = Math.min(INDENT_UNIT.length, indentation.length)
           const nextValue = `${text.slice(0, lineStart)}${indentation.slice(removeCount)}${text.slice(markerOffset)}`
@@ -578,6 +585,26 @@ function Editor({
         event.preventDefault()
         const selectedText = text.slice(start, end)
         const hasMultiLineSelection = selectedText.includes('\n')
+
+        if (!event.shiftKey && !hasMultiLineSelection && !hasRangeSelection && listMatch) {
+          const [, indentation, marker = '-', markerSpacing = ' ', checkboxPrefix = '', itemText] = listMatch
+          const nestedMarker = marker.endsWith('.') ? '-' : marker
+          const nextLine = `${indentation}${INDENT_UNIT}${nestedMarker}${markerSpacing}${checkboxPrefix}${itemText}`
+          const nextValue = `${text.slice(0, lineStart)}${nextLine}${text.slice(lineEnd)}`
+          const caretShift = nextLine.length - lineText.length
+          const nextPosition = Math.max(lineStart, Math.min(text.length + caretShift, start + caretShift))
+          onChange?.(nextValue)
+
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({
+              selectionStart: nextPosition,
+              selectionEnd: nextPosition,
+            })
+          })
+          return
+        }
 
         if (!event.shiftKey && !hasMultiLineSelection && !hasRangeSelection) {
           const nextValue = `${text.slice(0, start)}${INDENT_UNIT}${text.slice(end)}`
