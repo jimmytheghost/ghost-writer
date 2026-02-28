@@ -132,7 +132,7 @@ Even with a launch script, navigating to a project folder and spinning up a brow
 
 Once I realized packaging it as a proper desktop app was achievable, that became the milestone. I wanted a “real app” with an icon. Something that lived alongside the tools I already trusted.
 
-Ghost Writer is built with Tauri rather than Electron. An early Electron MVP was roughly 80mb before most features were even added. Ghost Writer’s current build is approximately 3-5mb.
+Ghost Writer is built with Tauri rather than Electron. An early Electron MVP was roughly 80mb before most features were even added. Ghost Writer’s current build is approximately 3–5MB.
 
 Tauri is not perfect. Some browser behaviors do not translate one-to-one. Packaging takes iteration. But the size difference makes it more than worth it.
 
@@ -176,7 +176,7 @@ The loop looked like this:
 
 Plan → Build → Manual Test → Audit → Refactor → Re-test → Commit.
 
-Multiple agents auditing the same codebase reduced blind spots. Switching systems increased reproducibility. Persistance replaced guesswork.
+Multiple agents auditing the same codebase reduced blind spots. Switching systems increased reproducibility. Persistence replaced guesswork.
 
 The value here is not that I typed code. It is that I orchestrated architecture, scope, quality control, and UX integrity through AI systems.
 
