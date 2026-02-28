@@ -102,6 +102,21 @@ describe('App keyboard shortcuts', () => {
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('closes all tabs with Ctrl+Shift+W and keeps one fresh tab', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(window, { key: 'w', ctrlKey: true, shiftKey: true })
+
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs).toHaveLength(1)
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 4' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('toggles footer collapsed/open with Ctrl+Shift+B', () => {
     render(<App />)
     expect(screen.getByLabelText('Expand footer controls')).toBeInTheDocument()

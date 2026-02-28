@@ -107,6 +107,30 @@ describe('App desktop save flow', () => {
     })
   })
 
+  it('opens desktop-loaded files in a new tab instead of replacing current tab', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-two.md',
+      content: 'Loaded file content',
+    })
+
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Keep this in original tab' } })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-two' })).toHaveAttribute('aria-selected', 'true')
+    })
+    expect(screen.getByRole('tab', { name: /Switch to Untitled\*?/ })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Switch to Untitled\*?/ }))
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('Keep this in original tab')
+  })
+
   it('persists theme changes from footer toggle', async () => {
     render(<App />)
 

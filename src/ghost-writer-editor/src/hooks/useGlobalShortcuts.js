@@ -5,6 +5,7 @@ export function useGlobalShortcuts({
   openActionRef,
   newActionRef,
   closeActionRef,
+  closeAllActionRef,
   printActionRef,
   onToggleAlwaysOnTop,
   onTogglePreview,
@@ -44,6 +45,10 @@ export function useGlobalShortcuts({
 
       if (hasMod && !event.altKey && key === 'w') {
         event.preventDefault()
+        if (event.shiftKey) {
+          closeAllActionRef.current?.()
+          return
+        }
         closeActionRef.current?.()
         return
       }
@@ -84,6 +89,7 @@ export function useGlobalShortcuts({
     }
   }, [
     closeActionRef,
+    closeAllActionRef,
     newActionRef,
     onToggleAlwaysOnTop,
     onToggleFooter,

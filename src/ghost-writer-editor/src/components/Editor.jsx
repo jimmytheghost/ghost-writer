@@ -671,6 +671,18 @@ function Editor({
         return
       }
 
+      const isAsteriskShortcut =
+        isMod &&
+        !event.altKey &&
+        (event.key === '*' ||
+          event.code === 'NumpadMultiply' ||
+          (event.shiftKey && (event.code === 'Digit8' || key === '8')))
+      if (isAsteriskShortcut) {
+        event.preventDefault()
+        applyInlineFormat('*')
+        return
+      }
+
       const isBackquoteKey = event.code === 'Backquote' || key === '`' || key === '~'
       if (isMod && !event.altKey && isBackquoteKey) {
         event.preventDefault()

@@ -96,4 +96,26 @@ describe('Editor input behavior', () => {
     expect(textarea).toHaveValue('example')
   })
 
+  it('wraps selection with single asterisks via Ctrl+Shift+8 shortcut', () => {
+    render(<InteractiveEditor initialValue="example" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange(0, 'example'.length)
+    fireEvent.keyDown(textarea, { key: '*', code: 'Digit8', ctrlKey: true, shiftKey: true })
+
+    expect(textarea).toHaveValue('*example*')
+  })
+
+  it('wraps selection with single asterisks via Ctrl+NumpadMultiply shortcut', () => {
+    render(<InteractiveEditor initialValue="example" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange(0, 'example'.length)
+    fireEvent.keyDown(textarea, { key: '*', code: 'NumpadMultiply', ctrlKey: true })
+
+    expect(textarea).toHaveValue('*example*')
+  })
+
 })

@@ -5,6 +5,8 @@ import { isDesktopRuntime } from '../lib/desktopRuntime'
 export function useTauriMenuEvents({
   onNew,
   onOpen,
+  onClose,
+  onCloseAll,
   onDuplicate,
   onRename,
   onOpenRecent,
@@ -39,6 +41,8 @@ export function useTauriMenuEvents({
       const listenerSpecs = [
         ['ghost-writer://menu-new', () => onNew()],
         ['ghost-writer://menu-open', () => onOpen()],
+        ['ghost-writer://menu-close', () => onClose()],
+        ['ghost-writer://menu-close-all', () => onCloseAll()],
         ['ghost-writer://menu-duplicate', () => onDuplicate()],
         ['ghost-writer://menu-rename', () => onRename()],
         ['ghost-writer://menu-open-recent', (event) => onOpenRecent(event.payload)],
@@ -102,6 +106,8 @@ export function useTauriMenuEvents({
   }, [
     onNew,
     onOpen,
+    onClose,
+    onCloseAll,
     onDuplicate,
     onRename,
     onOpenRecent,
