@@ -203,7 +203,6 @@ function Editor({
 }) {
   const textareaRef = useRef(null)
   const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
-  const [scrollTop, setScrollTop] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
   const [spellcheckReadyAt, setSpellcheckReadyAt] = useState(() => (isSpellcheckReady() ? 1 : 0))
   const text = value ?? ''
@@ -213,6 +212,9 @@ function Editor({
   }, [text])
   const useLightweightOverlays =
     text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
+  const effectiveScrollTop = Number.isFinite(Number(externalScrollTop))
+    ? Math.max(0, Number(externalScrollTop))
+    : 0
 
   useEffect(() => {
     if (!spellCheckEnabled || isSpellcheckReady()) return
@@ -354,7 +356,7 @@ function Editor({
       scrollHeight: textarea.scrollHeight,
       clientHeight: textarea.clientHeight,
     })
-  }, [value])
+  }, [onScrollPositionChange, value])
 
   useEffect(() => {
     if (!Number.isFinite(Number(externalScrollTop))) return
@@ -365,7 +367,6 @@ function Editor({
     if (Math.abs((textarea.scrollTop ?? 0) - nextScrollTop) < 1) return
 
     textarea.scrollTop = nextScrollTop
-    setScrollTop(nextScrollTop)
     setContentHeight(textarea.scrollHeight)
     onScrollPositionChange?.({
       scrollTop: nextScrollTop,
@@ -821,7 +822,7 @@ function Editor({
           <div
             className="editor__syntax-overlay"
             style={{
-              transform: `translateY(${-scrollTop}px)`,
+              transform: `translateY(${-effectiveScrollTop}px)`,
               minHeight: contentHeight || '100%',
               ...editorTextStyle,
             }}
@@ -834,7 +835,7 @@ function Editor({
           <div
             className="editor__spell-overlay"
             style={{
-              transform: `translateY(${-scrollTop}px)`,
+              transform: `translateY(${-effectiveScrollTop}px)`,
               minHeight: contentHeight || '100%',
               ...editorTextStyle,
             }}
@@ -847,7 +848,7 @@ function Editor({
           <div
             className="editor__inline-prompt-overlay"
             style={{
-              transform: `translateY(${-scrollTop}px)`,
+              transform: `translateY(${-effectiveScrollTop}px)`,
               minHeight: contentHeight || '100%',
               ...editorTextStyle,
             }}
@@ -860,7 +861,7 @@ function Editor({
           <div
             className="editor__selection-overlay"
             style={{
-              transform: `translateY(${-scrollTop}px)`,
+              transform: `translateY(${-effectiveScrollTop}px)`,
               minHeight: contentHeight || '100%',
               ...editorTextStyle,
             }}
@@ -890,7 +891,6 @@ function Editor({
           }}
           onScroll={(event) => {
             const target = event.target
-            setScrollTop(target.scrollTop)
             setContentHeight(target.scrollHeight)
             onScrollPositionChange?.({
               scrollTop: target.scrollTop,

@@ -37,7 +37,7 @@
 
 [x] (macOS/PC) When a user opens a file - it should open in a new tab, not the current tab.
 
-[ ] When a user open a file in an untitled and empty page - if they open a new file, it replaces that untitled tab, not opens in a new tab.
+[x] When a user open a file in an untitled and empty page - if they open a new file, it replaces that untitled tab, not opens in a new tab.
 
 [x] In “File” - add a “Close” and “Close All Tabs" to the menu.
 
@@ -47,7 +47,7 @@
 
 [x] [macOS/PC} Trad Spell Check - In Edit dropdown add a “Spell Check" option - custom modal that scans doc and reports any spelling, grammar or anything else.
 
-[ ] Parse <-- and --> as ← and → in markdown preview.
+[x] Parse <-- and --> as ← and → in markdown preview.
 
 
 
