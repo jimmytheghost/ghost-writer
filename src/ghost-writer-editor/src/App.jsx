@@ -128,6 +128,13 @@ function App() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeContent = activeTab?.content ?? ''
+  const shouldReplaceEmptyUntitledActiveTab = useMemo(() => {
+    if (!activeTabId || !activeTab) return false
+    const hasContent = (activeTab.content ?? '').trim().length > 0
+    const isUntitled = /^Untitled(?:\s+\d+)?(?:\.md)?$/i.test((activeTab.title ?? '').trim())
+
+    return !hasContent && !activeTab.isDirty && !activeTab.filePath && isUntitled
+  }, [activeTab, activeTabId])
 
   const updateTabById = useCallback((tabId, updater) => {
     setTabs((currentTabs) =>
@@ -645,7 +652,8 @@ function App() {
       if (!tabToClose) return
 
       const hasContent = tabToClose.content.trim().length > 0
-      if (hasContent && isDesktopRuntime()) {
+      const shouldPromptToSave = hasContent && tabToClose.isDirty
+      if (shouldPromptToSave && isDesktopRuntime()) {
         const suggestedName = ensureMarkdownFileName(tabToClose.title || 'untitled')
         // Save dialog is shown for non-empty tabs; cancel still closes per product request.
         await saveMarkdownWithNativeDialog(tabToClose.content, suggestedName)
@@ -702,7 +710,8 @@ function App() {
     if (isDesktopRuntime()) {
       for (const tab of tabs) {
         const hasContent = (tab.content ?? '').trim().length > 0
-        if (!hasContent) continue
+        const shouldPromptToSave = hasContent && tab.isDirty
+        if (!shouldPromptToSave) continue
         const suggestedName = ensureMarkdownFileName(tab.title || 'untitled')
         // Save dialog is shown for non-empty tabs; cancel still closes per product request.
         await saveMarkdownWithNativeDialog(tab.content, suggestedName)
@@ -810,24 +819,46 @@ function App() {
         lastSavedContent: loadedContent,
         isDirty: false,
       }
-      setNextUntitledIndex((current) => current + 1)
-      setTabs((currentTabs) => [...currentTabs, nextTab])
-      setActiveTabId(nextTab.id)
+
+      if (shouldReplaceEmptyUntitledActiveTab && activeTabId) {
+        setTabs((currentTabs) =>
+          replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+            ...tab,
+            title: fileTitle,
+            content: loadedContent,
+            filePath: path,
+            lastSavedContent: loadedContent,
+            isDirty: false,
+          })),
+        )
+      } else {
+        setNextUntitledIndex((current) => current + 1)
+        setTabs((currentTabs) => [...currentTabs, nextTab])
+        setActiveTabId(nextTab.id)
+      }
+
+      const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
       setSelectionRangesByTab((currentRanges) => ({
         ...currentRanges,
-        [nextTab.id]: { start: 0, end: 0 },
+        [targetTabId]: { start: 0, end: 0 },
       }))
       setScrollPositionsByTab((currentPositions) => ({
         ...currentPositions,
-        [nextTab.id]: { editorTop: 0, previewTop: 0 },
+        [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
-      resetGenerationState({ tabId: nextTab.id })
+      resetGenerationState({ tabId: targetTabId })
       setPromptError('')
       return
     }
 
     fileInputRef.current?.click()
-  }, [nextUntitledIndex, resetGenerationState, setPromptError])
+  }, [
+    activeTabId,
+    nextUntitledIndex,
+    resetGenerationState,
+    setPromptError,
+    shouldReplaceEmptyUntitledActiveTab,
+  ])
 
   useEffect(() => {
     saveActionRef.current = handleSaveClick
@@ -871,18 +902,34 @@ function App() {
           lastSavedContent: loadedContent,
           isDirty: false,
         }
-        setNextUntitledIndex((current) => current + 1)
-        setTabs((currentTabs) => [...currentTabs, nextTab])
-        setActiveTabId(nextTab.id)
+        const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
+
+        if (shouldReplaceEmptyUntitledActiveTab && activeTabId) {
+          setTabs((currentTabs) =>
+            replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+              ...tab,
+              content: loadedContent,
+              title: file.name,
+              filePath: '',
+              lastSavedContent: loadedContent,
+              isDirty: false,
+            })),
+          )
+        } else {
+          setNextUntitledIndex((current) => current + 1)
+          setTabs((currentTabs) => [...currentTabs, nextTab])
+          setActiveTabId(nextTab.id)
+        }
+
         setSelectionRangesByTab((currentRanges) => ({
           ...currentRanges,
-          [nextTab.id]: { start: 0, end: 0 },
+          [targetTabId]: { start: 0, end: 0 },
         }))
         setScrollPositionsByTab((currentPositions) => ({
           ...currentPositions,
-          [nextTab.id]: { editorTop: 0, previewTop: 0 },
+          [targetTabId]: { editorTop: 0, previewTop: 0 },
         }))
-        resetGenerationState({ tabId: nextTab.id })
+        resetGenerationState({ tabId: targetTabId })
       }
       reader.onerror = () => {
         setPromptError('Unable to read the selected file.')
@@ -890,7 +937,13 @@ function App() {
       reader.readAsText(file)
       event.target.value = ''
     },
-    [nextUntitledIndex, resetGenerationState, setPromptError],
+    [
+      activeTabId,
+      nextUntitledIndex,
+      resetGenerationState,
+      setPromptError,
+      shouldReplaceEmptyUntitledActiveTab,
+    ],
   )
 
   const handleOpenRecent = useCallback(
@@ -915,21 +968,43 @@ function App() {
         lastSavedContent: content,
         isDirty: false,
       }
-      setNextUntitledIndex((current) => current + 1)
-      setTabs((currentTabs) => [...currentTabs, nextTab])
-      setActiveTabId(nextTab.id)
+      const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
+
+      if (shouldReplaceEmptyUntitledActiveTab && activeTabId) {
+        setTabs((currentTabs) =>
+          replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+            ...tab,
+            content,
+            title: fileTitle,
+            filePath: path,
+            lastSavedContent: content,
+            isDirty: false,
+          })),
+        )
+      } else {
+        setNextUntitledIndex((current) => current + 1)
+        setTabs((currentTabs) => [...currentTabs, nextTab])
+        setActiveTabId(nextTab.id)
+      }
+
       setSelectionRangesByTab((currentRanges) => ({
         ...currentRanges,
-        [nextTab.id]: { start: 0, end: 0 },
+        [targetTabId]: { start: 0, end: 0 },
       }))
       setScrollPositionsByTab((currentPositions) => ({
         ...currentPositions,
-        [nextTab.id]: { editorTop: 0, previewTop: 0 },
+        [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
-      resetGenerationState({ tabId: nextTab.id })
+      resetGenerationState({ tabId: targetTabId })
       setPromptError('')
     },
-    [nextUntitledIndex, resetGenerationState, setPromptError],
+    [
+      activeTabId,
+      nextUntitledIndex,
+      resetGenerationState,
+      setPromptError,
+      shouldReplaceEmptyUntitledActiveTab,
+    ],
   )
 
   const handleOpenRecentError = useCallback(

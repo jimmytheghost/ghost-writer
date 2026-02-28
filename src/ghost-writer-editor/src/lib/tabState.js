@@ -1,7 +1,9 @@
 const UNTITLED_TITLE = 'Untitled'
+let tabIdCounter = 0
 
 function createTabId() {
-  return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  tabIdCounter += 1
+  return `tab-${Date.now()}-${tabIdCounter.toString(36)}`
 }
 
 export function createUntitledTitle(index) {

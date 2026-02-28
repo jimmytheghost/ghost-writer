@@ -131,6 +131,80 @@ describe('App desktop save flow', () => {
     expect(document.querySelector('textarea.editor__textarea')).toHaveValue('Keep this in original tab')
   })
 
+  it('replaces active empty untitled tab when opening a desktop file', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-empty-replace.md',
+      content: 'Loaded into empty tab',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-empty-replace' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+
+    expect(screen.queryByRole('tab', { name: /Switch to Untitled\*?/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Switch to Untitled 2\*?/ })).not.toBeInTheDocument()
+  })
+
+  it('closes an unmodified saved tab without opening native save dialog', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-three.md',
+      content: 'Already saved content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-three' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-three'))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Switch to chapter-three' })).not.toBeInTheDocument()
+    })
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+  })
+
+  it('opens native save dialog when closing a modified saved tab', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-four.md',
+      content: 'Original content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-four' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-four*'))
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(
+        'Original content\nChanged',
+        'chapter-four.md',
+      )
+    })
+  })
+
   it('persists theme changes from footer toggle', async () => {
     render(<App />)
 
