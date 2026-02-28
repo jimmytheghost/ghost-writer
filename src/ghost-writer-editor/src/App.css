@@ -556,6 +556,9 @@
   z-index: 5;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
   box-shadow: var(--shadow-sm);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .editor__textarea:focus {
@@ -583,7 +586,8 @@
   font-size: var(--font-size-base);
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   color: transparent;
   pointer-events: none;
   overflow: hidden;
@@ -601,7 +605,8 @@
   font-size: var(--font-size-base);
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   color: transparent;
   pointer-events: none;
   overflow: hidden;
@@ -619,7 +624,8 @@
   font-size: var(--font-size-base);
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   color: transparent;
   pointer-events: none;
   overflow: hidden;
@@ -637,7 +643,8 @@
   font-size: var(--font-size-base);
   line-height: 1.45;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   pointer-events: none;
   overflow: hidden;
   z-index: 2;

@@ -51,12 +51,4 @@ describe('Editor input behavior', () => {
     expect(onChange).toHaveBeenCalledWith('A --- test ')
   })
 
-  it('inserts literal space via keydown without relying on native substitution', () => {
-    const { textarea, onChange } = renderEditor({ value: '-- example' })
-    Object.defineProperty(textarea, 'selectionStart', { configurable: true, value: 10 })
-    Object.defineProperty(textarea, 'selectionEnd', { configurable: true, value: 10 })
-    fireEvent.keyDown(textarea, { key: ' ' })
-    expect(onChange).toHaveBeenCalledWith('-- example ')
-  })
-
 })

@@ -202,6 +202,7 @@ function Editor({
   textZoomPercent = 100,
 }) {
   const textareaRef = useRef(null)
+  const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
   const [scrollTop, setScrollTop] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
   const [spellcheckReadyAt, setSpellcheckReadyAt] = useState(() => (isSpellcheckReady() ? 1 : 0))
@@ -378,6 +379,12 @@ function Editor({
     const textarea = textareaRef.current
     if (!textarea) return
 
+    const isTextareaFocused = document.activeElement === textarea
+    const shouldForceSelectionWhileFocused =
+      focusRequestId > 0 && focusRequestId !== lastAppliedExternalSelectionFocusRequestIdRef.current
+
+    if (isTextareaFocused && !shouldForceSelectionWhileFocused) return
+
     const nextStart = Math.max(
       0,
       Math.min(
@@ -395,7 +402,11 @@ function Editor({
 
     if (textarea.selectionStart === nextStart && textarea.selectionEnd === nextEnd) return
     textarea.setSelectionRange(nextStart, nextEnd)
-  }, [externalSelectionRange, value])
+
+    if (shouldForceSelectionWhileFocused) {
+      lastAppliedExternalSelectionFocusRequestIdRef.current = focusRequestId
+    }
+  }, [externalSelectionRange, focusRequestId, value])
 
   useEffect(() => {
     if (!focusRequestId) return
@@ -598,33 +609,6 @@ function Editor({
       const isSystemEditShortcut = isMod && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
 
       if (isSystemEditShortcut) {
-        return
-      }
-
-      if (event.key === '-' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.isComposing) {
-        event.preventDefault()
-        const nextValue = `${text.slice(0, start)}-${text.slice(end)}`
-        const nextPosition = start + 1
-        onChange?.(nextValue)
-        requestAnimationFrame(() => {
-          textarea.focus()
-          textarea.setSelectionRange(nextPosition, nextPosition)
-          onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
-        })
-        return
-      }
-
-      const isSpaceKey = event.key === ' ' || event.key === 'Spacebar' || event.code === 'Space'
-      if (isSpaceKey && !event.metaKey && !event.ctrlKey && !event.altKey && !event.isComposing) {
-        event.preventDefault()
-        const nextValue = `${text.slice(0, start)} ${text.slice(end)}`
-        const nextPosition = start + 1
-        onChange?.(nextValue)
-        requestAnimationFrame(() => {
-          textarea.focus()
-          textarea.setSelectionRange(nextPosition, nextPosition)
-          onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
-        })
         return
       }
 
