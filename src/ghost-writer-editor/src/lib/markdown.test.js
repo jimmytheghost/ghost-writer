@@ -48,4 +48,10 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).toContain('<sup>2</sup>')
     expect(output).not.toContain(':joy:')
   })
+
+  it('converts markdown directional arrow text for preview', () => {
+    const markdown = 'Go <-- back and --> forward'
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('Go ← back and → forward')
+  })
 })

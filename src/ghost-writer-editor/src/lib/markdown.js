@@ -72,6 +72,12 @@ const markdownRenderer = new MarkdownIt({
   .use(markdownItEmojiFull)
   .use(markdownItTaskLists, { enabled: true, label: true })
 
+function normalizeDirectionalArrows(markdown = '') {
+  return String(markdown)
+    .replaceAll('<--', '←')
+    .replaceAll('-->', '→')
+}
+
 export function isSafeMarkdownUrl(rawUrl) {
   if (!rawUrl || typeof window === 'undefined') return false
   const value = rawUrl.trim()
@@ -134,5 +140,5 @@ function sanitizeHtml(html) {
 }
 
 export function renderMarkdownToSafeHtml(markdown) {
-  return sanitizeHtml(markdownRenderer.render(markdown ?? ''))
+  return sanitizeHtml(markdownRenderer.render(normalizeDirectionalArrows(markdown ?? '')))
 }
