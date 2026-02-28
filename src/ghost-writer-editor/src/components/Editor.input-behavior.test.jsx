@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import Editor from './Editor'
 
 function renderEditor(overrides = {}) {
@@ -20,6 +21,22 @@ function renderEditor(overrides = {}) {
   )
   const textarea = screen.getByRole('textbox')
   return { textarea, onChange, onSelectionChange }
+}
+
+function InteractiveEditor({ initialValue = '' }) {
+  const [value, setValue] = useState(initialValue)
+  return (
+    <Editor
+      value={value}
+      onChange={setValue}
+      onPromptOpen={vi.fn()}
+      onSelectionChange={vi.fn()}
+      selectionRange={{ start: 0, end: 0 }}
+      showSelectionOverlay={false}
+      spellCheckEnabled={false}
+      textZoomPercent={100}
+    />
+  )
 }
 
 describe('Editor input behavior', () => {
@@ -49,6 +66,34 @@ describe('Editor input behavior', () => {
       target: { value: 'A — test ', selectionStart: 9, selectionEnd: 9 },
     })
     expect(onChange).toHaveBeenCalledWith('A --- test ')
+  })
+
+  it('toggles bold markers with Ctrl+B instead of stacking markers', () => {
+    render(<InteractiveEditor initialValue="example" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange(0, 'example'.length)
+    fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true })
+    expect(textarea).toHaveValue('**example**')
+
+    textarea.setSelectionRange(2, 2 + 'example'.length)
+    fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true })
+    expect(textarea).toHaveValue('example')
+  })
+
+  it('toggles italic markers with Ctrl+I instead of stacking markers', () => {
+    render(<InteractiveEditor initialValue="example" />)
+    const textarea = screen.getByRole('textbox')
+
+    textarea.focus()
+    textarea.setSelectionRange(0, 'example'.length)
+    fireEvent.keyDown(textarea, { key: 'i', ctrlKey: true })
+    expect(textarea).toHaveValue('*example*')
+
+    textarea.setSelectionRange(1, 1 + 'example'.length)
+    fireEvent.keyDown(textarea, { key: 'i', ctrlKey: true })
+    expect(textarea).toHaveValue('example')
   })
 
 })

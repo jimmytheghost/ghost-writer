@@ -437,6 +437,48 @@ function Editor({
       const text = value ?? ''
       const selected = text.slice(start, end)
       const hasSelection = start !== end
+
+      const markerStart = start - marker.length
+      const markerEnd = end + marker.length
+      const hasSurroundingMarker =
+        markerStart >= 0 &&
+        markerEnd <= text.length &&
+        text.slice(markerStart, start) === marker &&
+        text.slice(end, markerEnd) === marker
+
+      if (!hasSelection && hasSurroundingMarker) {
+        const nextValue = `${text.slice(0, markerStart)}${text.slice(markerEnd)}`
+        const nextPosition = markerStart
+        onChange?.(nextValue)
+
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextPosition, nextPosition)
+          onSelectionChange?.({
+            selectionStart: nextPosition,
+            selectionEnd: nextPosition,
+          })
+        })
+        return
+      }
+
+      if (hasSelection && hasSurroundingMarker) {
+        const nextValue = `${text.slice(0, markerStart)}${selected}${text.slice(markerEnd)}`
+        const nextSelectionStart = markerStart
+        const nextSelectionEnd = markerStart + selected.length
+        onChange?.(nextValue)
+
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd)
+          onSelectionChange?.({
+            selectionStart: nextSelectionStart,
+            selectionEnd: nextSelectionEnd,
+          })
+        })
+        return
+      }
+
       const replacement = hasSelection ? `${marker}${selected}${marker}` : `${marker}${marker}`
       const nextValue = `${text.slice(0, start)}${replacement}${text.slice(end)}`
       const nextSelectionStart = start + marker.length
