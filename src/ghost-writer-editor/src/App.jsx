@@ -76,6 +76,9 @@ function App() {
   const [selectionRangesByTab, setSelectionRangesByTab] = useState(() => ({
     [initialTab.id]: { start: 0, end: 0 },
   }))
+  const [scrollPositionsByTab, setScrollPositionsByTab] = useState(() => ({
+    [initialTab.id]: { editorTop: 0, previewTop: 0 },
+  }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -550,6 +553,10 @@ function App() {
       ...currentRanges,
       [nextTab.id]: { start: 0, end: 0 },
     }))
+    setScrollPositionsByTab((currentPositions) => ({
+      ...currentPositions,
+      [nextTab.id]: { editorTop: 0, previewTop: 0 },
+    }))
     setActiveTabId(nextTab.id)
     return nextTab
   }, [nextUntitledIndex])
@@ -580,6 +587,13 @@ function App() {
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
       [duplicateTab.id]: { start: 0, end: 0 },
+    }))
+    setScrollPositionsByTab((currentPositions) => ({
+      ...currentPositions,
+      [duplicateTab.id]: {
+        editorTop: currentPositions[activeTab.id]?.editorTop ?? 0,
+        previewTop: currentPositions[activeTab.id]?.previewTop ?? 0,
+      },
     }))
   }, [activeTab, nextUntitledIndex])
 
@@ -646,6 +660,11 @@ function App() {
         delete nextRanges[tabId]
         return nextRanges
       })
+      setScrollPositionsByTab((currentPositions) => {
+        const nextPositions = { ...currentPositions }
+        delete nextPositions[tabId]
+        return nextPositions
+      })
 
       if (remainingTabs.length === 0) {
         const replacementTab = createNewTab(nextUntitledIndex)
@@ -653,6 +672,9 @@ function App() {
         setTabs([replacementTab])
         setSelectionRangesByTab({
           [replacementTab.id]: { start: 0, end: 0 },
+        })
+        setScrollPositionsByTab({
+          [replacementTab.id]: { editorTop: 0, previewTop: 0 },
         })
         setActiveTabId(replacementTab.id)
         setIsPreviewOpen(false)
@@ -918,6 +940,29 @@ function App() {
           [activeTabId]: { start: payload.selectionStart, end: payload.selectionEnd },
         }))
       }
+    },
+    [activeTabId],
+  )
+
+  const handleEditorScrollPositionChange = useCallback(
+    (payload = {}) => {
+      if (!activeTabId) return
+      const scrollTop = Number(payload.scrollTop)
+      const nextTop = Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0
+      setScrollPositionsByTab((currentPositions) => {
+        const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+        if (Math.abs(previous.editorTop - nextTop) < 1 && Math.abs(previous.previewTop - nextTop) < 1) {
+          return currentPositions
+        }
+        return {
+          ...currentPositions,
+          [activeTabId]: {
+            ...previous,
+            editorTop: nextTop,
+            previewTop: nextTop,
+          },
+        }
+      })
     },
     [activeTabId],
   )
@@ -1300,6 +1345,49 @@ ${escapeLatex(exportMarkdownSource)}
   }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
 
   useEffect(() => {
+    if (!isPreviewOpen) return
+    const previewElement = previewContentRef.current
+    if (!previewElement || !activeTabId) return
+
+    const positions = scrollPositionsByTab[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+    const nextScrollTop =
+      Number.isFinite(positions.previewTop) && positions.previewTop > 0
+        ? positions.previewTop
+        : positions.editorTop
+    previewElement.scrollTop = Math.max(0, Number(nextScrollTop) || 0)
+  }, [activeTabId, isPreviewOpen, scrollPositionsByTab])
+
+  useEffect(() => {
+    if (!isPreviewOpen || !activeTabId) return undefined
+    const previewElement = previewContentRef.current
+    if (!previewElement) return undefined
+
+    const handlePreviewScroll = () => {
+      const nextTop = Math.max(0, Number(previewElement.scrollTop) || 0)
+      setScrollPositionsByTab((currentPositions) => {
+        const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+        if (Math.abs(previous.previewTop - nextTop) < 1 && Math.abs(previous.editorTop - nextTop) < 1) {
+          return currentPositions
+        }
+
+        return {
+          ...currentPositions,
+          [activeTabId]: {
+            ...previous,
+            previewTop: nextTop,
+            editorTop: nextTop,
+          },
+        }
+      })
+    }
+
+    previewElement.addEventListener('scroll', handlePreviewScroll)
+    return () => {
+      previewElement.removeEventListener('scroll', handlePreviewScroll)
+    }
+  }, [activeTabId, isPreviewOpen])
+
+  useEffect(() => {
     if (!isPreviewOpen) return undefined
 
     const handleEscapeKey = (event) => {
@@ -1346,11 +1434,13 @@ ${escapeLatex(exportMarkdownSource)}
               }}
               onPromptOpen={handlePromptOpen}
               onSelectionChange={handleSelectionChange}
+              onScrollPositionChange={handleEditorScrollPositionChange}
               selectionRange={selectionRange}
               showSelectionOverlay={isPromptFocused}
               spellCheckEnabled={isSpellCheckEnabled}
               textZoomPercent={editorTextZoomPercent}
               externalSelectionRange={selectionRange}
+              externalScrollTop={scrollPositionsByTab[activeTabId]?.editorTop ?? 0}
               focusRequestId={editorFocusRequestId}
             />
           )}

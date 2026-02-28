@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -110,5 +110,63 @@ describe('App UI behaviors', () => {
       'And I definitely didn’t paying API fees for drafting personal essays.',
     )
     expect(screen.getByRole('status')).toHaveTextContent('Replaced 1 match.')
+  })
+
+  it('maintains independent editor scroll position per tab', async () => {
+    render(<App />)
+
+    let editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    editor.scrollTop = 180
+    fireEvent.scroll(editor)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('New document'))
+
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(0)
+    })
+
+    editor.scrollTop = 45
+    fireEvent.scroll(editor)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to Untitled' }))
+
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(180)
+    })
+  })
+
+  it('syncs scroll position between editor and markdown preview for active tab', async () => {
+    render(<App />)
+
+    let editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    editor.scrollTop = 220
+    fireEvent.scroll(editor)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(220)
+    })
+
+    previewContent.scrollTop = 75
+    fireEvent.scroll(previewContent)
+
+    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(75)
+    })
   })
 })

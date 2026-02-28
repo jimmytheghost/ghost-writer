@@ -192,8 +192,10 @@ function Editor({
   onChange,
   onPromptOpen,
   onSelectionChange,
+  onScrollPositionChange,
   selectionRange,
   externalSelectionRange,
+  externalScrollTop,
   focusRequestId = 0,
   showSelectionOverlay,
   spellCheckEnabled = false,
@@ -346,7 +348,30 @@ function Editor({
     const textarea = textareaRef.current
     if (!textarea) return
     setContentHeight(textarea.scrollHeight)
+    onScrollPositionChange?.({
+      scrollTop: textarea.scrollTop,
+      scrollHeight: textarea.scrollHeight,
+      clientHeight: textarea.clientHeight,
+    })
   }, [value])
+
+  useEffect(() => {
+    if (!Number.isFinite(Number(externalScrollTop))) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const nextScrollTop = Math.max(0, Number(externalScrollTop))
+    if (Math.abs((textarea.scrollTop ?? 0) - nextScrollTop) < 1) return
+
+    textarea.scrollTop = nextScrollTop
+    setScrollTop(nextScrollTop)
+    setContentHeight(textarea.scrollHeight)
+    onScrollPositionChange?.({
+      scrollTop: nextScrollTop,
+      scrollHeight: textarea.scrollHeight,
+      clientHeight: textarea.clientHeight,
+    })
+  }, [externalScrollTop, onScrollPositionChange])
 
   useEffect(() => {
     if (!externalSelectionRange) return
@@ -645,12 +670,6 @@ function Editor({
     }
 
     const textarea = textareaRef.current
-    const handleScroll = () => {
-      if (!textarea) return
-      setScrollTop(textarea.scrollTop)
-      setContentHeight(textarea.scrollHeight)
-    }
-
     if (textarea) {
       setContentHeight(textarea.scrollHeight)
     }
@@ -661,7 +680,6 @@ function Editor({
     textarea?.addEventListener('select', handleSelectionUpdate)
     textarea?.addEventListener('focus', handleSelectionUpdate)
     textarea?.addEventListener('blur', handleSelectionUpdate)
-    textarea?.addEventListener('scroll', handleScroll)
 
     return () => {
       textarea?.removeEventListener('keydown', handleKeyDown)
@@ -670,7 +688,6 @@ function Editor({
       textarea?.removeEventListener('select', handleSelectionUpdate)
       textarea?.removeEventListener('focus', handleSelectionUpdate)
       textarea?.removeEventListener('blur', handleSelectionUpdate)
-      textarea?.removeEventListener('scroll', handleScroll)
     }
   }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
 
@@ -806,7 +823,16 @@ function Editor({
             if (inputData !== '—' && inputData !== '–') return
             event.preventDefault()
           }}
-          onScroll={(event) => setScrollTop(event.target.scrollTop)}
+          onScroll={(event) => {
+            const target = event.target
+            setScrollTop(target.scrollTop)
+            setContentHeight(target.scrollHeight)
+            onScrollPositionChange?.({
+              scrollTop: target.scrollTop,
+              scrollHeight: target.scrollHeight,
+              clientHeight: target.clientHeight,
+            })
+          }}
           onSelect={(event) => {
             const target = event.target
             onSelectionChange?.({
