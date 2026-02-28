@@ -262,6 +262,10 @@
   overflow: hidden;
 }
 
+.app__main--focus-editor {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .editor-pane {
   display: flex;
   flex-direction: column;

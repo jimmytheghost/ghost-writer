@@ -2,6 +2,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 
 1. **Core Editor Experience**
 - Distraction-focused single-document editing pane with tabbed multi-document workflow.
+- True distraction-free layout controls: hide/show prompt input panel, footer, and tab bar.
 - Native-feel textarea editor with custom syntax overlays for headings, lists, checkboxes, links, emphasis, strikethrough, quotes, and inline markdown tokens.
 - Prompt-focused selection highlight overlay while AI prompt input is focused.
 - Automatic fallback to lightweight editor mode for large documents (disables heavy overlays for performance).
@@ -24,7 +25,11 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Full preview mode toggle (editor <-> rendered preview).
 - Safe markdown rendering pipeline (`markdown-it` + sanitizer).
 - Supported markdown extras include task lists, footnotes, definition lists, attrs/IDs, mark/highlight, sub/sup, emoji shortcode.
+- Arrow token rendering in preview (`<--` -> `←`, `-->` -> `→`).
 - Clickable preview checkboxes that sync state back into source markdown.
+- Editor/preview scroll behavior tuned for usability:
+  - Editor scroll is isolated per tab.
+  - Markdown preview stays synchronized with its corresponding document context.
 - Preview link safety enforcement (allowed protocols only), with desktop external-open behavior.
 - Escape key exits preview mode.
 
@@ -34,11 +39,16 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Duplicate current tab.
 - Rename current tab (native rename flow on desktop for saved files).
 - Close-tab behavior with nearest-tab fallback and automatic replacement tab if last tab is closed.
+- Open-file tab behavior:
+  - Opening a file generally opens it in a new tab.
+  - If current tab is empty/untitled, opening a file replaces that tab.
 - Per-tab prompt text/error and generation history isolation.
 
 5. **File Operations**
 - New/Open/Save/Save-to-existing-path flows.
 - Desktop-native file dialogs for markdown open/save.
+- Close and Close All Tabs actions in desktop File menu.
+- Closing an unchanged saved tab skips unnecessary save confirmation prompts.
 - Browser fallback download flow when not in desktop runtime.
 - Markdown-only guardrails for open/overwrite paths.
 - File-size guardrail (2 MB max load).
@@ -64,6 +74,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Optional spellcheck toggle (default configurable).
 - In-app misspelling overlay rendering (underlines misspellings).
 - “Committed word” behavior: marks words after delimiter/whitespace boundary, reducing noisy in-progress flags.
+- Traditional on-demand spellcheck flow via Edit menu option with modal scan/report behavior.
 - Custom word list management modal:
   - Add comma-separated terms.
   - Enable/disable individual terms.
@@ -71,6 +82,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Default extension-like terms pre-allowed (`.png`, `.jpg`, `.md`, etc.).
 
 8. **Smart Writing Helpers and Editing Shortcuts**
+- Find and Replace support for in-document editing.
 - List continuation on Enter (ordered and unordered).
 - Empty-list-item exit behavior on Enter.
 - Tab / Shift+Tab indentation and outdent across lines/selections.
@@ -79,6 +91,9 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
   - Bold (`Cmd/Ctrl+B`)
   - Italic (`Cmd/Ctrl+I`)
   - Strikethrough (`Cmd/Ctrl+\`` and `Cmd/Ctrl+Shift+X`)
+- Formatting shortcut stability improvements:
+  - Prevents repeated wrapping artifacts (e.g., `******example******`) on repeated bold/italic actions.
+  - `Cmd/Ctrl+*` applies a single `*` wrapper around selected text.
 - Select all in editor (`Cmd/Ctrl+A`).
 - Prompt-open from editor selection (`Cmd/Ctrl+Shift+K`).
 
@@ -113,6 +128,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
   - default footer collapsed state
   - startup preview mode
   - default spellcheck
+  - autosave preferences
   - custom word list + disabled set
 - Session restore:
   - previously opened saved-tab file paths

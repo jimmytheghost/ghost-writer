@@ -94,6 +94,7 @@ function App() {
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
   const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
@@ -1237,6 +1238,11 @@ function App() {
     setIsTabBarVisible((previous) => !previous)
   }, [])
 
+  const handleTogglePromptPanel = useCallback(() => {
+    setIsPromptPanelHidden((previous) => !previous)
+    setIsFindReplaceOpen(false)
+  }, [])
+
   const handleShowFindReplace = useCallback(() => {
     if (!activeTabId) return
     const selectedText =
@@ -1437,6 +1443,7 @@ ${escapeLatex(exportMarkdownSource)}
     onTogglePreview: handleTogglePreview,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
+    onTogglePromptPanel: handleTogglePromptPanel,
     onShowFindReplace: handleShowFindReplace,
   })
 
@@ -1615,8 +1622,8 @@ ${escapeLatex(exportMarkdownSource)}
           onCloseTab={handleCloseTab}
         />
       )}
-      <main className="app__main">
-        <div className={`editor-pane${isPreviewOpen ? ' editor-pane--preview' : ''}`}>
+      <main className={`app__main${isPromptPanelHidden ? ' app__main--focus-editor' : ''}`}>
+        <div className={`editor-pane${isPreviewOpen || isPromptPanelHidden ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
             <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`} aria-label="Markdown preview">
               <div
@@ -1646,7 +1653,7 @@ ${escapeLatex(exportMarkdownSource)}
             />
           )}
         </div>
-        {isFindReplaceOpen && !isPreviewOpen && (
+        {isFindReplaceOpen && !isPreviewOpen && !isPromptPanelHidden && (
           <section className={`find-replace${isDark ? ' find-replace--dark' : ''}`} aria-label="Find and replace panel">
             <div className="find-replace__row">
               <label className="find-replace__field" htmlFor="find-replace-find-input">
@@ -1738,7 +1745,7 @@ ${escapeLatex(exportMarkdownSource)}
             </div>
           </section>
         )}
-        {!isPreviewOpen && (
+        {!isPreviewOpen && !isPromptPanelHidden && (
           <PromptPanel
             isDark={isDark}
             promptFormRef={promptFormRef}

@@ -139,6 +139,24 @@ describe('App keyboard shortcuts', () => {
     expect(screen.getByRole('tablist', { name: 'Document tabs' })).toBeInTheDocument()
   })
 
+  it('toggles prompt panel visibility with Ctrl+Shift+D and expands editor layout', () => {
+    const { container } = render(<App />)
+    const appMain = container.querySelector('.app__main')
+    expect(appMain).not.toBeNull()
+    expect(screen.getByLabelText('Prompt input')).toBeInTheDocument()
+    expect(appMain).not.toHaveClass('app__main--focus-editor')
+
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true })
+
+    expect(screen.queryByLabelText('Prompt input')).not.toBeInTheDocument()
+    expect(appMain).toHaveClass('app__main--focus-editor')
+
+    fireEvent.keyDown(window, { key: 'D', ctrlKey: true, shiftKey: true })
+
+    expect(screen.getByLabelText('Prompt input')).toBeInTheDocument()
+    expect(appMain).not.toHaveClass('app__main--focus-editor')
+  })
+
   it('opens print flow with Ctrl+P', () => {
     vi.useFakeTimers()
     const printMock = vi.fn()

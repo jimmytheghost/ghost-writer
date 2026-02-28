@@ -11,6 +11,7 @@ export function useGlobalShortcuts({
   onTogglePreview,
   onToggleFooter,
   onToggleTabBar,
+  onTogglePromptPanel,
   onShowFindReplace,
 }) {
   useEffect(() => {
@@ -77,6 +78,12 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && event.shiftKey && !event.altKey && key === 'd') {
+        event.preventDefault()
+        onTogglePromptPanel()
+        return
+      }
+
       if (!hasMod || event.altKey || key !== 'm') return
 
       event.preventDefault()
@@ -93,6 +100,7 @@ export function useGlobalShortcuts({
     newActionRef,
     onToggleAlwaysOnTop,
     onToggleFooter,
+    onTogglePromptPanel,
     onToggleTabBar,
     onTogglePreview,
     onShowFindReplace,
