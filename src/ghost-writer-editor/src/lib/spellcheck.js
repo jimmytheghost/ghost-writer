@@ -154,4 +154,32 @@ export function getMisspelledRanges(text = '') {
   return ranges
 }
 
+export function getMisspelledWordCounts(text = '') {
+  if (!text || !spellChecker) return []
+
+  const matches = text.matchAll(WORD_PATTERN)
+  const counts = new Map()
+
+  for (const match of matches) {
+    const word = match[0] || ''
+    if (shouldSkipWord(word)) continue
+
+    const normalized = word.toLowerCase()
+    if (customWords.has(normalized)) continue
+    if (spellChecker.correct(normalized)) continue
+
+    const current = counts.get(normalized)
+    if (current) {
+      current.count += 1
+      continue
+    }
+    counts.set(normalized, { word: normalized, count: 1 })
+  }
+
+  return [...counts.values()].sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count
+    return a.word.localeCompare(b.word)
+  })
+}
+
 setCustomSpellcheckWords(DEFAULT_CUSTOM_WORD_LIST)

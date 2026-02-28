@@ -37,8 +37,17 @@ describe('AppModals settings', () => {
     )
 
     expect(screen.queryByLabelText('Editor text zoom')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Auto save interval (seconds)')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Auto save backup iterations')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Default theme'), { target: { value: 'light' } })
     expect(updateSetting).toHaveBeenCalledWith('defaultTheme', 'light')
+
+    fireEvent.click(screen.getByLabelText('Auto save (saved files only)'))
+    expect(updateSetting).toHaveBeenCalledWith('autoSaveEnabled', true)
+
+    fireEvent.change(screen.getByLabelText('Auto save interval (seconds)'), { target: { value: '30' } })
+    expect(updateSetting).toHaveBeenCalledWith('autoSaveIntervalSeconds', 30)
+
   })
 
   it('updates text zoom from text zoom modal', () => {

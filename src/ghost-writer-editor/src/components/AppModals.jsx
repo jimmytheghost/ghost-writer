@@ -204,6 +204,11 @@ function AppModals({
   setIsWordListOpen,
   isTextZoomOpen,
   setIsTextZoomOpen,
+  isSpellCheckScanOpen = false,
+  setIsSpellCheckScanOpen = () => {},
+  spellCheckScanStatus = '',
+  spellCheckScanItems = [],
+  spellCheckScanTotal = 0,
   settings,
   updateSetting,
   saveWordListSettings,
@@ -221,6 +226,7 @@ function AppModals({
   useEscapeToClose(isSettingsOpen, () => setIsSettingsOpen(false))
   useEscapeToClose(isWordListOpen, () => setIsWordListOpen(false))
   useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
+  useEscapeToClose(isSpellCheckScanOpen, () => setIsSpellCheckScanOpen(false))
   useEscapeToClose(isAboutOpen, () => setIsAboutOpen(false))
 
   const handleAboutLinkClick = (event) => {
@@ -310,6 +316,30 @@ function AppModals({
               />
               Default spell check in editor
             </label>
+            <label className="modal__checkbox">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.autoSaveEnabled)}
+                onChange={(event) => updateSetting('autoSaveEnabled', event.target.checked)}
+              />
+              Auto save (saved files only)
+            </label>
+            <label className="modal__label" htmlFor="settings-auto-save-interval">
+              Auto save interval (seconds)
+            </label>
+            <input
+              id="settings-auto-save-interval"
+              type="number"
+              min={5}
+              max={3600}
+              className="modal__input"
+              value={Number(settings.autoSaveIntervalSeconds ?? 60)}
+              onChange={(event) => {
+                const parsed = Number.parseInt(event.target.value, 10)
+                const safeValue = Number.isFinite(parsed) ? Math.min(3600, Math.max(5, parsed)) : 60
+                updateSetting('autoSaveIntervalSeconds', safeValue)
+              }}
+            />
 
             <div className="modal__actions">
               <button type="button" className="modal__button modal__button--primary" onClick={() => setIsSettingsOpen(false)}>
@@ -377,6 +407,42 @@ function AppModals({
                 type="button"
                 className="modal__button modal__button--primary"
                 onClick={() => setIsTextZoomOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isSpellCheckScanOpen && (
+        <div className="modal-overlay" onClick={() => setIsSpellCheckScanOpen(false)}>
+          <div
+            className="modal modal--settings"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="spell-scan-title"
+            aria-describedby="spell-scan-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="spell-scan-title" className="modal__title">Spell Check</h2>
+            <p id="spell-scan-description" className="modal__description">
+              {spellCheckScanStatus || `Found ${spellCheckScanTotal} potential misspelling${spellCheckScanTotal === 1 ? '' : 's'}.`}
+            </p>
+            {!spellCheckScanStatus && spellCheckScanItems.length > 0 && (
+              <ul>
+                {spellCheckScanItems.map((item) => (
+                  <li key={item.word}>
+                    {item.word} ({item.count})
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!spellCheckScanStatus && spellCheckScanItems.length === 0 && <p>No misspellings found.</p>}
+            <div className="modal__actions">
+              <button
+                type="button"
+                className="modal__button modal__button--primary"
+                onClick={() => setIsSpellCheckScanOpen(false)}
               >
                 Close
               </button>

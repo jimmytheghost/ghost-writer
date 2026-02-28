@@ -43,11 +43,11 @@
 
 [x] When a tab is saved and unaltered, when the user closes that tab, the save dialogue shouldn’t pop up.
 
-[ ] (macOS/PC) Auto Save - Set the time and number of file iterations, etc in settings.
+[x] (macOS/PC) Auto Save - Set the time and number of file iterations, etc in settings. No iterations
 
-[ ] [macOS/PC} Trad Spell Check - In Edit dropdown add a “Spell Check" option - custom modal that scans doc and reports any spelling, grammar or anything else.
+[x] [macOS/PC} Trad Spell Check - In Edit dropdown add a “Spell Check" option - custom modal that scans doc and reports any spelling, grammar or anything else.
 
-[ ] Parse <-- and --> as ← and →
+[ ] Parse <-- and --> as ← and → in markdown preview.
 
 
 
@@ -63,6 +63,6 @@
 
 ## New Features
 
-    - Stretch Goal - For down the line, add a Grammarly like feature where the LLM reads your doc and suggests changes to any problematic text.
+Stretch Goal - For down the line, add a Grammarly like feature where the LLM reads your doc and suggests changes to any problematic text.
     
 [x] Search - Find and Replace

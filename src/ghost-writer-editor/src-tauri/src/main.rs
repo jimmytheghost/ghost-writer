@@ -37,6 +37,10 @@ struct AppSettings {
     default_startup_preview: bool,
     #[serde(default)]
     default_spell_check: bool,
+    #[serde(default)]
+    auto_save_enabled: bool,
+    #[serde(default = "default_auto_save_interval_seconds")]
+    auto_save_interval_seconds: u32,
     #[serde(default = "default_custom_word_list")]
     custom_word_list: Vec<String>,
     #[serde(default)]
@@ -67,6 +71,10 @@ fn default_text_zoom() -> String {
     "100%".to_string()
 }
 
+fn default_auto_save_interval_seconds() -> u32 {
+    60
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -77,6 +85,8 @@ impl Default for AppSettings {
             default_footer_collapsed: true,
             default_startup_preview: false,
             default_spell_check: false,
+            auto_save_enabled: false,
+            auto_save_interval_seconds: default_auto_save_interval_seconds(),
             custom_word_list: default_custom_word_list(),
             custom_word_list_disabled: Vec::new(),
             session_saved_tab_paths: Vec::new(),
@@ -176,6 +186,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         MenuItem::with_id(app, "settings_word_list", "Word List", true, None::<&str>)?;
     let settings_text_zoom =
         MenuItem::with_id(app, "settings_text_zoom", "Text Zoom", true, None::<&str>)?;
+    let settings_auto_save =
+        MenuItem::with_id(app, "settings_auto_save", "Auto Save", true, None::<&str>)?;
     let edit_find_replace = MenuItem::with_id(
         app,
         "edit_find_replace",
@@ -183,6 +195,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+F"),
     )?;
+    let edit_spell_check =
+        MenuItem::with_id(app, "edit_spell_check", "Spell Check", true, None::<&str>)?;
 
     let ghost_writer_menu = Submenu::with_items(app, "Ghost Writer", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
@@ -215,6 +229,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &PredefinedMenuItem::redo(app, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &edit_find_replace,
+            &edit_spell_check,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::cut(app, None::<&str>)?,
             &PredefinedMenuItem::copy(app, None::<&str>)?,
@@ -238,7 +253,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app,
         "Settings",
         true,
-        &[&settings_open, &settings_word_list, &settings_text_zoom],
+        &[&settings_open, &settings_word_list, &settings_text_zoom, &settings_auto_save],
     )?;
 
     Menu::with_items(
@@ -313,6 +328,7 @@ fn save_markdown_to_path(
     push_recent_file_path(&app, &destination);
     Ok(destination.to_string_lossy().into_owned())
 }
+
 
 #[tauri::command]
 fn save_text_file_with_dialog(
@@ -993,6 +1009,7 @@ fn main() {
                 "file_export_word" => emit_menu_event("ghost-writer://menu-export-word"),
                 "file_export_latex" => emit_menu_event("ghost-writer://menu-export-latex"),
                 "edit_find_replace" => emit_menu_event("ghost-writer://menu-find-replace"),
+                "edit_spell_check" => emit_menu_event("ghost-writer://menu-spell-check"),
                 id if id.starts_with(OPEN_RECENT_PREFIX) => {
                     if id == OPEN_RECENT_EMPTY_ITEM_ID {
                         return;
@@ -1029,6 +1046,7 @@ fn main() {
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),
                 "settings_word_list" => emit_menu_event("ghost-writer://menu-word-list"),
                 "settings_text_zoom" => emit_menu_event("ghost-writer://menu-text-zoom"),
+                "settings_auto_save" => emit_menu_event("ghost-writer://menu-auto-save"),
                 "about_show" => emit_menu_event("ghost-writer://menu-about"),
                 _ => {}
             }

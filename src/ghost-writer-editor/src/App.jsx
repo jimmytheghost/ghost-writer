@@ -36,7 +36,7 @@ import {
 } from './lib/desktopRuntime'
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import { printRenderedMarkdown } from './lib/print'
-import { setCustomSpellcheckWords } from './lib/spellcheck'
+import { getMisspelledWordCounts, preloadSpellcheck, setCustomSpellcheckWords } from './lib/spellcheck'
 import {
   closeTabById,
   createNewTab,
@@ -84,6 +84,10 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isWordListOpen, setIsWordListOpen] = useState(false)
   const [isTextZoomOpen, setIsTextZoomOpen] = useState(false)
+  const [isSpellCheckScanOpen, setIsSpellCheckScanOpen] = useState(false)
+  const [spellCheckScanStatus, setSpellCheckScanStatus] = useState('')
+  const [spellCheckScanItems, setSpellCheckScanItems] = useState([])
+  const [spellCheckScanTotal, setSpellCheckScanTotal] = useState(0)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [appName, setAppName] = useState('Ghost Writer')
   const [appVersion, setAppVersion] = useState('0.1.0')
@@ -541,6 +545,38 @@ function App() {
       sessionActiveTabPath: activeTabPath,
     })
   }, [activeTabId, hasLoadedDesktopSettings, settings, tabs])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return undefined
+    if (!settings.autoSaveEnabled) return undefined
+
+    const intervalSeconds = Math.min(
+      3600,
+      Math.max(5, Number.parseInt(String(settings.autoSaveIntervalSeconds ?? 60), 10) || 60),
+    )
+    const timerId = window.setInterval(() => {
+      const tabToSave = tabs.find((tab) => tab.id === activeTabId)
+      if (!tabToSave?.filePath) return
+      if (!tabToSave.isDirty) return
+
+      void saveMarkdownToPath(tabToSave.content ?? '', tabToSave.filePath).then((savedPath) => {
+        if (!savedPath) return
+        setTabs((currentTabs) =>
+          replaceActiveTab(currentTabs, tabToSave.id, (tab) => ({
+            ...tab,
+            title: ensureMarkdownFileName(fileNameFromPath(savedPath)),
+            filePath: savedPath,
+            lastSavedContent: tab.content ?? '',
+            isDirty: false,
+          })),
+        )
+      })
+    }, intervalSeconds * 1000)
+
+    return () => {
+      window.clearInterval(timerId)
+    }
+  }, [activeTabId, settings.autoSaveEnabled, settings.autoSaveIntervalSeconds, tabs])
 
   useEffect(() => {
     if (!settings.defaultModel || !models.length) return
@@ -1225,6 +1261,34 @@ function App() {
     setEditorFocusRequestId((current) => current + 1)
   }, [])
 
+  const handleShowAutoSave = useCallback(() => {
+    setIsWordListOpen(false)
+    setIsTextZoomOpen(false)
+    setIsSettingsOpen(true)
+  }, [])
+
+  const handleShowSpellCheck = useCallback(async () => {
+    setIsSettingsOpen(false)
+    setIsWordListOpen(false)
+    setIsTextZoomOpen(false)
+    setIsSpellCheckScanOpen(true)
+    setSpellCheckScanItems([])
+    setSpellCheckScanTotal(0)
+    setSpellCheckScanStatus('Scanning…')
+
+    const loaded = await preloadSpellcheck()
+    if (!loaded) {
+      setSpellCheckScanStatus('Spellcheck dictionary is unavailable right now.')
+      return
+    }
+
+    const items = getMisspelledWordCounts(activeContent)
+    const total = items.reduce((sum, item) => sum + item.count, 0)
+    setSpellCheckScanItems(items)
+    setSpellCheckScanTotal(total)
+    setSpellCheckScanStatus('')
+  }, [activeContent])
+
   const handleThemeToggle = useCallback(() => {
     const nextTheme = isDark ? 'light' : 'dark'
     void updateSetting('defaultTheme', nextTheme)
@@ -1411,6 +1475,10 @@ ${escapeLatex(exportMarkdownSource)}
       setIsSettingsOpen(false)
       setIsWordListOpen(false)
       setIsTextZoomOpen(true)
+    },
+    onShowAutoSave: handleShowAutoSave,
+    onShowSpellCheck: () => {
+      void handleShowSpellCheck()
     },
     onExportCopyHtml: () => {
       void handleExportCopyHtml()
@@ -1730,6 +1798,11 @@ ${escapeLatex(exportMarkdownSource)}
         setIsWordListOpen={setIsWordListOpen}
         isTextZoomOpen={isTextZoomOpen}
         setIsTextZoomOpen={setIsTextZoomOpen}
+        isSpellCheckScanOpen={isSpellCheckScanOpen}
+        setIsSpellCheckScanOpen={setIsSpellCheckScanOpen}
+        spellCheckScanStatus={spellCheckScanStatus}
+        spellCheckScanItems={spellCheckScanItems}
+        spellCheckScanTotal={spellCheckScanTotal}
         settings={settings}
         updateSetting={updateSetting}
         saveWordListSettings={handleWordListSave}

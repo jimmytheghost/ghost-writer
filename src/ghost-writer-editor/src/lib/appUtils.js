@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   defaultSpellCheck: false,
   customWordList: [...DEFAULT_CUSTOM_WORD_LIST],
   customWordListDisabled: [],
+  autoSaveEnabled: false,
+  autoSaveIntervalSeconds: 60,
   sessionSavedTabPaths: [],
   sessionActiveTabPath: '',
 })

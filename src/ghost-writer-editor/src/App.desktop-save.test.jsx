@@ -221,4 +221,61 @@ describe('App desktop save flow', () => {
       )
     })
   })
+
+  it('auto-saves dirty saved tabs to their existing path when enabled', async () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval').mockImplementation((callback) => {
+      queueMicrotask(() => {
+        callback()
+      })
+      return 1
+    })
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval').mockImplementation(() => {})
+
+    desktopRuntimeMocks.loadSettings.mockResolvedValueOnce({
+      hasFile: true,
+      settings: {
+        defaultModel: '',
+        defaultTheme: 'dark',
+        defaultTextZoom: '100%',
+        defaultAlwaysOnTop: false,
+        defaultFooterCollapsed: true,
+        defaultStartupPreview: false,
+        defaultSpellCheck: false,
+        autoSaveEnabled: true,
+        autoSaveIntervalSeconds: 5,
+        customWordList: [],
+        customWordListDisabled: [],
+        sessionSavedTabPaths: [],
+        sessionActiveTabPath: '',
+      },
+    })
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-five.md',
+      content: 'Saved baseline',
+    })
+    desktopRuntimeMocks.saveMarkdownToPath.mockResolvedValue('/tmp/chapter-five.md')
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-five' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Saved baseline\nAutosaved update' } })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveMarkdownToPath).toHaveBeenCalledWith(
+        'Saved baseline\nAutosaved update',
+        '/tmp/chapter-five.md',
+      )
+    })
+
+    setIntervalSpy.mockRestore()
+    clearIntervalSpy.mockRestore()
+  })
 })

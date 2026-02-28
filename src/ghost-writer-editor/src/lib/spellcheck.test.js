@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   DEFAULT_CUSTOM_WORD_LIST,
+  getMisspelledWordCounts,
   getMisspelledRanges,
   isSpellcheckReady,
   preloadSpellcheck,
@@ -41,5 +42,14 @@ describe('spellcheck', () => {
   it('treats extension-style words in custom list as valid tokens', () => {
     setCustomSpellcheckWords(['.png'])
     expect(getMisspelledRanges('Use image.png here ')).toEqual([])
+  })
+
+  it('returns misspelled word counts for full document scan', () => {
+    const results = getMisspelledWordCounts('wierd typo and wierd again, plus asdfghj token')
+
+    expect(results).toEqual([
+      { word: 'wierd', count: 2 },
+      { word: 'asdfghj', count: 1 },
+    ])
   })
 })
