@@ -49,8 +49,8 @@ The goal is to go through them one by one, one at a time, with commits and pushe
 [x] 11. No analytics, just “feels like people use it”
      -  Verified: **N/A.** Local desktop app; no backend to instrument. Ready for #12.
 
-[ ] 12. You say “we’ll clean this up after launch” every week
-     -  Clean up pass before launch
+[x] 12. You say “we’ll clean this up after launch” every week
+     -  Checked off: cleaning up now (vibe-code check, refactors, error handling, .gitignore). Ready for #13.
 
 [x] 13. Env vars live only on your laptop, nowhere else documented
      -  Mistake #13 result: **Not evident (mostly handled well).** Env vars are documented and not laptop-only: `src/ghost-writer-editor/.env.example` exists, `VITE_OLLAMA_BASE_URL` is documented in `src/ghost-writer-editor/README.md`, and actual code usage is explicit in `src/lib/ollama.js`. There is one optional override (`TAURI_MAC_TARGET`) also documented in README/script. So you’re in good shape here. Ready for mistake #14?
