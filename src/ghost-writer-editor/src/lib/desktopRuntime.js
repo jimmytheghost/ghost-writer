@@ -168,6 +168,17 @@ export async function saveSettings(settings) {
   }
 }
 
+export async function exportDiagnosticsBundle() {
+  if (!isDesktopRuntime()) return null
+
+  try {
+    return await invoke('export_diagnostics_bundle')
+  } catch (error) {
+    console.warn('Failed to export diagnostics bundle:', error)
+    return null
+  }
+}
+
 /**
  * Ensures Ollama is running (checks and starts it if needed). Desktop/Tauri only.
  * @returns {{ ok: true }} on success, or {{ ok: false, error: string }} on failure.

@@ -33,6 +33,7 @@ export function useTauriMenuEvents({
   onExportRtf,
   onExportWord,
   onExportLatex,
+  onExportDiagnostics,
   onShowAbout,
   onShowFindReplace,
 }) {
@@ -74,6 +75,7 @@ export function useTauriMenuEvents({
         ['ghost-writer://menu-export-rtf', () => onExportRtf()],
         ['ghost-writer://menu-export-word', () => onExportWord()],
         ['ghost-writer://menu-export-latex', () => onExportLatex()],
+        ['ghost-writer://menu-export-diagnostics', () => onExportDiagnostics?.()],
         ['ghost-writer://menu-find-replace', () => onShowFindReplace()],
         ['ghost-writer://menu-about', () => onShowAbout()],
       ]
@@ -140,6 +142,7 @@ export function useTauriMenuEvents({
     onExportRtf,
     onExportWord,
     onExportLatex,
+    onExportDiagnostics,
     onShowFindReplace,
     onToggleAlwaysOnTop,
     onToggleFooter,

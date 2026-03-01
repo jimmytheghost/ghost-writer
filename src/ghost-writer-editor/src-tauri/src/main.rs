@@ -4,14 +4,14 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
 
@@ -23,6 +23,27 @@ const SETTINGS_FILE_NAME: &str = "settings.json";
 const MAX_RECENT_FILES: usize = 10;
 const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
 const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
+const MAX_TEXT_PAYLOAD_BYTES: usize = 5 * 1024 * 1024;
+const MAX_PROMPT_BYTES: usize = 5 * 1024 * 1024;
+const MAX_MODEL_NAME_BYTES: usize = 256;
+const MAX_PATH_BYTES: usize = 4096;
+const MAX_PATHS_PER_REQUEST: usize = 100;
+const MAX_SUGGESTED_NAME_BYTES: usize = 255;
+const MAX_FILTER_NAME_BYTES: usize = 64;
+const MAX_EXTENSIONS_COUNT: usize = 16;
+const MAX_EXTENSION_BYTES: usize = 16;
+const MAX_WORD_LIST_ITEMS: usize = 1024;
+const MAX_WORD_BYTES: usize = 128;
+const MAX_SESSION_SAVED_TAB_PATHS: usize = 100;
+const AUTO_SAVE_INTERVAL_MIN_SECONDS: u32 = 5;
+const AUTO_SAVE_INTERVAL_MAX_SECONDS: u32 = 600;
+const ALLOWED_THEMES: [&str; 2] = ["dark", "light"];
+const ALLOWED_TEXT_ZOOMS: [&str; 5] = ["50%", "75%", "100%", "125%", "150%"];
+const LOG_FILE_NAME: &str = "ghost-writer.log";
+const LOG_FILE_ROTATED_PREFIX: &str = "ghost-writer.log.";
+const LOG_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
+const LOG_MAX_FILES: usize = 5;
+const DIAGNOSTICS_LOG_LINES_LIMIT: usize = 1000;
 
 pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
 
@@ -111,6 +132,18 @@ struct OpenRecentPayload {
     content: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticsBundle {
+    generated_at_unix_ms: u128,
+    app_name: String,
+    app_version: String,
+    runtime_platform: String,
+    runtime_arch: String,
+    log_file_count: usize,
+    logs: Vec<String>,
+}
+
 fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let is_colored_output_visible = app
         .try_state::<ColoredOutputMenuState>()
@@ -158,6 +191,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let export_rtf = MenuItem::with_id(app, "file_export_rtf", "RTF...", true, None::<&str>)?;
     let export_word = MenuItem::with_id(app, "file_export_word", "Word...", true, None::<&str>)?;
     let export_latex = MenuItem::with_id(app, "file_export_latex", "LaTeX...", true, None::<&str>)?;
+    let export_diagnostics =
+        MenuItem::with_id(app, "file_export_diagnostics", "Diagnostics...", true, None::<&str>)?;
     let export_menu = Submenu::with_items(
         app,
         "Export",
@@ -171,6 +206,8 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &export_rtf,
             &export_word,
             &export_latex,
+            &PredefinedMenuItem::separator(app)?,
+            &export_diagnostics,
         ],
     )?;
 
@@ -311,6 +348,9 @@ fn save_markdown_file(
     content: String,
     suggested_name: String,
 ) -> Result<Option<String>, String> {
+    ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES)?;
+    ensure_max_bytes("suggestedName", suggested_name.trim(), MAX_SUGGESTED_NAME_BYTES)?;
+
     let safe_name = if suggested_name.trim().is_empty() {
         "untitled.md".to_string()
     } else if suggested_name.to_lowercase().ends_with(".md") {
@@ -325,12 +365,30 @@ fn save_markdown_file(
         .save_file();
 
     let Some(path) = selected_path else {
+        append_structured_log(
+            &app,
+            "info",
+            "file.save.dialog.cancelled",
+            "User cancelled save dialog",
+            serde_json::json!({}),
+        );
         return Ok(None);
     };
+    let destination = canonicalize_destination_path("path", &path)?;
+    if !has_markdown_extension(&destination) {
+        return Err("ERR_INVALID_PATH:path must use a .md extension".to_string());
+    }
 
-    fs::write(&path, content).map_err(|error| error.to_string())?;
-    push_recent_file_path(&app, &path);
-    Ok(Some(path.to_string_lossy().into_owned()))
+    fs::write(&destination, content).map_err(|error| error.to_string())?;
+    push_recent_file_path(&app, &destination);
+    append_structured_log(
+        &app,
+        "info",
+        "file.save.dialog.success",
+        "Saved markdown file via native dialog",
+        serde_json::json!({ "path": destination.to_string_lossy() }),
+    );
+    Ok(Some(destination.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
@@ -339,59 +397,72 @@ fn save_markdown_to_path(
     content: String,
     path: String,
 ) -> Result<String, String> {
-    let trimmed = path.trim();
-    if trimmed.is_empty() {
-        return Err("Missing file path".to_string());
-    }
-
-    let destination = PathBuf::from(trimmed);
-    if !destination.exists() {
-        return Err("Target file no longer exists.".to_string());
-    }
-    if !destination.is_file() {
-        return Err("Target path is not a file.".to_string());
-    }
+    ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES)?;
+    let destination = canonicalize_existing_file_path("path", &path)?;
     if !has_markdown_extension(&destination) {
-        return Err("Only Markdown (.md) files can be overwritten.".to_string());
+        return Err("ERR_INVALID_PATH:path must use a .md extension".to_string());
     }
     fs::write(&destination, content).map_err(|error| error.to_string())?;
     push_recent_file_path(&app, &destination);
+    append_structured_log(
+        &app,
+        "info",
+        "file.save.path.success",
+        "Saved markdown file to existing path",
+        serde_json::json!({ "path": destination.to_string_lossy() }),
+    );
     Ok(destination.to_string_lossy().into_owned())
 }
 
 
 #[tauri::command]
 fn save_text_file_with_dialog(
+    app: tauri::AppHandle,
     content: String,
     suggested_name: String,
     filter_name: String,
     extensions: Vec<String>,
 ) -> Result<Option<String>, String> {
+    ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES)?;
+    ensure_max_bytes("suggestedName", suggested_name.trim(), MAX_SUGGESTED_NAME_BYTES)?;
+    ensure_max_bytes("filterName", filter_name.trim(), MAX_FILTER_NAME_BYTES)?;
+
     let safe_name = if suggested_name.trim().is_empty() {
         "export.txt".to_string()
     } else {
         suggested_name
     };
 
-    let sanitized_extensions: Vec<String> = extensions
-        .into_iter()
-        .map(|value| value.trim().trim_start_matches('.').to_lowercase())
-        .filter(|value| !value.is_empty())
-        .collect();
+    let sanitized_extensions = sanitize_extension_list(extensions)?;
 
     let mut dialog = rfd::FileDialog::new().set_file_name(&safe_name);
     if !sanitized_extensions.is_empty() {
         let extension_refs: Vec<&str> = sanitized_extensions.iter().map(String::as_str).collect();
-        dialog = dialog.add_filter(filter_name, &extension_refs);
+        dialog = dialog.add_filter(&filter_name, &extension_refs);
     }
 
     let selected_path: Option<PathBuf> = dialog.save_file();
     let Some(path) = selected_path else {
+        append_structured_log(
+            &app,
+            "info",
+            "file.export.dialog.cancelled",
+            "User cancelled export dialog",
+            serde_json::json!({}),
+        );
         return Ok(None);
     };
+    let destination = canonicalize_destination_path("path", &path)?;
 
-    fs::write(&path, content).map_err(|error| error.to_string())?;
-    Ok(Some(path.to_string_lossy().into_owned()))
+    fs::write(&destination, content).map_err(|error| error.to_string())?;
+    append_structured_log(
+        &app,
+        "info",
+        "file.export.dialog.success",
+        "Saved export file via native dialog",
+        serde_json::json!({ "path": destination.to_string_lossy(), "filterName": filter_name }),
+    );
+    Ok(Some(destination.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
@@ -400,14 +471,10 @@ fn rename_markdown_file_with_dialog(
     current_path: String,
     suggested_name: String,
 ) -> Result<Option<String>, String> {
-    let trimmed = current_path.trim();
-    if trimmed.is_empty() {
-        return Ok(None);
-    }
-
-    let source_path = PathBuf::from(trimmed);
-    if !source_path.exists() {
-        return Err("Source file does not exist.".to_string());
+    ensure_max_bytes("suggestedName", suggested_name.trim(), MAX_SUGGESTED_NAME_BYTES)?;
+    let source_path = canonicalize_existing_file_path("currentPath", &current_path)?;
+    if !has_markdown_extension(&source_path) {
+        return Err("ERR_INVALID_PATH:currentPath must use a .md extension".to_string());
     }
 
     let safe_name = if suggested_name.trim().is_empty() {
@@ -429,10 +496,18 @@ fn rename_markdown_file_with_dialog(
 
     let selected_path: Option<PathBuf> = dialog.save_file();
     let Some(destination_path) = selected_path else {
+        append_structured_log(
+            &app,
+            "info",
+            "file.rename.dialog.cancelled",
+            "User cancelled rename dialog",
+            serde_json::json!({ "sourcePath": source_path.to_string_lossy() }),
+        );
         return Ok(None);
     };
+    let destination_path = canonicalize_destination_path("destinationPath", &destination_path)?;
     if !has_markdown_extension(&destination_path) {
-        return Err("Renamed file must use a .md extension.".to_string());
+        return Err("ERR_INVALID_PATH:destinationPath must use a .md extension".to_string());
     }
 
     if destination_path == source_path {
@@ -451,6 +526,16 @@ fn rename_markdown_file_with_dialog(
         }
     }
     push_recent_file_path(&app, &destination_path);
+    append_structured_log(
+        &app,
+        "info",
+        "file.rename.success",
+        "Renamed markdown file",
+        serde_json::json!({
+            "sourcePath": source_path.to_string_lossy(),
+            "destinationPath": destination_path.to_string_lossy()
+        }),
+    );
     Ok(Some(destination_path.to_string_lossy().into_owned()))
 }
 
@@ -461,14 +546,30 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
         .pick_file();
 
     let Some(path) = selected_path else {
+        append_structured_log(
+            &app,
+            "info",
+            "file.open.dialog.cancelled",
+            "User cancelled open dialog",
+            serde_json::json!({}),
+        );
         return Ok(None);
     };
+    let path = canonicalize_existing_file_path("path", &path.to_string_lossy())?;
     if !has_markdown_extension(&path) {
-        return Err("Only Markdown (.md) files can be opened.".to_string());
+        return Err("ERR_INVALID_PATH:path must use a .md extension".to_string());
     }
 
     let content = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES)?;
     push_recent_file_path(&app, &path);
+    append_structured_log(
+        &app,
+        "info",
+        "file.open.dialog.success",
+        "Opened markdown file",
+        serde_json::json!({ "path": path.to_string_lossy() }),
+    );
     Ok(Some(OpenRecentPayload {
         path: path.to_string_lossy().into_owned(),
         content,
@@ -477,26 +578,38 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
 
 #[tauri::command]
 fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayload>, String> {
+    if paths.len() > MAX_PATHS_PER_REQUEST {
+        return Err(format!(
+            "ERR_INVALID_FIELD:paths exceeds {} items",
+            MAX_PATHS_PER_REQUEST
+        ));
+    }
+
     let mut results = Vec::new();
 
     for raw_path in paths {
-        let trimmed = raw_path.trim();
-        if trimmed.is_empty() {
+        let path = match validate_path_string("paths[]", &raw_path) {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+        let canonical = match fs::canonicalize(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        if !canonical.is_file() || !has_markdown_extension(&canonical) {
             continue;
         }
 
-        let path = PathBuf::from(trimmed);
-        if !has_markdown_extension(&path) {
-            continue;
-        }
-
-        let content = match fs::read_to_string(&path) {
+        let content = match fs::read_to_string(&canonical) {
             Ok(content) => content,
             Err(_) => continue,
         };
+        if ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES).is_err() {
+            continue;
+        }
 
         results.push(OpenRecentPayload {
-            path: trimmed.to_string(),
+            path: canonical.to_string_lossy().into_owned(),
             content,
         });
     }
@@ -505,11 +618,22 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
 }
 
 #[tauri::command]
-fn open_external_url(url: String) -> Result<(), String> {
+fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    ensure_max_bytes("url", url.trim(), MAX_PATH_BYTES)?;
     if !is_allowed_external_url(&url) {
-        return Err("Unsupported URL scheme. Only http, https, mailto, and tel are allowed.".to_string());
+        return Err(
+            "ERR_INVALID_FIELD:url only http, https, mailto, and tel are allowed".to_string(),
+        );
     }
-    open::that(url).map_err(|error| error.to_string())
+    open::that(url.clone()).map_err(|error| error.to_string())?;
+    append_structured_log(
+        &app,
+        "info",
+        "url.open.success",
+        "Opened external URL",
+        serde_json::json!({ "scheme": url::Url::parse(&url).ok().map(|parsed| parsed.scheme().to_string()) }),
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -544,6 +668,341 @@ fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
     {
         window.print().map_err(|error| error.to_string())
     }
+}
+
+fn logs_dir_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let mut dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("ERR_DIAGNOSTICS_PATH:{error}"))?;
+    dir.push("logs");
+    Ok(dir)
+}
+
+fn base_log_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let mut path = logs_dir_path(app)?;
+    path.push(LOG_FILE_NAME);
+    Ok(path)
+}
+
+fn rotated_log_file_path(app: &tauri::AppHandle, index: usize) -> Result<PathBuf, String> {
+    let mut path = logs_dir_path(app)?;
+    path.push(format!("{LOG_FILE_ROTATED_PREFIX}{index}"));
+    Ok(path)
+}
+
+fn rotate_logs_if_needed(app: &tauri::AppHandle) -> Result<(), String> {
+    let base_path = base_log_file_path(app)?;
+    let metadata = match fs::metadata(&base_path) {
+        Ok(metadata) => metadata,
+        Err(_) => return Ok(()),
+    };
+
+    if metadata.len() < LOG_MAX_FILE_BYTES {
+        return Ok(());
+    }
+
+    for index in (1..=LOG_MAX_FILES).rev() {
+        let path = rotated_log_file_path(app, index)?;
+        if index == LOG_MAX_FILES && path.exists() {
+            let _ = fs::remove_file(&path);
+        }
+
+        if index > 1 {
+            let previous = rotated_log_file_path(app, index - 1)?;
+            if previous.exists() {
+                let _ = fs::rename(&previous, &path);
+            }
+        }
+    }
+
+    let first_rotated = rotated_log_file_path(app, 1)?;
+    if base_path.exists() {
+        let _ = fs::rename(base_path, first_rotated);
+    }
+    Ok(())
+}
+
+fn build_log_entry(
+    app: &tauri::AppHandle,
+    level: &str,
+    event: &str,
+    msg: &str,
+    ctx: serde_json::Value,
+) -> serde_json::Value {
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis())
+        .unwrap_or(0);
+    serde_json::json!({
+        "ts": ts,
+        "level": level,
+        "event": event,
+        "msg": msg,
+        "app": {
+            "name": app.package_info().name.clone(),
+            "version": app.package_info().version.to_string(),
+            "env": "desktop",
+        },
+        "runtime": {
+            "platform": env::consts::OS,
+            "arch": env::consts::ARCH,
+        },
+        "ctx": ctx,
+    })
+}
+
+fn append_structured_log(
+    app: &tauri::AppHandle,
+    level: &str,
+    event: &str,
+    msg: &str,
+    ctx: serde_json::Value,
+) {
+    let Ok(log_dir) = logs_dir_path(app) else {
+        return;
+    };
+    if fs::create_dir_all(&log_dir).is_err() {
+        return;
+    }
+
+    if rotate_logs_if_needed(app).is_err() {
+        return;
+    }
+
+    let Ok(path) = base_log_file_path(app) else {
+        return;
+    };
+
+    let entry = build_log_entry(app, level, event, msg, ctx);
+    let Ok(serialized) = serde_json::to_string(&entry) else {
+        return;
+    };
+
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{serialized}");
+    }
+}
+
+fn collect_recent_log_lines(app: &tauri::AppHandle, max_lines: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut sources = Vec::new();
+
+    if let Ok(base) = base_log_file_path(app) {
+        sources.push(base);
+    }
+    for index in 1..=LOG_MAX_FILES {
+        if let Ok(path) = rotated_log_file_path(app, index) {
+            sources.push(path);
+        }
+    }
+
+    for path in sources {
+        let content = match fs::read_to_string(path) {
+            Ok(content) => content,
+            Err(_) => continue,
+        };
+        for line in content.lines().rev() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            lines.push(line.to_string());
+            if lines.len() >= max_lines {
+                break;
+            }
+        }
+        if lines.len() >= max_lines {
+            break;
+        }
+    }
+
+    lines.reverse();
+    lines
+}
+
+fn ensure_max_bytes(field: &str, value: &str, max_bytes: usize) -> Result<(), String> {
+    if value.len() > max_bytes {
+        return Err(format!(
+            "ERR_PAYLOAD_TOO_LARGE:{field} exceeds {max_bytes} bytes"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_path_string(field: &str, raw: &str) -> Result<PathBuf, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(format!("ERR_MISSING_FIELD:{field} is required"));
+    }
+    ensure_max_bytes(field, trimmed, MAX_PATH_BYTES)?;
+    let path = PathBuf::from(trimmed);
+    if !path.is_absolute() {
+        return Err(format!("ERR_INVALID_PATH:{field} must be an absolute path"));
+    }
+    Ok(path)
+}
+
+fn canonicalize_existing_file_path(field: &str, raw: &str) -> Result<PathBuf, String> {
+    let path = validate_path_string(field, raw)?;
+    let canonical = fs::canonicalize(&path)
+        .map_err(|_| format!("ERR_PATH_NOT_FOUND:{field} does not exist"))?;
+    if !canonical.is_file() {
+        return Err(format!("ERR_PATH_NOT_FILE:{field} must point to a file"));
+    }
+    Ok(canonical)
+}
+
+fn canonicalize_destination_path(field: &str, destination: &Path) -> Result<PathBuf, String> {
+    let destination_text = destination.to_string_lossy();
+    ensure_max_bytes(field, destination_text.trim(), MAX_PATH_BYTES)?;
+    if !destination.is_absolute() {
+        return Err(format!("ERR_INVALID_PATH:{field} must be an absolute path"));
+    }
+
+    let file_name = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| format!("ERR_INVALID_PATH:{field} file name is missing"))?;
+    ensure_max_bytes(field, file_name, MAX_SUGGESTED_NAME_BYTES)?;
+
+    let parent = destination
+        .parent()
+        .ok_or_else(|| format!("ERR_INVALID_PATH:{field} parent directory is missing"))?;
+    let canonical_parent = fs::canonicalize(parent)
+        .map_err(|_| format!("ERR_INVALID_PATH:{field} parent directory does not exist"))?;
+    if !canonical_parent.is_dir() {
+        return Err(format!(
+            "ERR_INVALID_PATH:{field} parent directory is not a directory"
+        ));
+    }
+
+    Ok(canonical_parent.join(file_name))
+}
+
+fn is_valid_extension(value: &str) -> bool {
+    value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+}
+
+fn sanitize_extension_list(extensions: Vec<String>) -> Result<Vec<String>, String> {
+    if extensions.len() > MAX_EXTENSIONS_COUNT {
+        return Err(format!(
+            "ERR_INVALID_FIELD:extensions exceeds {} items",
+            MAX_EXTENSIONS_COUNT
+        ));
+    }
+
+    let mut sanitized = Vec::new();
+    for value in extensions {
+        let extension = value.trim().trim_start_matches('.').to_lowercase();
+        if extension.is_empty() {
+            continue;
+        }
+        ensure_max_bytes("extensions[]", &extension, MAX_EXTENSION_BYTES)?;
+        if !is_valid_extension(&extension) {
+            return Err("ERR_INVALID_FIELD:extensions[] contains unsupported characters".to_string());
+        }
+        if sanitized.iter().any(|existing| existing == &extension) {
+            continue;
+        }
+        sanitized.push(extension);
+    }
+    Ok(sanitized)
+}
+
+fn sanitize_word_list(field: &str, values: Vec<String>) -> Result<Vec<String>, String> {
+    if values.len() > MAX_WORD_LIST_ITEMS {
+        return Err(format!(
+            "ERR_INVALID_FIELD:{field} exceeds {} items",
+            MAX_WORD_LIST_ITEMS
+        ));
+    }
+
+    let mut normalized = Vec::new();
+    for value in values {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        ensure_max_bytes(field, trimmed, MAX_WORD_BYTES)?;
+        if normalized.iter().any(|existing| existing == trimmed) {
+            continue;
+        }
+        normalized.push(trimmed.to_string());
+    }
+    Ok(normalized)
+}
+
+fn validate_and_normalize_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
+    settings.default_theme = settings.default_theme.trim().to_lowercase();
+    if !ALLOWED_THEMES.contains(&settings.default_theme.as_str()) {
+        return Err("ERR_INVALID_FIELD:defaultTheme must be one of dark|light".to_string());
+    }
+
+    settings.default_text_zoom = settings.default_text_zoom.trim().to_string();
+    if !ALLOWED_TEXT_ZOOMS.contains(&settings.default_text_zoom.as_str()) {
+        return Err("ERR_INVALID_FIELD:defaultTextZoom is not supported".to_string());
+    }
+
+    settings.default_model = settings.default_model.trim().to_string();
+    ensure_max_bytes("defaultModel", &settings.default_model, MAX_MODEL_NAME_BYTES)?;
+
+    if !(AUTO_SAVE_INTERVAL_MIN_SECONDS..=AUTO_SAVE_INTERVAL_MAX_SECONDS)
+        .contains(&settings.auto_save_interval_seconds)
+    {
+        return Err(format!(
+            "ERR_INVALID_FIELD:autoSaveIntervalSeconds must be between {} and {}",
+            AUTO_SAVE_INTERVAL_MIN_SECONDS, AUTO_SAVE_INTERVAL_MAX_SECONDS
+        ));
+    }
+
+    settings.custom_word_list = sanitize_word_list("customWordList", settings.custom_word_list)?;
+    settings.custom_word_list_disabled =
+        sanitize_word_list("customWordListDisabled", settings.custom_word_list_disabled)?;
+
+    if settings.session_saved_tab_paths.len() > MAX_SESSION_SAVED_TAB_PATHS {
+        return Err(format!(
+            "ERR_INVALID_FIELD:sessionSavedTabPaths exceeds {} items",
+            MAX_SESSION_SAVED_TAB_PATHS
+        ));
+    }
+    settings.session_saved_tab_paths = settings
+        .session_saved_tab_paths
+        .into_iter()
+        .filter_map(|value| {
+            let trimmed = value.trim().to_string();
+            if trimmed.is_empty() {
+                return None;
+            }
+            if ensure_max_bytes("sessionSavedTabPaths[]", &trimmed, MAX_PATH_BYTES).is_err() {
+                return None;
+            }
+            let path = PathBuf::from(&trimmed);
+            if !path.is_absolute() {
+                return None;
+            }
+            Some(trimmed)
+        })
+        .collect();
+
+    settings.session_active_tab_path = settings.session_active_tab_path.trim().to_string();
+    if !settings.session_active_tab_path.is_empty() {
+        ensure_max_bytes(
+            "sessionActiveTabPath",
+            &settings.session_active_tab_path,
+            MAX_PATH_BYTES,
+        )?;
+        let active_path = PathBuf::from(&settings.session_active_tab_path);
+        if !active_path.is_absolute() {
+            return Err("ERR_INVALID_FIELD:sessionActiveTabPath must be an absolute path".to_string());
+        }
+    }
+
+    settings.recent_files = normalize_recent_files(&settings.recent_files);
+    Ok(settings)
 }
 
 fn settings_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -664,11 +1123,23 @@ fn refresh_app_menu(app: &tauri::AppHandle) {
     match build_app_menu(app) {
         Ok(menu) => {
             if let Err(error) = app.set_menu(menu) {
-                eprintln!("Failed to refresh app menu: {error}");
+                append_structured_log(
+                    app,
+                    "error",
+                    "menu.refresh.failed",
+                    "Failed to refresh app menu",
+                    serde_json::json!({ "error": error.to_string() }),
+                );
             }
         }
         Err(error) => {
-            eprintln!("Failed to rebuild app menu: {error}");
+            append_structured_log(
+                app,
+                "error",
+                "menu.rebuild.failed",
+                "Failed to rebuild app menu",
+                serde_json::json!({ "error": error.to_string() }),
+            );
         }
     }
 }
@@ -687,7 +1158,13 @@ fn push_recent_file_path(app: &tauri::AppHandle, path: &PathBuf) {
     settings.recent_files.truncate(MAX_RECENT_FILES);
 
     if let Err(error) = write_settings(app, &settings) {
-        eprintln!("Failed to update recent files: {error}");
+        append_structured_log(
+            app,
+            "error",
+            "recent_files.update.failed",
+            "Failed to update recent files",
+            serde_json::json!({ "error": error }),
+        );
         return;
     }
 
@@ -732,7 +1209,39 @@ fn load_recent_file_by_index(
 #[tauri::command]
 fn load_settings(app: tauri::AppHandle) -> Result<SettingsResponse, String> {
     let (settings, has_file) = read_settings(&app)?;
+    append_structured_log(
+        &app,
+        "info",
+        "settings.load.success",
+        "Loaded app settings",
+        serde_json::json!({ "hasFile": has_file }),
+    );
     Ok(SettingsResponse { settings, has_file })
+}
+
+#[tauri::command]
+fn export_diagnostics_bundle(app: tauri::AppHandle) -> Result<String, String> {
+    let logs = collect_recent_log_lines(&app, DIAGNOSTICS_LOG_LINES_LIMIT);
+    let bundle = DiagnosticsBundle {
+        generated_at_unix_ms: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_millis())
+            .unwrap_or(0),
+        app_name: app.package_info().name.clone(),
+        app_version: app.package_info().version.to_string(),
+        runtime_platform: env::consts::OS.to_string(),
+        runtime_arch: env::consts::ARCH.to_string(),
+        log_file_count: LOG_MAX_FILES + 1,
+        logs,
+    };
+    append_structured_log(
+        &app,
+        "info",
+        "diagnostics.export.bundle",
+        "Built diagnostics bundle",
+        serde_json::json!({ "lineCount": bundle.logs.len() }),
+    );
+    serde_json::to_string_pretty(&bundle).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -740,11 +1249,22 @@ fn save_settings(
     app: tauri::AppHandle,
     mut settings: AppSettings,
 ) -> Result<SettingsResponse, String> {
+    settings = validate_and_normalize_settings(settings)?;
     let current_recent_files = read_settings(&app)
         .map(|(existing, _)| existing.recent_files)
         .unwrap_or_default();
     settings.recent_files = current_recent_files;
     write_settings(&app, &settings)?;
+    append_structured_log(
+        &app,
+        "info",
+        "settings.save.success",
+        "Saved app settings",
+        serde_json::json!({
+            "defaultTheme": settings.default_theme,
+            "autoSaveEnabled": settings.auto_save_enabled
+        }),
+    );
 
     Ok(SettingsResponse {
         settings,
@@ -851,8 +1371,25 @@ fn ensure_ollama_running() {
 }
 
 #[tauri::command]
-fn ensure_ollama_running_command() -> Result<(), String> {
-    ensure_ollama_running_result()
+fn ensure_ollama_running_command(app: tauri::AppHandle) -> Result<(), String> {
+    let result = ensure_ollama_running_result();
+    match &result {
+        Ok(_) => append_structured_log(
+            &app,
+            "info",
+            "ollama.ensure.success",
+            "Ollama is reachable",
+            serde_json::json!({ "addr": OLLAMA_ADDR }),
+        ),
+        Err(error) => append_structured_log(
+            &app,
+            "error",
+            "ollama.ensure.failed",
+            "Failed to ensure Ollama running",
+            serde_json::json!({ "addr": OLLAMA_ADDR, "error": error }),
+        ),
+    }
+    result
 }
 
 /// Shared flag so the frontend can cancel an in-flight Ollama stream.
@@ -865,6 +1402,20 @@ async fn ollama_generate_stream(
     prompt: String,
     cancel: tauri::State<'_, OllamaStreamCancel>,
 ) -> Result<(), String> {
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err("ERR_INVALID_FIELD:model is required".to_string());
+    }
+    ensure_max_bytes("model", &model, MAX_MODEL_NAME_BYTES)?;
+    ensure_max_bytes("prompt", &prompt, MAX_PROMPT_BYTES)?;
+    append_structured_log(
+        &app,
+        "info",
+        "ollama.stream.start",
+        "Starting Ollama stream generation",
+        serde_json::json!({ "model": &model }),
+    );
+
     cancel.0.store(false, Ordering::SeqCst);
 
     let window = app
@@ -894,6 +1445,13 @@ async fn ollama_generate_stream(
     if !res.status().is_success() {
         let msg = format!("Ollama request failed: {}", res.status());
         let _ = window.emit("ollama-stream-error", &msg);
+        append_structured_log(
+            &app,
+            "error",
+            "ollama.stream.http_error",
+            "Ollama responded with non-success status",
+            serde_json::json!({ "model": &model, "status": res.status().as_u16() }),
+        );
         return Err(msg);
     }
 
@@ -903,6 +1461,13 @@ async fn ollama_generate_stream(
     while let Some(item) = stream.next().await {
         if cancel.0.load(Ordering::SeqCst) {
             let _ = window.emit("ollama-stream-cancelled", ());
+            append_structured_log(
+                &app,
+                "warn",
+                "ollama.stream.cancelled",
+                "Ollama stream cancelled by user",
+                serde_json::json!({ "model": &model }),
+            );
             return Ok(());
         }
 
@@ -937,12 +1502,58 @@ async fn ollama_generate_stream(
     }
 
     let _ = window.emit("ollama-stream-done", ());
+    append_structured_log(
+        &app,
+        "info",
+        "ollama.stream.done",
+        "Ollama stream completed",
+        serde_json::json!({ "model": &model }),
+    );
     Ok(())
 }
 
 #[tauri::command]
 fn ollama_cancel_stream(cancel: tauri::State<'_, OllamaStreamCancel>) {
     cancel.0.store(true, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_theme_in_settings() {
+        let mut settings = AppSettings::default();
+        settings.default_theme = "neon".to_string();
+        let result = validate_and_normalize_settings(settings);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_out_of_range_auto_save_interval() {
+        let mut settings = AppSettings::default();
+        settings.auto_save_interval_seconds = 2;
+        let result = validate_and_normalize_settings(settings);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn deduplicates_and_normalizes_extensions() {
+        let sanitized = sanitize_extension_list(vec![
+            ".TXT".to_string(),
+            "txt".to_string(),
+            "md".to_string(),
+            "  ".to_string(),
+        ])
+        .expect("extensions should be valid");
+        assert_eq!(sanitized, vec!["txt".to_string(), "md".to_string()]);
+    }
+
+    #[test]
+    fn validates_absolute_path_strings() {
+        let relative = validate_path_string("path", "notes.md");
+        assert!(relative.is_err());
+    }
 }
 
 fn main() {
@@ -964,6 +1575,7 @@ fn main() {
             print_current_webview,
             load_settings,
             save_settings,
+            export_diagnostics_bundle,
             ensure_ollama_running_command,
             ollama_generate_stream,
             ollama_cancel_stream
@@ -971,6 +1583,13 @@ fn main() {
         .setup(|app| {
             let menu = build_app_menu(&app.handle())?;
             app.set_menu(menu)?;
+            append_structured_log(
+                &app.handle(),
+                "info",
+                "app.startup",
+                "Ghost Writer desktop runtime started",
+                serde_json::json!({}),
+            );
             tauri::async_runtime::spawn_blocking(ensure_ollama_running);
             Ok(())
         })
@@ -981,7 +1600,13 @@ fn main() {
 
             let emit_menu_event = |event_name: &str| {
                 if let Err(error) = window.emit(event_name, ()) {
-                    eprintln!("Failed to emit menu event `{event_name}`: {error}");
+                    append_structured_log(
+                        app,
+                        "error",
+                        "menu.emit.failed",
+                        "Failed to emit menu event",
+                        serde_json::json!({ "eventName": event_name, "error": error.to_string() }),
+                    );
                 }
             };
 
@@ -1005,6 +1630,7 @@ fn main() {
                 "file_export_rtf" => emit_menu_event("ghost-writer://menu-export-rtf"),
                 "file_export_word" => emit_menu_event("ghost-writer://menu-export-word"),
                 "file_export_latex" => emit_menu_event("ghost-writer://menu-export-latex"),
+                "file_export_diagnostics" => emit_menu_event("ghost-writer://menu-export-diagnostics"),
                 "edit_find_replace" => emit_menu_event("ghost-writer://menu-find-replace"),
                 "edit_spell_check" => emit_menu_event("ghost-writer://menu-spell-check"),
                 id if id.starts_with(OPEN_RECENT_PREFIX) => {
@@ -1023,14 +1649,26 @@ fn main() {
                             if let Err(error) =
                                 window.emit("ghost-writer://menu-open-recent", payload)
                             {
-                                eprintln!("Failed to emit open-recent event: {error}");
+                                append_structured_log(
+                                    app,
+                                    "error",
+                                    "menu.open_recent.emit.failed",
+                                    "Failed to emit open recent event",
+                                    serde_json::json!({ "error": error.to_string() }),
+                                );
                             }
                         }
                         Err(error_message) => {
                             if let Err(error) =
                                 window.emit("ghost-writer://menu-open-recent-error", error_message)
                             {
-                                eprintln!("Failed to emit open-recent-error event: {error}");
+                                append_structured_log(
+                                    app,
+                                    "error",
+                                    "menu.open_recent_error.emit.failed",
+                                    "Failed to emit open recent error event",
+                                    serde_json::json!({ "error": error.to_string() }),
+                                );
                             }
                         }
                     }

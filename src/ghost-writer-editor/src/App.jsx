@@ -20,6 +20,7 @@ import {
 } from './lib/contentTransforms'
 import {
   ensureOllamaRunning,
+  exportDiagnosticsBundle,
   isDesktopRuntime,
   isMacDesktopRuntime,
   loadSettings,
@@ -1501,6 +1502,28 @@ ${escapeLatex(exportMarkdownSource)}
     })
   }, [exportMarkdownSource, exportWithNativeDialog])
 
+  const handleExportDiagnostics = useCallback(async () => {
+    if (!isDesktopRuntime()) {
+      setPromptError('Diagnostics export is only available in the desktop app.')
+      return
+    }
+
+    const bundle = await exportDiagnosticsBundle()
+    if (!bundle) {
+      setPromptError('Unable to prepare diagnostics bundle.')
+      return
+    }
+
+    const savedPath = await saveTextFileWithNativeDialog({
+      content: bundle,
+      suggestedName: 'ghost-writer-diagnostics.json',
+      filterName: 'JSON',
+      extensions: ['json'],
+    })
+    if (!savedPath) return
+    setPromptError('')
+  }, [setPromptError])
+
   const handleWordListSave = useCallback(
     (nextWordList = [], nextWordListDisabled = []) => {
       const normalizedWordList = Array.isArray(nextWordList) ? nextWordList : DEFAULT_SETTINGS.customWordList
@@ -1604,6 +1627,9 @@ ${escapeLatex(exportMarkdownSource)}
     },
     onExportLatex: () => {
       void handleExportLatex()
+    },
+    onExportDiagnostics: () => {
+      void handleExportDiagnostics()
     },
     onShowFindReplace: handleShowFindReplace,
     onShowAbout: () => setIsAboutOpen(true),
@@ -1927,6 +1953,9 @@ ${escapeLatex(exportMarkdownSource)}
         models={models}
         appName={appName}
         appVersion={appVersion}
+        onExportDiagnostics={() => {
+          void handleExportDiagnostics()
+        }}
       />
     </div>
   )

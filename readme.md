@@ -180,6 +180,12 @@ Current packaging target outputs:
 
 - Bundles are produced under `src/ghost-writer-editor/src-tauri/target/release/bundle`.
 
+CI release path:
+
+- Tag-based desktop releases now run through GitHub Actions (`.github/workflows/release.yml`).
+- Push a `v*` tag to trigger matrix builds + checksums + draft GitHub Release artifacts.
+- Canonical process/runbook: `docs/agent-workflows/release-runbook.md`.
+
 ## Model Endpoint
 
 Ghost Writer expects Ollama at:

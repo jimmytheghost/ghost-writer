@@ -217,6 +217,7 @@ function AppModals({
   models,
   appName,
   appVersion,
+  onExportDiagnostics = () => {},
 }) {
   const normalizedWordList = Array.isArray(settings.customWordList) ? settings.customWordList : []
   const normalizedDisabledWordList = Array.isArray(settings.customWordListDisabled)
@@ -496,6 +497,9 @@ function AppModals({
               <p>Then restart Ghost Writer and you’re ready to write.</p>
             </div>
             <div className="modal__actions">
+              <button type="button" className="modal__button" onClick={onExportDiagnostics}>
+                Export diagnostics
+              </button>
               <button type="button" className="modal__button modal__button--primary" onClick={() => setIsAboutOpen(false)}>
                 Close
               </button>
