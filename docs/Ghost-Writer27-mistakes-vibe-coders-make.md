@@ -6,6 +6,15 @@ So I ran them through an audit with an agent and lo and behold. I do have many o
 
 The goal is to go through them one by one, one at a time, with commits and pushes after each is successfully checked off the list.
 
+**Remaining (need decision or implementation):**
+
+| # | Item | What's needed |
+|---|------|----------------|
+| 16 | Logs only in terminal | Structured logger + rotating file output + "Copy diagnostics" in-app. |
+| 19 | Deploys from your machine | Move DMG/release build to GitHub Actions (pinned toolchain, artifact signing). |
+| 20 | No input validation at boundaries | Payload size caps + path canonicalization + schema checks at Tauri command layer. |
+| 27 | Zero logging beyond console.log | Same direction as #16: structured logs, rotation, "Export diagnostics" in-app. |
+
 ---
 
 [x] 1. API keys hardcoded “for now”
