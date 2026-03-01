@@ -195,6 +195,11 @@ function App() {
       ),
     [activeSelectionEnd, activeSelectionStart, findMatches],
   )
+  const findStatusDisplay =
+    findStatusMessage ||
+    (findQuery
+      ? `${currentFindMatchIndex >= 0 ? currentFindMatchIndex + 1 : 0} of ${findMatches.length} match${findMatches.length === 1 ? '' : 'es'}`
+      : '')
 
   const setActiveSelectionRange = useCallback(
     (nextRange, shouldFocusEditor = false) => {
@@ -1725,24 +1730,26 @@ ${escapeLatex(exportMarkdownSource)}
             </div>
             <div className="find-replace__actions">
               <div className="find-replace__meta">
-                <label className="find-replace__checkbox" htmlFor="find-replace-case-sensitive">
-                  <input
-                    id="find-replace-case-sensitive"
-                    type="checkbox"
-                    checked={isFindCaseSensitive}
-                    onChange={(event) => {
-                      setIsFindCaseSensitive(event.target.checked)
-                      setFindStatusMessage('')
-                    }}
-                  />
-                  Case sensitive
-                </label>
-                <p className="find-replace__status" role="status" aria-live="polite">
-                  {findStatusMessage ||
-                    (findQuery
-                      ? `${currentFindMatchIndex >= 0 ? currentFindMatchIndex + 1 : 0} of ${findMatches.length} match${findMatches.length === 1 ? '' : 'es'}`
-                      : '')}
-                </p>
+                <button
+                  type="button"
+                  className={`find-replace__toggle${isFindCaseSensitive ? ' find-replace__toggle--active' : ''}`}
+                  onClick={() => {
+                    setIsFindCaseSensitive((previous) => !previous)
+                    setFindStatusMessage('')
+                  }}
+                  aria-label="Toggle case sensitive search"
+                  aria-pressed={isFindCaseSensitive}
+                  title="Case sensitive"
+                >
+                  <span className="material-symbols-rounded" aria-hidden="true">
+                    match_case
+                  </span>
+                </button>
+                {findStatusDisplay ? (
+                  <p className="find-replace__status" role="status" aria-live="polite">
+                    {findStatusDisplay}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
