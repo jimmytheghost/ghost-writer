@@ -156,10 +156,11 @@ function WordListModal({
           {counts.enabled} enabled / {counts.total} total
         </div>
 
-        <div className="word-list__tags">
+        <div className="word-list__tags" role="list" aria-label="Word list entries">
           {entries.map((entry) => (
             <div
               key={entry.word.toLowerCase()}
+              role="listitem"
               className={`word-tag${entry.enabled ? ' word-tag--enabled' : ' word-tag--disabled'}`}
             >
               <button

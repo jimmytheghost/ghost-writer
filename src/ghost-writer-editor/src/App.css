@@ -1526,7 +1526,7 @@
   width: min(420px, 100%);
   max-height: 520px;
   padding: var(--space-5);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .word-list__add-row {
@@ -1558,8 +1558,11 @@
 .word-list__tags {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: var(--space-2);
-  min-height: 72px;
+  height: 230px;
+  overflow-y: auto;
+  padding-right: 2px;
   margin-bottom: var(--space-4);
 }
 
