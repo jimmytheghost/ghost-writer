@@ -1,3 +1,7 @@
+# Env (defense in depth; root also ignores)
+.env
+.env.local
+
 # Logs
 logs
 *.log

@@ -46,19 +46,19 @@ The goal is to go through them one by one, one at a time, with commits and pushe
 [x] 10. One god component owns the whole screen
      -  Mistake #10 fix complete: **Refactored.** `App.jsx` now composes domain hooks: **useTabsSession** (tabs, selection/scroll/streaming, session restore/persist, auto-save, tab CRUD) and **useAppSettings** (settings, theme, view toggles, modal state, updateSetting, applySettings). Side effects (desktop load/persist/autosave) live in useTabsSession; App remains the composition shell with file/find/preview handlers. Ready for mistake #11.
 
-[ ] 11. No analytics, just “feels like people use it”
-     -  N/A
+[x] 11. No analytics, just “feels like people use it”
+     -  Verified: **N/A.** Local desktop app; no backend to instrument. Ready for #12.
 
 [ ] 12. You say “we’ll clean this up after launch” every week
      -  Clean up pass before launch
 
-[ ] 13. Env vars live only on your laptop, nowhere else documented
+[x] 13. Env vars live only on your laptop, nowhere else documented
      -  Mistake #13 result: **Not evident (mostly handled well).** Env vars are documented and not laptop-only: `src/ghost-writer-editor/.env.example` exists, `VITE_OLLAMA_BASE_URL` is documented in `src/ghost-writer-editor/README.md`, and actual code usage is explicit in `src/lib/ollama.js`. There is one optional override (`TAURI_MAC_TARGET`) also documented in README/script. So you’re in good shape here. Ready for mistake #14?
 
 [x] 14. Frontend talks directly to 5 different third-party APIs with no wrapper
      -  Mistake #14 result: **Not evident.** I found a small number of external interactions, and they are mostly wrapped/centralized: Ollama requests go through `src/lib/ollama.js` (`buildOllamaUrl`, `fetchWithTimeout`) and are consumed by hooks; model snapshot fetch is internal (`/ollama-models.json`); spellcheck dictionary fetches are local bundled assets with fallback logic. This is not “frontend directly talking to 5 third-party APIs with no wrapper.” Ready for mistake #15?
 
-[ ] 15. No monitoring or alerts – you find out it’s down from a DM
+[x] 15. No monitoring or alerts – you find out it’s down from a DM
      -  Mistake #15 result: **Partially present, but mostly not applicable to your current architecture.** I found no external monitoring/alerting stack (Sentry/Datadog/Uptime/PagerDuty), so for an internet-facing service this would be a gap. But Ghost Writer is a local-first desktop app, not a hosted always-on backend, so “app is down” alerting is less critical. You do have local health/error surfacing (`setPromptError`, model load status, `ensure_ollama_running`, Tauri emits/errors), which helps users self-diagnose. If you later add cloud services, add uptime checks + error tracking + alert routing immediately.
 
 ```  
@@ -199,8 +199,8 @@ These 3 changes give the biggest security/reliability gain with minimal complexi
 [x] 23. Same API token reused across staging, prod, and local
     - Mistake #23 result: **Not evident in this repo.** I found no API tokens/secrets being used at all (this app talks to local Ollama via base URL), so there’s no evidence of a single token reused across staging/prod/local. The only env var present is `VITE_OLLAMA_BASE_URL` in `.env`/`.env.example`, which is non-secret endpoint config. If you later introduce real API credentials, enforce per-environment secrets immediately (separate keys + scopes + rotation). 
 
-[ ] 24. Only one person actually knows how to run or deploy the app
-    - Mistake #24 result: **Mostly not evident, with a mild bus-factor risk.** You have substantial shared operational documentation (`readme.md`, `src/ghost-writer-editor/README.md`, and multiple runbooks under `docs/agent-workflows/`) that clearly explain how to run, test, and build the app. That strongly reduces “only one person knows.” The remaining risk is release execution still appears somewhat founder/local-machine centered (especially packaging/signing flow), so formalizing a step-by-step release runbook + CI-driven release path would remove most of the remaining single-operator dependency.
+[x] 24. Only one person actually knows how to run or deploy the app
+    - Verified: **Mostly not evident.** README and `docs/agent-workflows/` runbooks document run, test, and build. Remaining risk: release is still local/manual; optional later: CI release + runbook (see checklist below). (`readme.md`, `src/ghost-writer-editor/README.md`, and multiple runbooks under `docs/agent-workflows/`) that clearly explain how to run, test, and build the app. That strongly reduces “only one person knows.” The remaining risk is release execution still appears somewhat founder/local-machine centered (especially packaging/signing flow), so formalizing a step-by-step release runbook + CI-driven release path would remove most of the remaining single-operator dependency.
 
 ```
 - Here’s a concise **bus-factor reduction checklist** you can apply:
@@ -235,7 +235,7 @@ These 3 changes give the biggest security/reliability gain with minimal complexi
 If you implement these 7, bus-factor risk drops fast without much overhead.
 ```
 
-[ ] 25. API keys / JWT secrets stored in client-side code or .env committed to git 
+[x] 25. API keys / JWT secrets stored in client-side code or .env committed to git 
     - Mistake #25 result: **Mostly not evident (good posture right now).** I found no API keys/JWT secrets in client code, and `.env` currently only contains `VITE_OLLAMA_BASE_URL` (non-secret local endpoint config). Your root `.gitignore` excludes `.env`/`.env.*`, and `git ls-files` produced no tracked entries for `src/ghost-writer-editor/.env` or `.env.example` in this repo snapshot, so there’s no evidence of committed secrets. One hygiene improvement: add an explicit `.env` ignore in `src/ghost-writer-editor/.gitignore` too (defense in depth for subdir workflows).
 
 ```
@@ -274,8 +274,8 @@ If you implement these 7, bus-factor risk drops fast without much overhead.
 **Minimal tooling combo:** `gitleaks` (pre-commit + CI) with a small custom config.
 ```
 
-[ ] 26. Supabase/Firebase/Postgres exposed publicly with no RLS → full database readable via /rest/v1/ endpoint
-    - Mistake #26 result: **Not applicable / not evident.** I found no Supabase/Firebase/Postgres integration, no `/rest/v1` usage, and no DB layer in this repo. Ghost Writer is local-first (Tauri + local Ollama endpoint), so the specific risk of publicly exposed hosted DB tables without RLS does not currently exist here. If you later adopt Supabase/Postgres, make RLS mandatory-by-default before first production table is reachable. Ready for mistake #27?
+[x] 26. Supabase/Firebase/Postgres exposed publicly with no RLS → full database readable via /rest/v1/ endpoint
+    - Verified: **Not applicable.** No Supabase/Firebase/Postgres or DB layer; local-first app. Ready for #27.
 
 [ ] 27. Zero logging beyond console.log → good luck debugging
     - Mistake #27 result: **Partially present.** You’re not at absolute “zero logging” (there are useful `console.warn` paths in the frontend and `eprintln!` paths in Tauri), but logging is still mostly unstructured and ephemeral (terminal/devtools), with no persistent rotating log files or centralized event model. So debugging can become difficult across machines/sessions.
