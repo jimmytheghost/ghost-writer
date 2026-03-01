@@ -1,6 +1,6 @@
 # Ghost Writer - Remaining Work Plan
 
-This document is the active implementation tracker for the remaining items in the 27-mistake audit.
+This document tracks the final implementation status of the remaining items from the 27-mistake audit.
 
 ## Status Board
 
@@ -12,10 +12,17 @@ This document is the active implementation tracker for the remaining items in th
 
 ---
 
+## Summary
+
+- All remaining checklist items are complete as of 2026-03-01.
+- No open implementation items remain in this document.
+
+---
+
 ## Item 16 + 27: Structured Persistent Logging
 
-### Why this is open
-Current runtime logging is mostly `console.*` (frontend) and `eprintln!` (Tauri), which is unstructured and ephemeral.
+### Why this was open
+Runtime logging was mostly `console.*` (frontend) and `eprintln!` (Tauri), which was unstructured and ephemeral.
 
 ### Definition of done
 - Structured logs are written to disk (JSONL) in app data directory.
@@ -24,11 +31,12 @@ Current runtime logging is mostly `console.*` (frontend) and `eprintln!` (Tauri)
 - Sensitive data redaction rules are enforced.
 - App includes a user-facing diagnostics action (`Copy` or `Export diagnostics`).
 
-### Files to change (expected)
+### Files changed
 - `src-tauri/src/main.rs`
-- `src-tauri/Cargo.toml`
-- `src/ghost-writer-editor/src/lib/` (new logger/diagnostics helper if needed)
-- `src/ghost-writer-editor/src/` UI location for diagnostics action
+- `src/ghost-writer-editor/src/lib/desktopRuntime.js`
+- `src/ghost-writer-editor/src/App.jsx`
+- `src/ghost-writer-editor/src/hooks/useTauriMenuEvents.js`
+- `src/ghost-writer-editor/src/components/AppModals.jsx`
 
 ### Verification
 - Trigger at least one `info`, `warn`, and `error` path.
@@ -43,8 +51,8 @@ Current runtime logging is mostly `console.*` (frontend) and `eprintln!` (Tauri)
 
 ## Item 19: CI-Driven Releases
 
-### Why this is open
-Build/release scripts exist, but release packaging/signing appears primarily local-machine driven.
+### Why this was open
+Build/release scripts existed, but release packaging/signing was primarily local-machine driven.
 
 ### Definition of done
 - Release workflow builds artifacts in GitHub Actions on tag (`v*`).
@@ -53,11 +61,11 @@ Build/release scripts exist, but release packaging/signing appears primarily loc
 - Manual local release path is no longer required for normal releases.
 - CI docs describe the release flow and rollback path.
 
-### Files to change (expected)
+### Files changed
 - `.github/workflows/` (new/updated release workflow)
-- `src/ghost-writer-editor/package.json` (if script alignment needed)
+- `docs/agent-workflows/release-runbook.md`
 - `README.md`
-- `docs/agent-workflows/` release runbook
+- `src/ghost-writer-editor/README.md`
 
 ### Verification
 - Dry-run workflow on branch or test tag.
@@ -72,8 +80,8 @@ Build/release scripts exist, but release packaging/signing appears primarily loc
 
 ## Item 20: Input Validation at Tauri Command Boundaries
 
-### Why this is open
-Validation exists in multiple places, but hardening at command boundaries is not yet complete.
+### Why this was open
+Validation existed in multiple places, but hardening at command boundaries was incomplete.
 
 ### Definition of done
 - Payload size limits enforced for large string fields and arrays.
@@ -81,10 +89,8 @@ Validation exists in multiple places, but hardening at command boundaries is not
 - Strict enum/range/schema validation added for settings and command args.
 - Validation failures return explicit error messages/codes.
 
-### Files to change (expected)
+### Files changed
 - `src-tauri/src/main.rs`
-- `src-tauri/src/` other command modules (if split)
-- `src/ghost-writer-editor/src/lib/desktopRuntime.js` (if client-side contract updates are needed)
 
 ### Verification
 - Add/extend tests for oversize payloads, invalid enums, invalid paths, and traversal attempts.
@@ -96,7 +102,7 @@ Validation exists in multiple places, but hardening at command boundaries is not
 
 ---
 
-## Recommended Execution Order
+## Historical Execution Order
 
 1. Item 20 (boundary validation) to reduce security/risk first.
 2. Item 16 + 27 (logging) to improve diagnosis during subsequent work.
