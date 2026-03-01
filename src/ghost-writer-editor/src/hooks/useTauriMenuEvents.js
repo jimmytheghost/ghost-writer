@@ -18,6 +18,7 @@ export function useTauriMenuEvents({
   onToggleAlwaysOnTop,
   onToggleFooter,
   onToggleTabBar,
+  onTogglePromptPanel,
   onShowSettings,
   onShowWordList,
   onShowTextZoom,
@@ -56,6 +57,7 @@ export function useTauriMenuEvents({
         ['ghost-writer://menu-pin-top', () => onToggleAlwaysOnTop()],
         ['ghost-writer://menu-toggle-footer', () => onToggleFooter()],
         ['ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()],
+        ['ghost-writer://menu-toggle-prompt-panel', () => onTogglePromptPanel()],
         ['ghost-writer://menu-settings', () => onShowSettings()],
         ['ghost-writer://menu-word-list', () => onShowWordList()],
         ['ghost-writer://menu-text-zoom', () => onShowTextZoom()],
@@ -137,5 +139,6 @@ export function useTauriMenuEvents({
     onToggleAlwaysOnTop,
     onToggleFooter,
     onToggleTabBar,
+    onTogglePromptPanel,
   ])
 }

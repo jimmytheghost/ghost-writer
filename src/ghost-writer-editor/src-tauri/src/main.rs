@@ -177,6 +177,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+Alt+H"),
     )?;
+    let view_toggle_prompt_panel = MenuItem::with_id(
+        app,
+        "view_toggle_prompt_panel",
+        "Hide Input Bar",
+        true,
+        Some("CmdOrCtrl+Shift+D"),
+    )?;
     let view_pin_top =
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
 
@@ -245,6 +252,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &view_text_edit,
             &view_toggle_footer,
             &view_toggle_tab_bar,
+            &view_toggle_prompt_panel,
             &view_pin_top,
         ],
     )?;
@@ -1005,6 +1013,9 @@ fn main() {
                 "view_text_edit" => emit_menu_event("ghost-writer://menu-text-edit"),
                 "view_toggle_footer" => emit_menu_event("ghost-writer://menu-toggle-footer"),
                 "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
+                "view_toggle_prompt_panel" => {
+                    emit_menu_event("ghost-writer://menu-toggle-prompt-panel")
+                }
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),
                 "settings_word_list" => emit_menu_event("ghost-writer://menu-word-list"),

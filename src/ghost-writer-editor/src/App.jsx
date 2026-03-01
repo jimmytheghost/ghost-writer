@@ -1468,6 +1468,7 @@ ${escapeLatex(exportMarkdownSource)}
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
+    onTogglePromptPanel: handleTogglePromptPanel,
     onShowSettings: () => {
       setIsWordListOpen(false)
       setIsTextZoomOpen(false)
