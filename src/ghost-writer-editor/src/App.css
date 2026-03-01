@@ -873,6 +873,10 @@
   color: var(--color-gray-900);
 }
 
+.find-replace__input::placeholder {
+  color: var(--color-gray-500);
+}
+
 .find-replace__input:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -905,13 +909,18 @@
 }
 
 .find-replace__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-lg);
   background: var(--color-gray-100);
   color: var(--color-gray-700);
   font-size: 12px;
   font-weight: var(--font-weight-medium);
-  padding: 6px 10px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -941,6 +950,10 @@
   border-color: var(--color-gray-700);
   background: var(--color-gray-800);
   color: var(--color-gray-100);
+}
+
+.app--dark .find-replace__input::placeholder {
+  color: var(--color-gray-500);
 }
 
 .app--dark .find-replace__button:hover {

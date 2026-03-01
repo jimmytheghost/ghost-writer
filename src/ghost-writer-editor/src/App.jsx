@@ -1696,30 +1696,32 @@ ${escapeLatex(exportMarkdownSource)}
         {isFindReplaceOpen && !isPreviewOpen && !isPromptPanelHidden && (
           <section className={`find-replace${isDark ? ' find-replace--dark' : ''}`} aria-label="Find and replace panel">
             <div className="find-replace__row">
-              <label className="find-replace__field" htmlFor="find-replace-find-input">
-                <span className="find-replace__label">Find</span>
+              <div className="find-replace__field">
                 <input
                   id="find-replace-find-input"
                   ref={findInputRef}
                   className="find-replace__input"
                   type="text"
                   value={findQuery}
+                  aria-label="Find"
+                  placeholder="Find"
                   onChange={(event) => {
                     setFindQuery(event.target.value)
                     setFindStatusMessage('')
                   }}
                 />
-              </label>
-              <label className="find-replace__field" htmlFor="find-replace-replace-input">
-                <span className="find-replace__label">Replace</span>
+              </div>
+              <div className="find-replace__field">
                 <input
                   id="find-replace-replace-input"
                   className="find-replace__input"
                   type="text"
                   value={replaceQuery}
+                  aria-label="Replace"
+                  placeholder="Replace"
                   onChange={(event) => setReplaceQuery(event.target.value)}
                 />
-              </label>
+              </div>
             </div>
             <div className="find-replace__actions">
               <div className="find-replace__meta">
@@ -1748,7 +1750,9 @@ ${escapeLatex(exportMarkdownSource)}
                 onClick={() => jumpToFindMatch(-1)}
                 aria-label="Find previous match"
               >
-                Previous
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  navigate_before
+                </span>
               </button>
               <button
                 type="button"
@@ -1756,7 +1760,9 @@ ${escapeLatex(exportMarkdownSource)}
                 onClick={() => jumpToFindMatch(1)}
                 aria-label="Find next match"
               >
-                Next
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  navigate_next
+                </span>
               </button>
               <button
                 type="button"
@@ -1764,7 +1770,9 @@ ${escapeLatex(exportMarkdownSource)}
                 onClick={handleReplaceOne}
                 aria-label="Replace current match"
               >
-                Replace
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  find_replace
+                </span>
               </button>
               <button
                 type="button"
@@ -1772,7 +1780,9 @@ ${escapeLatex(exportMarkdownSource)}
                 onClick={handleReplaceAll}
                 aria-label="Replace all matches"
               >
-                Replace All
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  done_all
+                </span>
               </button>
               <button
                 type="button"
@@ -1780,7 +1790,9 @@ ${escapeLatex(exportMarkdownSource)}
                 onClick={handleCloseFindReplace}
                 aria-label="Close find and replace"
               >
-                Close
+                <span className="material-symbols-rounded" aria-hidden="true">
+                  close
+                </span>
               </button>
             </div>
           </section>
