@@ -40,8 +40,8 @@ The goal is to go through them one by one, one at a time, with commits and pushe
     - Updated README
     - Mistake #8 result: **Not evident.** Your READMEs are populated and mostly consistent with actual scripts/features (`dev`, `dev:tauri`, `build:tauri*`, `sync:models`, shortcuts, requirements). So this is not an “empty or wrong README” repo. Minor optional improvement only: add a short troubleshooting section (common Ollama/Tauri failures). Ready for mistake #9?
 
-[ ] 9. No staging env, just “dev” and “prod-ish”
-    -  Mistake #9 result: **Partially present (but context-dependent).** In the app workspace, I found `dev`, `preview`, and build/release scripts plus `.env`/`.env.example`, but no explicit staged environment tier/config (no `.env.staging`, staging scripts, or staging deployment profile). For a local-first desktop app this is usually lower risk than web backends, so it’s not urgent—but if you plan wider distribution, add a formal release channel model (e.g., dev/beta/stable with separate config + signing/update feeds). Ready for mistake #10?
+[x] 9. No staging env, just “dev” and “prod-ish”
+    -  Mistake #9 verified: **Not applicable for current scope.** In the app workspace, I found `dev`, `preview`, and build/release scripts plus `.env`/`.env.example`, but no explicit staged environment tier/config (no `.env.staging`, staging scripts, or staging deployment profile). For a local-first desktop app this is usually lower risk than web backends, so it’s not urgent—but if you plan wider distribution, add a formal release channel model (e.g., dev/beta/stable with separate config + signing/update feeds). Ready for mistake #10?
 
 [x] 10. One god component owns the whole screen
      -  Mistake #10 fix complete: **Refactored.** `App.jsx` now composes domain hooks: **useTabsSession** (tabs, selection/scroll/streaming, session restore/persist, auto-save, tab CRUD) and **useAppSettings** (settings, theme, view toggles, modal state, updateSetting, applySettings). Side effects (desktop load/persist/autosave) live in useTabsSession; App remains the composition shell with file/find/preview handlers. Ready for mistake #11.
