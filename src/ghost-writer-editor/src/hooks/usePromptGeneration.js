@@ -22,6 +22,7 @@ export function usePromptGeneration({
   activeTabId,
   getActiveTab,
   getTabById,
+  onStreamingRangeChange,
   selectedModel,
   selectionRange,
   setTabContentById,
@@ -35,11 +36,17 @@ export function usePromptGeneration({
   const streamBaseRef = useRef('')
   const streamSelectionRef = useRef({ start: 0, end: 0 })
   const streamBufferRef = useRef('')
+  const streamHighlightRangeRef = useRef({ start: 0, end: 0 })
   const abortControllerRef = useRef(null)
+  const streamHighlightResetTimeoutRef = useRef(null)
 
   useEffect(
     () => () => {
       abortControllerRef.current?.abort()
+      if (streamHighlightResetTimeoutRef.current) {
+        clearTimeout(streamHighlightResetTimeoutRef.current)
+        streamHighlightResetTimeoutRef.current = null
+      }
     },
     [],
   )
@@ -162,6 +169,7 @@ export function usePromptGeneration({
       streamBaseRef.current = baseContent
       streamSelectionRef.current = range
       streamBufferRef.current = ''
+      streamHighlightRangeRef.current = { start: 0, end: 0 }
 
       const applyStreamChunk = (chunk) => {
         if (!chunk) return
@@ -174,6 +182,18 @@ export function usePromptGeneration({
         const safeStart = Math.min(start, streamBase.length)
         const safeEnd = Math.min(end, streamBase.length)
         setTabContentById(streamTabId, `${streamBase.slice(0, safeStart)}${cleanedStreamText}${streamBase.slice(safeEnd)}`)
+        const highlightEnd = safeStart + cleanedStreamText.length
+        streamHighlightRangeRef.current = {
+          start: safeStart,
+          end: highlightEnd,
+        }
+        onStreamingRangeChange?.({
+          tabId: streamTabId,
+          start: safeStart,
+          end: highlightEnd,
+          isActive: cleanedStreamText.length > 0,
+          isFading: false,
+        })
       }
 
       if (isDesktopRuntime()) {
@@ -296,7 +316,7 @@ export function usePromptGeneration({
       setTabContentById(tabId, nextContent)
       return { generatedText, nextContent }
     },
-    [getTabById, selectedModel, setPromptError, setTabContentById],
+    [getTabById, onStreamingRangeChange, selectedModel, setPromptError, setTabContentById],
   )
 
   const handlePromptSubmit = useCallback(
@@ -312,6 +332,11 @@ export function usePromptGeneration({
 
       const submittingTabId = tab.id
       const tabContent = tab.content
+
+      if (streamHighlightResetTimeoutRef.current) {
+        clearTimeout(streamHighlightResetTimeoutRef.current)
+        streamHighlightResetTimeoutRef.current = null
+      }
 
       setIsLoadingPrompt(true)
       setPromptError('', submittingTabId)
@@ -401,10 +426,34 @@ export function usePromptGeneration({
         setIsLoadingPrompt(false)
         abortControllerRef.current = null
         streamTabIdRef.current = ''
+        const finalHighlightStart = streamHighlightRangeRef.current.start ?? 0
+        const finalHighlightEnd = streamHighlightRangeRef.current.end ?? 0
+
+        if (finalHighlightEnd > finalHighlightStart) {
+          onStreamingRangeChange?.({
+            tabId: submittingTabId,
+            start: finalHighlightStart,
+            end: finalHighlightEnd,
+            isActive: false,
+            isFading: true,
+          })
+        }
+
+        streamHighlightResetTimeoutRef.current = setTimeout(() => {
+          onStreamingRangeChange?.({
+            tabId: submittingTabId,
+            start: 0,
+            end: 0,
+            isActive: false,
+            isFading: false,
+          })
+          streamHighlightResetTimeoutRef.current = null
+        }, 1000)
       }
     },
     [
       getActiveTab,
+      onStreamingRangeChange,
       patchHistory,
       selectedModel,
       selectionRange.end,

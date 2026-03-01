@@ -107,6 +107,8 @@ function App() {
   const [isFindCaseSensitive, setIsFindCaseSensitive] = useState(false)
   const [findStatusMessage, setFindStatusMessage] = useState('')
   const [editorFocusRequestId, setEditorFocusRequestId] = useState(0)
+  const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
+  const [isColoredStreamingOutputEnabled, setIsColoredStreamingOutputEnabled] = useState(true)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -132,6 +134,7 @@ function App() {
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
+  const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null
   const activeContent = activeTab?.content ?? ''
   const shouldReplaceEmptyUntitledActiveTab = useMemo(() => {
     if (!activeTabId || !activeTab) return false
@@ -368,6 +371,39 @@ function App() {
     activeTabId,
     getActiveTab,
     getTabById,
+    onStreamingRangeChange: ({ tabId, start, end, isActive, isFading = false }) => {
+      if (!tabId) return
+      setStreamingRangesByTab((current) => {
+        if ((!isActive && !isFading) || end <= start) {
+          if (!(tabId in current)) return current
+          const next = { ...current }
+          delete next[tabId]
+          return next
+        }
+
+        const nextRange = {
+          start: Math.max(0, start),
+          end: Math.max(0, end),
+          isActive: Boolean(isActive),
+          isFading: Boolean(isFading),
+        }
+        const previousRange = current[tabId]
+        if (
+          previousRange &&
+          previousRange.start === nextRange.start &&
+          previousRange.end === nextRange.end &&
+          previousRange.isActive === nextRange.isActive &&
+          Boolean(previousRange.isFading) === nextRange.isFading
+        ) {
+          return current
+        }
+
+        return {
+          ...current,
+          [tabId]: nextRange,
+        }
+      })
+    },
     selectedModel,
     selectionRange,
     setTabContentById,
@@ -1243,6 +1279,10 @@ function App() {
     setIsFindReplaceOpen(false)
   }, [])
 
+  const handleToggleColoredStreamingOutput = useCallback(() => {
+    setIsColoredStreamingOutputEnabled((previous) => !previous)
+  }, [])
+
   const handleShowFindReplace = useCallback(() => {
     if (!activeTabId) return
     const selectedText =
@@ -1469,6 +1509,7 @@ ${escapeLatex(exportMarkdownSource)}
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
     onTogglePromptPanel: handleTogglePromptPanel,
+    onToggleColoredOutput: handleToggleColoredStreamingOutput,
     onShowSettings: () => {
       setIsWordListOpen(false)
       setIsTextZoomOpen(false)
@@ -1651,6 +1692,8 @@ ${escapeLatex(exportMarkdownSource)}
               externalSelectionRange={selectionRange}
               externalScrollTop={scrollPositionsByTab[activeTabId]?.editorTop ?? 0}
               focusRequestId={editorFocusRequestId}
+              streamingRange={activeStreamingRange}
+              streamingColorEnabled={isColoredStreamingOutputEnabled}
             />
           )}
         </div>

@@ -200,6 +200,8 @@ function Editor({
   showSelectionOverlay,
   spellCheckEnabled = false,
   textZoomPercent = 100,
+  streamingRange,
+  streamingColorEnabled = true,
 }) {
   const textareaRef = useRef(null)
   const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
@@ -323,6 +325,29 @@ function Editor({
       after: text.slice(safeEnd),
     }
   }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, text, useLightweightOverlays])
+
+  const streamingOverlay = useMemo(() => {
+    if (useLightweightOverlays) return null
+    if (!streamingColorEnabled) return null
+    if (!streamingRange?.isActive && !streamingRange?.isFading) return null
+
+    const start = Math.max(0, Math.min(Number(streamingRange.start) || 0, text.length))
+    const end = Math.max(start, Math.min(Number(streamingRange.end) || start, text.length))
+    if (start === end) return null
+
+    return {
+      before: text.slice(0, start),
+      stream: text.slice(start, end),
+      after: text.slice(end),
+    }
+  }, [
+    streamingColorEnabled,
+    streamingRange?.end,
+    streamingRange?.isActive,
+    streamingRange?.start,
+    text,
+    useLightweightOverlays,
+  ])
 
   const syntaxOverlay = useMemo(() => {
     if (useLightweightOverlays) return null
@@ -855,6 +880,25 @@ function Editor({
             aria-hidden="true"
           >
             {inlinePromptOverlay}
+          </div>
+        )}
+        {streamingOverlay && (
+          <div
+            className="editor__streaming-overlay"
+            style={{
+              transform: `translateY(${-effectiveScrollTop}px)`,
+              minHeight: contentHeight || '100%',
+              ...editorTextStyle,
+            }}
+            aria-hidden="true"
+          >
+            <span className="editor__streaming-overlay-text">{streamingOverlay.before}</span>
+            <span
+              className={`editor__streaming-overlay-token${streamingRange?.isFading ? ' editor__streaming-overlay-token--fading' : ''}`}
+            >
+              {streamingOverlay.stream}
+            </span>
+            <span className="editor__streaming-overlay-text">{streamingOverlay.after}</span>
           </div>
         )}
         {selectionOverlay && (

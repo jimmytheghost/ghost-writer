@@ -24,6 +24,8 @@ const MAX_RECENT_FILES: usize = 10;
 const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
 const OPEN_RECENT_PREFIX: &str = "file_open_recent_";
 
+pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AppSettings {
@@ -110,6 +112,16 @@ struct OpenRecentPayload {
 }
 
 fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let is_colored_output_visible = app
+        .try_state::<ColoredOutputMenuState>()
+        .map(|state| state.0.load(Ordering::SeqCst))
+        .unwrap_or(true);
+    let colored_output_menu_label = if is_colored_output_visible {
+        "Hide Colored Output"
+    } else {
+        "View Color Output"
+    };
+
     let about_show =
         MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
 
@@ -184,6 +196,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+Shift+D"),
     )?;
+    let view_toggle_colored_output = MenuItem::with_id(
+        app,
+        "view_toggle_colored_output",
+        colored_output_menu_label,
+        true,
+        Some("CmdOrCtrl+Shift+Y"),
+    )?;
     let view_pin_top =
         MenuItem::with_id(app, "view_pin_top", "Pin to Top", true, Some("CmdOrCtrl+T"))?;
 
@@ -253,6 +272,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &view_toggle_footer,
             &view_toggle_tab_bar,
             &view_toggle_prompt_panel,
+            &view_toggle_colored_output,
             &view_pin_top,
         ],
     )?;
@@ -924,9 +944,11 @@ fn ollama_cancel_stream(cancel: tauri::State<'_, OllamaStreamCancel>) {
 
 fn main() {
     let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
+    let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
 
     tauri::Builder::default()
         .manage(ollama_cancel)
+        .manage(colored_output_menu_state)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             save_markdown_file,
@@ -1015,6 +1037,14 @@ fn main() {
                 "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
                 "view_toggle_prompt_panel" => {
                     emit_menu_event("ghost-writer://menu-toggle-prompt-panel")
+                }
+                "view_toggle_colored_output" => {
+                    if let Some(state) = app.try_state::<ColoredOutputMenuState>() {
+                        let current = state.0.load(Ordering::SeqCst);
+                        state.0.store(!current, Ordering::SeqCst);
+                        refresh_app_menu(app);
+                    }
+                    emit_menu_event("ghost-writer://menu-toggle-colored-output")
                 }
                 "view_pin_top" => emit_menu_event("ghost-writer://menu-pin-top"),
                 "settings_open" => emit_menu_event("ghost-writer://menu-settings"),

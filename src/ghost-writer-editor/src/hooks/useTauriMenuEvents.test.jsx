@@ -12,7 +12,7 @@ vi.mock('../lib/desktopRuntime', () => ({
   isDesktopRuntime: () => true,
 }))
 
-function TestHarness({ onTogglePromptPanel }) {
+function TestHarness({ onTogglePromptPanel, onToggleColoredOutput }) {
   useTauriMenuEvents({
     onNew: vi.fn(),
     onOpen: vi.fn(),
@@ -30,6 +30,7 @@ function TestHarness({ onTogglePromptPanel }) {
     onToggleFooter: vi.fn(),
     onToggleTabBar: vi.fn(),
     onTogglePromptPanel,
+    onToggleColoredOutput,
     onShowSettings: vi.fn(),
     onShowWordList: vi.fn(),
     onShowTextZoom: vi.fn(),
@@ -55,7 +56,12 @@ describe('useTauriMenuEvents', () => {
     listenMock.mockImplementation(async () => vi.fn())
 
     const onTogglePromptPanel = vi.fn()
-    render(<TestHarness onTogglePromptPanel={onTogglePromptPanel} />)
+    render(
+      <TestHarness
+        onTogglePromptPanel={onTogglePromptPanel}
+        onToggleColoredOutput={vi.fn()}
+      />,
+    )
 
     await waitFor(() => {
       expect(listenMock).toHaveBeenCalled()
@@ -71,5 +77,33 @@ describe('useTauriMenuEvents', () => {
 
     handler()
     expect(onTogglePromptPanel).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers and routes the View -> Toggle Colored Output menu event', async () => {
+    listenMock.mockReset()
+    listenMock.mockImplementation(async () => vi.fn())
+
+    const onToggleColoredOutput = vi.fn()
+    render(
+      <TestHarness
+        onTogglePromptPanel={vi.fn()}
+        onToggleColoredOutput={onToggleColoredOutput}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(listenMock).toHaveBeenCalled()
+    })
+
+    const registration = listenMock.mock.calls.find(
+      ([eventName]) => eventName === 'ghost-writer://menu-toggle-colored-output',
+    )
+    expect(registration).toBeDefined()
+
+    const handler = registration?.[1]
+    expect(typeof handler).toBe('function')
+
+    handler()
+    expect(onToggleColoredOutput).toHaveBeenCalledTimes(1)
   })
 })
