@@ -23,6 +23,7 @@ function TestHarness({ onTogglePromptPanel, onToggleColoredOutput }) {
     onOpenRecent: vi.fn(),
     onOpenRecentError: vi.fn(),
     onSave: vi.fn(),
+    onSaveAs: vi.fn(),
     onPrint: vi.fn(),
     onShowPreview: vi.fn(),
     onShowTextEdit: vi.fn(),

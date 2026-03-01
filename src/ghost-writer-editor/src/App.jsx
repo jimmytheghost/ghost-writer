@@ -97,6 +97,7 @@ function App() {
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
+  const [spellcheckRefreshKey, setSpellcheckRefreshKey] = useState(0)
   const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
@@ -117,6 +118,7 @@ function App() {
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
   const saveActionRef = useRef(() => {})
+  const saveAsActionRef = useRef(() => {})
   const openActionRef = useRef(() => {})
   const newActionRef = useRef(() => {})
   const closeActionRef = useRef(() => {})
@@ -872,6 +874,50 @@ function App() {
     setPromptError('')
   }, [activeContent, activeTab, activeTabId, setPromptError])
 
+  const handleSaveAsClick = useCallback(async () => {
+    if (!activeTabId) return
+
+    const suggestedName = ensureMarkdownFileName(activeTab?.title ?? 'untitled')
+
+    if (isDesktopRuntime()) {
+      const savedPath = await saveMarkdownWithNativeDialog(activeContent, suggestedName)
+      if (!savedPath) return
+
+      const savedName = ensureMarkdownFileName(fileNameFromPath(savedPath))
+      setTabs((currentTabs) =>
+        replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+          ...tab,
+          title: savedName,
+          filePath: savedPath,
+          lastSavedContent: activeContent,
+          isDirty: false,
+        })),
+      )
+      setPromptError('')
+      return
+    }
+
+    const blob = new Blob([activeContent], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = suggestedName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setTabs((currentTabs) =>
+      replaceActiveTab(currentTabs, activeTabId, (tab) => ({
+        ...tab,
+        title: suggestedName,
+        lastSavedContent: activeContent,
+        isDirty: false,
+      })),
+    )
+    setPromptError('')
+  }, [activeContent, activeTab?.title, activeTabId, setPromptError])
+
   const handleLoadClick = useCallback(async () => {
     if (isDesktopRuntime()) {
       const openedFile = await openMarkdownWithNativeDialog()
@@ -940,9 +986,10 @@ function App() {
 
   useEffect(() => {
     saveActionRef.current = handleSaveClick
+    saveAsActionRef.current = handleSaveAsClick
     openActionRef.current = handleLoadClick
     newActionRef.current = handleNew
-  }, [handleLoadClick, handleNew, handleSaveClick])
+  }, [handleLoadClick, handleNew, handleSaveAsClick, handleSaveClick])
 
   useEffect(() => {
     closeActionRef.current = () => {
@@ -1469,6 +1516,7 @@ ${escapeLatex(exportMarkdownSource)}
 
       setSettings(nextSettings)
       setCustomSpellcheckWords(resolveEnabledCustomWords(normalizedWordList, normalizedDisabled))
+      setSpellcheckRefreshKey((current) => current + 1)
 
       if (isDesktopRuntime()) {
         void saveSettings(nextSettings)
@@ -1479,6 +1527,7 @@ ${escapeLatex(exportMarkdownSource)}
 
   useGlobalShortcuts({
     saveActionRef,
+    saveAsActionRef,
     openActionRef,
     newActionRef,
     closeActionRef,
@@ -1507,6 +1556,7 @@ ${escapeLatex(exportMarkdownSource)}
     onOpenRecent: handleOpenRecent,
     onOpenRecentError: handleOpenRecentError,
     onSave: handleSaveClick,
+    onSaveAs: handleSaveAsClick,
     onPrint: handlePrintClick,
     onShowPreview: handleShowPreview,
     onShowTextEdit: handleShowTextEdit,
@@ -1689,6 +1739,7 @@ ${escapeLatex(exportMarkdownSource)}
               selectionRange={selectionRange}
               showSelectionOverlay={isPromptFocused}
               spellCheckEnabled={isSpellCheckEnabled}
+              spellcheckRefreshKey={spellcheckRefreshKey}
               textZoomPercent={editorTextZoomPercent}
               externalSelectionRange={selectionRange}
               externalScrollTop={scrollPositionsByTab[activeTabId]?.editorTop ?? 0}

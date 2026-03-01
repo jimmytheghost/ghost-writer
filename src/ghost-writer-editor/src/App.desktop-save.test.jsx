@@ -91,6 +91,29 @@ describe('App desktop save flow', () => {
     expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
   })
 
+  it('uses Save As dialog on Ctrl+Shift+S instead of duplicating tabs', async () => {
+    desktopRuntimeMocks.saveMarkdownWithNativeDialog.mockResolvedValue('/tmp/untitled-saved.md')
+
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Untitled draft content' } })
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(
+        'Untitled draft content',
+        'Untitled.md',
+      )
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownToPath).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Switch to untitled-saved' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled 2' })).not.toBeInTheDocument()
+  })
+
   it('allows oversized native desktop file loads', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/large.md',

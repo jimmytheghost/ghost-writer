@@ -131,8 +131,10 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_close_all =
         MenuItem::with_id(app, "file_close_all", "Close All Tabs", true, Some("CmdOrCtrl+Shift+W"))?;
     let file_save = MenuItem::with_id(app, "file_save", "Save", true, Some("CmdOrCtrl+S"))?;
+    let file_save_as =
+        MenuItem::with_id(app, "file_save_as", "Save As…", true, Some("CmdOrCtrl+Shift+S"))?;
     let file_duplicate =
-        MenuItem::with_id(app, "file_duplicate", "Duplicate", true, Some("CmdOrCtrl+Shift+S"))?;
+        MenuItem::with_id(app, "file_duplicate", "Duplicate", true, None::<&str>)?;
     let file_rename = MenuItem::with_id(app, "file_rename", "Rename", true, None::<&str>)?;
     let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
@@ -231,6 +233,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &[
             &file_new,
             &file_save,
+            &file_save_as,
             &file_duplicate,
             &file_rename,
             &file_open,
@@ -988,6 +991,7 @@ fn main() {
                 "file_close" => emit_menu_event("ghost-writer://menu-close"),
                 "file_close_all" => emit_menu_event("ghost-writer://menu-close-all"),
                 "file_save" => emit_menu_event("ghost-writer://menu-save"),
+                "file_save_as" => emit_menu_event("ghost-writer://menu-save-as"),
                 "file_duplicate" => emit_menu_event("ghost-writer://menu-duplicate"),
                 "file_rename" => emit_menu_event("ghost-writer://menu-rename"),
                 "file_print" => emit_menu_event("ghost-writer://menu-print"),

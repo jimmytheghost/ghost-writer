@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 export function useGlobalShortcuts({
   saveActionRef,
+  saveAsActionRef,
   openActionRef,
   newActionRef,
   closeActionRef,
@@ -20,7 +21,11 @@ export function useGlobalShortcuts({
       const hasMod = event.metaKey || event.ctrlKey
 
       if (hasMod && !event.altKey && key === 's') {
-        if (event.shiftKey) return
+        if (event.shiftKey) {
+          event.preventDefault()
+          saveAsActionRef.current?.()
+          return
+        }
         event.preventDefault()
         saveActionRef.current?.()
         return
@@ -107,5 +112,6 @@ export function useGlobalShortcuts({
     openActionRef,
     printActionRef,
     saveActionRef,
+    saveAsActionRef,
   ])
 }

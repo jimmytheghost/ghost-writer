@@ -21,13 +21,12 @@
 
 ## GPT Audit
 
-**Was markdown sanitization driven by paranoia or real awareness?** <--  What in the hell does this mean
 
 **Why strict protocol allowlists?**
 
 **Did desktop context change your threat model?**
 
-[ ] Remove 2mb file guardrail.
+[x] Remove 2mb file guardrail.
 
 ---
 

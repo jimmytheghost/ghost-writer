@@ -199,6 +199,7 @@ function Editor({
   focusRequestId = 0,
   showSelectionOverlay,
   spellCheckEnabled = false,
+  spellcheckRefreshKey = 0,
   textZoomPercent = 100,
   streamingRange,
   streamingColorEnabled = true,
@@ -233,7 +234,7 @@ function Editor({
   const misspelledRanges = useMemo(() => {
     if (!spellCheckEnabled || !spellcheckReadyAt || useLightweightOverlays) return []
     return getMisspelledRanges(text)
-  }, [spellCheckEnabled, spellcheckReadyAt, text, useLightweightOverlays])
+  }, [spellCheckEnabled, spellcheckReadyAt, spellcheckRefreshKey, text, useLightweightOverlays])
 
   const spellCheckOverlay = useMemo(() => {
     if (!spellCheckEnabled) return null

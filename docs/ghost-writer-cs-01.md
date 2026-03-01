@@ -4,9 +4,9 @@
 
 ---
 
-## Overview
+## Overview 
 
-Ghost Writer is a distraction-free Markdown desktop editor with built-in local LLM assistance via Ollama. It is less than 5mb in size. It launches instantly. It works offline. It requires no API keys and incurs no subscription fees.
+Ghost Writer is a distraction-free Markdown desktop editor with built-in local LLM assistance via Ollama. It is less than 5MB in size. It launches instantly. It works offline. It requires no API keys and incurs no subscription fees.
 
 It was designed to solve a simple but persistent problem: modern AI writing workflows are fragmented.
 
@@ -19,7 +19,7 @@ You repeat.
 
 Over time, this constant context switching becomes friction. Not dramatic friction. Not catastrophic friction. Just enough to break flow and open Twitter.
 
-Ghost Writer collapses that loop into a single environment without the distraction. The editor and the model live in the same space. The writing remains private and the workflow remains clean.
+Ghost Writer collapses that loop into a single environment without distraction. The editor and the model live in the same space. The writing remains private and the workflow remains clean.
 
 Small software can be pretty, powerful, and private.
 
@@ -27,7 +27,7 @@ Small software can be pretty, powerful, and private.
 
 ## The Problem That Wouldn’t Go Away
 
-As I began building more AI-powered tools, I found myself writing Markdown constantly. Markdown had become the lingua franca of AI systems which is great because I *also* love the syntax. I was drafting documents in VSCode, Cursor, ChatGPT, Ollama sessions, Byword, and even TextEdit.
+As I began building more AI-powered tools, I found myself writing Markdown constantly. Markdown had become the lingua franca of AI systems — which was perfect, because I also love the syntax. I was drafting documents in VSCode, Cursor, ChatGPT, Ollama sessions, Byword, and even TextEdit.
 
 I loved using Ollama for local, free generation but I did not love copying its output back into my document. 
 
@@ -35,7 +35,7 @@ I didn’t love waiting for web UIs to load when all I wanted to do was jot down
 
 I didn't love the bulky and cumbersome “AI editors" that felt like enterprise dashboards.
 
-And I definitely didn’t playing API fees for drafting personal essays.
+And I definitely didn’t love paying API fees for drafting personal essays.
 
 I didn’t want a chat panel taking up half my screen. I didn’t want toolbars, crop marks, floating widgets, or integrations I would never use. I wanted something visually small — both vertically and horizontally — so it could sit beside my main screen like a drafting companion.
 
@@ -51,7 +51,7 @@ So I built it.
 
 Ghost Writer is directly inspired by the app Byword.
 
-Byword has been my writing standard for over a decade. It is minimal. It is typographically calm. It stays out of the way. I've used it forever.
+Byword is my writing standard. It is minimal. It is typographically calm. It stays out of the way. I’ve relied on it for over a decade.
 
 For years, I wished I could shrink it further — a narrower drafting column that could live beside whatever I was building, researching, or designing. It's small, but not small enough.
 
@@ -75,7 +75,7 @@ Second, local LLM integration had to feel frictionless. Selecting text and sendi
 
 Third, it should not reinvent the editor. It should feel like a normal Markdown tool. Familiar behaviors reduce cognitive overhead. AI should make the tool more useful, not make the tool feel foreign.
 
-Ghost Writer was intentionally designed to be narrow — 400 pixels wide by default — and small enough to function as a drafting sidecar. It can stretch vertically, but it never demands your full screen. But when it does, it's a beautiful place to work.
+Ghost Writer was intentionally designed to be narrow — 400 pixels wide by default — and small enough to function as a drafting sidecar. It can stretch vertically, but it never demands your full screen.
 
 ---
 
@@ -87,7 +87,7 @@ If text is selected, and the user wants AI to rewrite that text, it will replace
 
 The goal is simple: the user should think about their writing, not about socializing with an LLM.
 
-⸻
+---
 
 ## Inline {{...}} Prompt Tokens
 
@@ -158,7 +158,7 @@ Ghost Writer includes sanitized Markdown rendering, explicit allowed tags and at
 
 These were implemented following multi-agent audit passes.
 
-Rather than assuming security was unnecessary because the app is local-first, I chose to implement audit-driven hardening when it was flagged. The process was iterative, not reactive.
+Even though the app is local-first, I chose to treat it like production software rather than a hobby project. The process was iterative, not reactive.
 
 ---
 
@@ -208,7 +208,7 @@ It is, in some ways, a sophisticated “hello world.” But it is one I use dail
 
 It proves that I can take an idea from concept to packaged, cross-platform desktop application and maintain it with discipline.
 
-This was not “vibe coded in a weekend." It was vibe coded for about a month which is likely too long but I wanted to learn and make something real.
+This was built through structured agentic development over a month of iteration.
 
 It is the goldfish I am keeping alive to prove I can take care of a dog.
 
@@ -226,7 +226,7 @@ Small software can be powerful.
 
 Small software can be private.
 
-And small software can pretty.
+And small software can be beautiful.
 
 ---
 
@@ -235,13 +235,14 @@ And small software can pretty.
 If you are a long time tech person, I do not expect you to be impressed that I wrote clever code. As I said earlier - I didn't write *any* code.
 
 I want you to see that I:
-	•	Identify real workflow problems.
-	•	Make principled UX decisions.
-	•	Choose intentional constraints.
-	•	Ship production-ready artifacts.
-	•	Use AI systems strategically and honestly.
-	•	Maintain discipline through iteration.
+
+- Identify real workflow problems.
+- Make principled UX decisions.
+- Choose intentional constraints.
+- Ship production-ready artifacts.
+- Use AI systems strategically and honestly.
+- Maintain discipline through iteration.
 
 Ghost Writer exists because I needed it.
 
-Now anyone who needs a small, powerful, and private writing tool can have it too.
+And because small software — when built intentionally — can still be powerful, private, and worth shipping.
