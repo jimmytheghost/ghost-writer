@@ -76,6 +76,7 @@ describe('App keyboard shortcuts', () => {
 
     expect(screen.getByLabelText('Find and replace panel')).toBeInTheDocument()
     expect(screen.getByLabelText('Find previous match')).toBeInTheDocument()
+    expect(screen.getByLabelText('Find')).toHaveFocus()
   })
 
   it('selects all editor content with Ctrl+A', () => {

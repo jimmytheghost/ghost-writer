@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import bundledModelSnapshot from './generated/ollama-models.json'
 import AppModals from './components/AppModals'
@@ -1554,16 +1554,12 @@ ${escapeLatex(exportMarkdownSource)}
     onShowAbout: () => setIsAboutOpen(true),
   })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isFindReplaceOpen) return
 
-    const frameId = requestAnimationFrame(() => {
-      if (!findInputRef.current) return
-      findInputRef.current.focus()
-      findInputRef.current.select()
-    })
-
-    return () => cancelAnimationFrame(frameId)
+    if (!findInputRef.current) return
+    findInputRef.current.focus()
+    findInputRef.current.select()
   }, [isFindReplaceOpen])
 
   useEffect(() => {
