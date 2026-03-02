@@ -543,6 +543,33 @@ function Editor({
       const start = textarea.selectionStart ?? 0
       const end = textarea.selectionEnd ?? start
       const hasRangeSelection = start !== end
+      // Cmd/Ctrl + Backspace or Delete: delete leading indentation to line start
+      // This makes indentation (spaces) act like a dedicated indentation block that
+      // can be cleared quickly when the user wants to unindent to the start of the line.
+      const isMacPlatform = /Mac/.test(navigator.platform)
+      const isMod = isMacPlatform ? event.metaKey : event.ctrlKey
+      const modDeleteOrBackspace = isMod && (event.key === 'Backspace' || event.key === 'Delete')
+      if (modDeleteOrBackspace) {
+        const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
+        const lineEndBoundary = text.indexOf('\n', start)
+        const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
+        const lineText = text.slice(lineStart, lineEnd)
+        const leadingWhitespace = lineText.match(/^\s+/)
+        const indentLen = leadingWhitespace?.[0]?.length ?? 0
+        if (indentLen > 0) {
+          event.preventDefault()
+          const newLineText = lineText.slice(indentLen)
+          const nextValue = `${text.slice(0, lineStart)}${newLineText}${text.slice(lineEnd)}`
+          onChange?.(nextValue)
+          const nextPosition = lineStart
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+          })
+          return
+        }
+      }
       const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
       const lineEndBoundary = text.indexOf('\n', start)
       const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
@@ -699,34 +726,34 @@ function Editor({
         return
       }
 
-      const isMac = /Mac/.test(navigator.platform)
-      const isMod = isMac ? event.metaKey : event.ctrlKey
+      const isMacPlatform2 = /Mac/.test(navigator.platform)
+      const isMod2 = isMacPlatform2 ? event.metaKey : event.ctrlKey
       const key = event.key.toLowerCase()
-      const isSystemEditShortcut = isMod && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
+      const isSystemEditShortcut = isMod2 && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
 
       if (isSystemEditShortcut) {
         return
       }
 
-      if (isMod && event.shiftKey && key === 'k') {
+      if (isMod2 && event.shiftKey && key === 'k') {
         event.preventDefault()
         const selection = getSelectionRange()
         onPromptOpen?.(selection)
       }
 
-      if (isMod && !event.shiftKey && key === 'b') {
+      if (isMod2 && !event.shiftKey && key === 'b') {
         event.preventDefault()
         applyInlineFormat('**')
       }
 
-      if (isMod && !event.shiftKey && key === 'i') {
+      if (isMod2 && !event.shiftKey && key === 'i') {
         event.preventDefault()
         applyInlineFormat('*')
         return
       }
 
       const isAsteriskShortcut =
-        isMod &&
+        isMod2 &&
         !event.altKey &&
         (event.key === '*' ||
           event.code === 'NumpadMultiply' ||
@@ -738,19 +765,19 @@ function Editor({
       }
 
       const isBackquoteKey = event.code === 'Backquote' || key === '`' || key === '~'
-      if (isMod && !event.altKey && isBackquoteKey) {
+      if (isMod2 && !event.altKey && isBackquoteKey) {
         event.preventDefault()
         applyInlineFormat('~~')
         return
       }
 
-      if (isMod && event.shiftKey && key === 'x') {
+      if (isMod2 && event.shiftKey && key === 'x') {
         event.preventDefault()
         applyInlineFormat('~~')
         return
       }
 
-      if (isMod && !event.shiftKey && key === 'a') {
+      if (isMod2 && !event.shiftKey && key === 'a') {
         event.preventDefault()
         textarea.focus()
         textarea.setSelectionRange(0, (value ?? '').length)
@@ -761,12 +788,12 @@ function Editor({
       }
     }
 
-    const textarea = textareaRef.current
-    if (textarea) {
-      setContentHeight(textarea.scrollHeight)
-    }
+      const textarea = textareaRef.current
+      if (textarea) {
+        setContentHeight(textarea.scrollHeight)
+      }
 
-    textarea?.addEventListener('keydown', handleKeyDown)
+      textarea?.addEventListener('keydown', handleKeyDown)
     textarea?.addEventListener('mouseup', handleSelectionUpdate)
     textarea?.addEventListener('keyup', handleSelectionUpdate)
     textarea?.addEventListener('select', handleSelectionUpdate)
