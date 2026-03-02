@@ -10,6 +10,50 @@ export const DEFAULT_CUSTOM_WORD_LIST = Object.freeze([
   '.md',
   '.txt',
   '.pdf',
+  'zoomable',
+  'customizable',
+  'clickable',
+  'scrollable',
+  'draggable',
+  'editable',
+  'selectable',
+  'expandable',
+  'collapsible',
+  'resizable',
+  'focusable',
+  'interactive',
+  'downloadable',
+  'shareable',
+  'navigable',
+  'dashable',
+  'auto-generated',
+  'auto-save',
+  'auto-complete',
+  'pre-defined',
+  'real-time',
+  'near-real-time',
+  'well-known',
+  'open-source',
+  'open-source',
+  'cross-platform',
+  'user-friendly',
+  'backwards-compatible',
+  'forward-compatible',
+  'lightweight',
+  'fullscreen',
+  'full-screen',
+  'high-resolution',
+  'low-level',
+  'high-level',
+  'middle-ware',
+  'meta-data',
+  're-render',
+  're-renders',
+  're-rendered',
+  'hot-reload',
+  'hot-reloading',
+  'devstral',
+  'ollama',
 ])
 
 const customWords = new Set()
@@ -29,6 +73,12 @@ export function setCustomSpellcheckWords(words = []) {
     const normalized = normalizeWord(word)
     if (!normalized) continue
     customWords.add(normalized)
+  }
+
+  if (spellChecker) {
+    for (const word of customWords) {
+      spellChecker.add(word)
+    }
   }
 }
 
@@ -66,9 +116,6 @@ async function loadSpellChecker() {
         spellChecker = new NSpell(aff, dic)
         return spellChecker
       } catch {
-        // Some runtimes (notably certain desktop environments) may not support
-        // fetching bundled assets by URL. Fall back to embedding the
-        // dictionaries directly to keep inline spellcheck working.
         const [affModule, dicModule] = await Promise.all([
           import('dictionary-en-us/index.aff?raw'),
           import('dictionary-en-us/index.dic?raw'),

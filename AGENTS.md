@@ -32,17 +32,14 @@ npm run check            # Full check: lint + test:run + build
 
 ### Running a Single Test
 
-Use Vitest's filter flag to run specific tests:
+Use Vitest's `-t` flag to run tests matching a pattern:
 
 ```bash
 # Run tests matching a pattern
-npm run test:run -- --filter "spellcheck"
+npm run test:run -- -t "spellcheck"
 
 # Run a specific test file
-npm run test:run -- Editor.input-behavior
-
-# Run tests in a specific file with full path
-npm run test:run -- src/components/Editor.performance.test.jsx
+npm run test:run -- src/lib/spellcheck.test.js
 ```
 
 ## Code Style Guidelines
