@@ -129,6 +129,20 @@ function renderSyntaxLine(line, lineIndex) {
     return nodes
   }
 
+  const codeFence = /^(\s*)(```+)(.*)$/.exec(line)
+  if (codeFence) {
+    pushPlain(nodes, codeFence[1], keyPrefix)
+    nodes.push(
+      <span key={`${keyPrefix}-codefence`} className="editor__syntax-codefence">
+        {codeFence[2]}
+      </span>,
+      <span key={`${keyPrefix}-codelang`} className="editor__syntax-codefence-lang">
+        {codeFence[3]}
+      </span>,
+    )
+    return nodes
+  }
+
   const quote = /^(\s*)(>)(\s?)(.*)$/.exec(line)
   if (quote) {
     pushPlain(nodes, quote[1], keyPrefix)

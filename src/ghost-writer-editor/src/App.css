@@ -724,6 +724,15 @@
   font-weight: 700;
 }
 
+.editor__syntax-codefence {
+  color: #078056;
+}
+
+.editor__syntax-codefence-lang {
+  color: #078056;
+  font-weight: 600;
+}
+
 .editor__syntax-checkbox-done {
   color: #b54708;
   font-weight: 700;
@@ -811,6 +820,11 @@
 
 .app--dark .editor__syntax-quote-marker {
   color: #6a9955;
+}
+
+.app--dark .editor__syntax-codefence,
+.app--dark .editor__syntax-codefence-lang {
+  color: #ff5b04;
 }
 
 .editor__selection-overlay-text {
