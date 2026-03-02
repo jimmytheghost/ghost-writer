@@ -556,7 +556,8 @@ function Editor({
         const lineText = text.slice(lineStart, lineEnd)
         const leadingWhitespace = lineText.match(/^\s+/)
         const indentLen = leadingWhitespace?.[0]?.length ?? 0
-        if (indentLen > 0) {
+        const isListItem = LIST_ITEM_PATTERN.test(lineText)
+        if (indentLen > 0 && !isListItem) {
           event.preventDefault()
           const newLineText = lineText.slice(indentLen)
           const nextValue = `${text.slice(0, lineStart)}${newLineText}${text.slice(lineEnd)}`
@@ -615,6 +616,21 @@ function Editor({
         const markerOffset = lineStart + indentation.length
         const markerTailOffset = markerOffset + marker.length + markerSpacing.length + checkboxPrefix.length
         const isEmptyListItem = itemText.trim().length === 0
+        const isMod = isMacPlatform ? event.metaKey : event.ctrlKey
+
+        if (isMod) {
+          event.preventDefault()
+          const nextValue = `${text.slice(0, lineStart)}${text.slice(lineEnd)}`
+          const nextPosition = lineStart
+          onChange?.(nextValue)
+          requestAnimationFrame(() => {
+            textarea.focus()
+            textarea.setSelectionRange(nextPosition, nextPosition)
+            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+          })
+          return
+        }
+
         if (
           indentation.length > 0 &&
           (start === markerOffset ||
