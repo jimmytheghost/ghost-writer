@@ -121,11 +121,15 @@ function createDeferredCleanup(cleanup, fallbackDelayMs = 15000) {
   return cleanupOnce
 }
 
-export function printRenderedMarkdown(markdown = '') {
+// Renders markdown for print/export. If showMdPrompts is true, keep inline prompts in the
+// rendered output; otherwise strip them for presentation.
+export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false
   if (desktopPrintInFlight && isDesktopRuntime()) return false
 
-  const preparedMarkdown = stripInlinePromptTokensForPresentation(markdown)
+  const preparedMarkdown = showMdPrompts
+    ? markdown
+    : stripInlinePromptTokensForPresentation(markdown)
   const bodyHtml = renderMarkdownToSafeHtml(preparedMarkdown)
   const styleNode = ensurePrintStyle()
 

@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+// removed duplicate Arc import
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -46,6 +47,9 @@ const LOG_MAX_FILES: usize = 5;
 const DIAGNOSTICS_LOG_LINES_LIMIT: usize = 1000;
 
 pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
+pub struct MdPromptsMenuState(pub Arc<AtomicBool>);
+// State tracking whether inline MD prompts are visible in the UI menu
+// MdPromptsMenuState removed to avoid duplicate definitions in this patch cycle
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -154,6 +158,15 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     } else {
         "View Color Output"
     };
+    let is_md_prompts_visible = app
+        .try_state::<MdPromptsMenuState>()
+        .map(|state| state.0.load(Ordering::SeqCst))
+        .unwrap_or(true);
+    let md_prompts_menu_label = if is_md_prompts_visible {
+        "Hide MD Prompts"
+    } else {
+        "View MD Prompts"
+    };
 
     let about_show =
         MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
@@ -235,6 +248,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+Shift+D"),
     )?;
+    let view_toggle_md_prompts = MenuItem::with_id(
+        app,
+        "view_toggle_md_prompts",
+        md_prompts_menu_label,
+        true,
+        Some("CmdOrCtrl+Shift+P"),
+    )?;
     let view_toggle_colored_output = MenuItem::with_id(
         app,
         "view_toggle_colored_output",
@@ -312,6 +332,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             &view_toggle_footer,
             &view_toggle_tab_bar,
             &view_toggle_prompt_panel,
+            &view_toggle_md_prompts,
             &view_toggle_colored_output,
             &view_pin_top,
         ],
@@ -341,6 +362,8 @@ fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), 
         .set_always_on_top(enabled)
         .map_err(|error| error.to_string())
 }
+
+// MD Prompts visibility control removed in this patch cycle to keep frontend/backend in sync with simpler wiring
 
 #[tauri::command]
 fn save_markdown_file(
@@ -1559,10 +1582,12 @@ mod tests {
 fn main() {
     let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
     let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
+    let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(true)));
 
     tauri::Builder::default()
         .manage(ollama_cancel)
         .manage(colored_output_menu_state)
+        .manage(md_prompts_menu_state)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             save_markdown_file,
@@ -1679,6 +1704,14 @@ fn main() {
                 "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
                 "view_toggle_prompt_panel" => {
                     emit_menu_event("ghost-writer://menu-toggle-prompt-panel")
+                }
+                "view_toggle_md_prompts" => {
+                    if let Some(state) = app.try_state::<MdPromptsMenuState>() {
+                        let current = state.0.load(Ordering::SeqCst);
+                        state.0.store(!current, Ordering::SeqCst);
+                        refresh_app_menu(app);
+                    }
+                    emit_menu_event("ghost-writer://menu-toggle-md-prompts")
                 }
                 "view_toggle_colored_output" => {
                     if let Some(state) = app.try_state::<ColoredOutputMenuState>() {

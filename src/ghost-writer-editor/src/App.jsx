@@ -96,6 +96,8 @@ function App() {
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
+  // New: whether inline MD prompts ({{...}}) are visible in the Markdown preview
+  const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(false)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
   const [spellcheckRefreshKey, setSpellcheckRefreshKey] = useState(0)
@@ -423,12 +425,11 @@ function App() {
     () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
     [activeContent, isPreviewOpen],
   )
+  // Determine markdown used for the preview, honoring Hide/View MD Prompts setting
+  const rawMdForPreview = isMdPromptsVisible ? activeContent : stripInlinePromptTokensForPresentation(activeContent)
   const normalizedPreviewMarkdown = useMemo(
-    () =>
-      isPreviewOpen
-        ? normalizeCustomCheckboxLines(stripInlinePromptTokensForPresentation(activeContent))
-        : '',
-    [activeContent, isPreviewOpen],
+    () => (isPreviewOpen ? normalizeCustomCheckboxLines(rawMdForPreview) : ''),
+    [rawMdForPreview, isPreviewOpen],
   )
   const renderedMarkdown = useMemo(
     () => (isPreviewOpen ? renderMarkdownToSafeHtml(normalizedPreviewMarkdown) : ''),
@@ -475,7 +476,15 @@ function App() {
     if (nextSettings.defaultModel) {
       setSelectedModel(nextSettings.defaultModel)
     }
+    if (typeof nextSettings.defaultShowMdPrompts !== 'undefined') {
+      setIsMdPromptsVisible(Boolean(nextSettings.defaultShowMdPrompts))
+    }
   }, [setSelectedModel])
+
+  // Toggle for showing/hiding MD prompts in preview/exports
+  const handleToggleMdPrompts = useCallback(() => {
+    setIsMdPromptsVisible((prev) => !prev)
+  }, [])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return
@@ -1162,7 +1171,7 @@ function App() {
 
   const handlePrintClick = useCallback(() => {
     if (!activeTab) return
-    printRenderedMarkdown(activeContent)
+    printRenderedMarkdown(activeContent, isMdPromptsVisible)
   }, [activeContent, activeTab])
 
   useEffect(() => {
@@ -1303,6 +1312,9 @@ function App() {
       if (key === 'defaultModel') {
         setSelectedModel(value || '')
       }
+      if (key === 'defaultShowMdPrompts') {
+        setIsMdPromptsVisible(Boolean(value))
+      }
     },
     [setSelectedModel],
   )
@@ -1394,8 +1406,9 @@ function App() {
   }, [isDark, updateSetting])
 
   const exportMarkdownSource = useMemo(() => {
-    return normalizeCustomCheckboxLines(stripInlinePromptTokensForPresentation(activeContent))
-  }, [activeContent])
+    const source = isMdPromptsVisible ? activeContent : stripInlinePromptTokensForPresentation(activeContent)
+    return normalizeCustomCheckboxLines(source)
+  }, [activeContent, isMdPromptsVisible])
 
   const exportHtmlDocument = useMemo(() => {
     const body = renderMarkdownToSafeHtml(exportMarkdownSource)
@@ -1468,8 +1481,8 @@ ${body}
   }, [exportHtmlDocument, exportWithNativeDialog])
 
   const handleExportPdf = useCallback(async () => {
-    printRenderedMarkdown(exportMarkdownSource)
-  }, [exportMarkdownSource])
+    printRenderedMarkdown(exportMarkdownSource, isMdPromptsVisible)
+  }, [exportMarkdownSource, isMdPromptsVisible])
 
   const handleExportRtf = useCallback(async () => {
     const rtfContent = `{\\rtf1\\ansi\\deff0\n${escapeRtf(exportMarkdownSource)}\n}`
@@ -1587,6 +1600,7 @@ ${escapeLatex(exportMarkdownSource)}
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
     onTogglePromptPanel: handleTogglePromptPanel,
+    onToggleMdPrompts: handleToggleMdPrompts,
     onToggleColoredOutput: handleToggleColoredStreamingOutput,
     onShowSettings: () => {
       setIsWordListOpen(false)

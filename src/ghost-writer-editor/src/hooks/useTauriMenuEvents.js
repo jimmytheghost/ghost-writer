@@ -36,6 +36,7 @@ export function useTauriMenuEvents({
   onExportDiagnostics,
   onShowAbout,
   onShowFindReplace,
+  onToggleMdPrompts,
 }) {
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined
@@ -62,6 +63,8 @@ export function useTauriMenuEvents({
         ['ghost-writer://menu-toggle-footer', () => onToggleFooter()],
         ['ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()],
         ['ghost-writer://menu-toggle-prompt-panel', () => onTogglePromptPanel()],
+        // New: toggle showing Markdown inline prompts within the document
+        ['ghost-writer://menu-toggle-md-prompts', () => onToggleMdPrompts?.()],
         ['ghost-writer://menu-toggle-colored-output', () => onToggleColoredOutput?.()],
         ['ghost-writer://menu-settings', () => onShowSettings()],
         ['ghost-writer://menu-word-list', () => onShowWordList()],
