@@ -15,6 +15,7 @@
     "qwen3-coder:30b",
     "qwen3-vl:8b",
     "qwen3.5:27b",
+    "qwen3.5:9b",
     "wizardlm-uncensored:13b"
   ],
   "source": "ollama list",

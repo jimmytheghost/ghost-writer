@@ -1608,6 +1608,25 @@ fn main() {
         .setup(|app| {
             let menu = build_app_menu(&app.handle())?;
             app.set_menu(menu)?;
+            if let Ok(home_dir) = app.path().home_dir() {
+                if let Err(error) = app.handle().asset_protocol_scope().allow_directory(home_dir, true) {
+                    append_structured_log(
+                        &app.handle(),
+                        "warn",
+                        "asset.scope.allow_directory.failed",
+                        "Failed to allow home directory for asset protocol",
+                        serde_json::json!({ "error": error.to_string() }),
+                    );
+                }
+            } else {
+                append_structured_log(
+                    &app.handle(),
+                    "warn",
+                    "asset.scope.home_dir.missing",
+                    "Could not resolve home directory for asset protocol scope",
+                    serde_json::json!({}),
+                );
+            }
             append_structured_log(
                 &app.handle(),
                 "info",
