@@ -348,6 +348,12 @@
   margin: 0 0 var(--space-3);
 }
 
+.preview__content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 .preview__content ul,
 .preview__content ol {
   margin: var(--space-3) 0 var(--space-4) var(--space-5);
