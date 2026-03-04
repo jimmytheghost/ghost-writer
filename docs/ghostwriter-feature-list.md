@@ -3,12 +3,13 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 1. **Core Editor Experience**
 - Distraction-focused single-document editing pane with tabbed multi-document workflow.
 - True distraction-free layout controls: hide/show prompt input panel, footer, and tab bar.
-- Native-feel textarea editor with custom syntax overlays for headings, lists, checkboxes, links, emphasis, strikethrough, quotes, and inline markdown tokens.
+- Native-feel textarea editor with custom syntax overlays for headings, lists, checkboxes, links, emphasis, strikethrough, quotes, inline markdown tokens, and fenced code markers (``` + language tag).
 - Prompt-focused selection highlight overlay while AI prompt input is focused.
 - Automatic fallback to lightweight editor mode for large documents (disables heavy overlays for performance).
 
 2. **AI Writing With Local Models (Ollama)**
 - Local LLM integration via Ollama (`/api/generate`) with streaming token output into the editor.
+- Optional colored streaming-token overlay (View menu toggle) for generated text.
 - Selection-aware generation:
   - Rewrites selected text.
   - Inserts at cursor when no selection is active.
@@ -26,7 +27,10 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Safe markdown rendering pipeline (`markdown-it` + sanitizer).
 - Supported markdown extras include task lists, footnotes, definition lists, attrs/IDs, mark/highlight, sub/sup, emoji shortcode.
 - Arrow token rendering in preview (`<--` -> `←`, `-->` -> `→`).
+- Local filesystem markdown images render in preview (desktop asset protocol support for `file://` image paths).
+- Oversized preview images auto-scale to fit the markdown render container width while preserving aspect ratio.
 - Clickable preview checkboxes that sync state back into source markdown.
+- Toggle to show/hide inline prompt tokens (`{{...}}`) in preview/output rendering.
 - Editor/preview scroll behavior tuned for usability:
   - Editor scroll is isolated per tab.
   - Markdown preview stays synchronized with its corresponding document context.
@@ -51,7 +55,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Closing an unchanged saved tab skips unnecessary save confirmation prompts.
 - Browser fallback download flow when not in desktop runtime.
 - Markdown-only guardrails for open/overwrite paths.
-- File-size guardrail (2 MB max load).
+- No active file-size load cap in current runtime configuration.
 - Copy behavior prioritizes:
   - OS text selection,
   - editor selection,
@@ -67,7 +71,8 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
   - Save as RTF
   - Save as Word-compatible `.doc` (HTML payload)
   - Save as LaTeX `.tex`
-- Print pipeline strips inline prompt tokens before rendering.
+  - Diagnostics bundle (`.json`)
+- Print/export markdown rendering respects the inline-prompt visibility toggle.
 - Desktop-native print invocation (custom macOS print handling; fallback to web print where needed).
 
 7. **Spellcheck System**
@@ -99,14 +104,20 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 
 9. **Global App Shortcuts**
 - `Cmd/Ctrl+S` save
+- `Cmd/Ctrl+Shift+S` save as
 - `Cmd/Ctrl+O` open
 - `Cmd/Ctrl+N` new tab/doc
 - `Cmd/Ctrl+W` close active tab
+- `Cmd/Ctrl+Shift+W` close all tabs
+- `Cmd/Ctrl+F` find and replace
 - `Cmd/Ctrl+P` print
 - `Cmd/Ctrl+M` toggle preview
 - `Cmd/Ctrl+T` toggle always-on-top
 - `Cmd/Ctrl+Shift+B` collapse/expand footer
 - `Cmd/Ctrl+Shift+H` toggle tab bar (runtime shortcut hook)
+- `Cmd/Ctrl+Shift+D` hide/show prompt input bar
+- `Cmd/Ctrl+Shift+P` hide/show inline prompt tokens in preview
+- `Cmd/Ctrl+Shift+Y` hide/show colored streaming output
 
 10. **Desktop (Tauri) Integration**
 - Desktop app shell with menu-driven commands mapped to frontend events.
@@ -128,6 +139,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
   - default footer collapsed state
   - startup preview mode
   - default spellcheck
+  - default show/hide inline prompt tokens in preview/export
   - autosave preferences
   - custom word list + disabled set
 - Session restore:
