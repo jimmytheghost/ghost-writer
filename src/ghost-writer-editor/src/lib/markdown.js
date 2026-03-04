@@ -10,6 +10,15 @@ import markdownItTaskLists from 'markdown-it-task-lists'
 
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
 const QUOTE_CHARS = new Set(["'", '"', '‘', '’', '“', '”'])
+const QUOTE_PAIRS = Object.freeze({
+  "'": "'",
+  '"': '"',
+  '‘': '’',
+  '’': '’',
+  '“': '”',
+  '”': '”',
+})
+const IMAGE_EXTENSIONS = new Set(['.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.svg', '.avif'])
 const ALLOWED_TAGS = new Set([
   'a',
   'b',
@@ -124,6 +133,15 @@ function extractMarkdownImageDestination(rawDestination = '') {
   const trimmed = String(rawDestination).trim()
   if (!trimmed) return ''
 
+  const openingQuote = trimmed[0]
+  const expectedClosingQuote = QUOTE_PAIRS[openingQuote]
+  if (expectedClosingQuote) {
+    const closingQuoteIndex = trimmed.indexOf(expectedClosingQuote, 1)
+    if (closingQuoteIndex > 0) {
+      return trimmed.slice(1, closingQuoteIndex).trim()
+    }
+  }
+
   const unwrapped = trimWrappingQuotes(trimmed)
   if (unwrapped !== trimmed) return unwrapped
 
@@ -155,11 +173,32 @@ function toFileUrl(pathValue = '') {
 }
 
 function normalizeMarkdownImagePaths(markdown = '') {
-  return String(markdown).replaceAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (fullMatch, altText, rawDestination) => {
+  const withImageLinksNormalized = String(markdown).replaceAll(
+    /\[([^\]]*)\]\(([^)\n]+)\)/g,
+    (fullMatch, altText, rawDestination, index, sourceText) => {
+      if (sourceText[index - 1] === '!') return fullMatch
+      const cleanDestination = extractMarkdownImageDestination(rawDestination)
+      if (!looksLikeFilesystemPath(cleanDestination)) return fullMatch
+      if (!isLocalImagePath(cleanDestination)) return fullMatch
+      return `![${altText}](${rawDestination})`
+    },
+  )
+
+  return withImageLinksNormalized.replaceAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (fullMatch, altText, rawDestination) => {
     const cleanDestination = extractMarkdownImageDestination(rawDestination)
     if (!looksLikeFilesystemPath(cleanDestination)) return fullMatch
     return `![${altText}](${toFileUrl(cleanDestination)})`
   })
+}
+
+function isLocalImagePath(pathValue = '') {
+  if (!pathValue) return false
+  const normalizedPath = normalizeUriEncoding(pathValue).toLowerCase()
+  const pathWithoutQuery = normalizedPath.split('#', 1)[0].split('?', 1)[0]
+  for (const extension of IMAGE_EXTENSIONS) {
+    if (pathWithoutQuery.endsWith(extension)) return true
+  }
+  return false
 }
 
 function fileUrlToPath(fileUrl = '') {

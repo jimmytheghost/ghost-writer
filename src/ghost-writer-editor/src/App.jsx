@@ -97,7 +97,7 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
   // New: whether inline MD prompts ({{...}}) are visible in the Markdown preview
-  const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(false)
+  const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(DEFAULT_SETTINGS.defaultShowMdPrompts)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
   const [spellcheckRefreshKey, setSpellcheckRefreshKey] = useState(0)

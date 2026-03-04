@@ -34,6 +34,35 @@ describe('renderMarkdownToSafeHtml', () => {
     )
   })
 
+  it('renders local gif image paths from wrapped filesystem paths', () => {
+    const markdown =
+      "![Inline prompt animation]('/Users/jimmytheghost/Dropbox/_Personal Projects/Ghost Writer/case-study/imagery/03-inline-prompts-3.gif')"
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<img')
+    expect(output).toContain(
+      'src="file:///Users/jimmytheghost/Dropbox/_Personal%20Projects/Ghost%20Writer/case-study/imagery/03-inline-prompts-3.gif"',
+    )
+  })
+
+  it('renders local gif link syntax as an image when path points to a local image file', () => {
+    const markdown =
+      "[Inline Prompt Token Example]('/Users/jimmytheghost/Dropbox/_Personal Projects/Ghost Writer/case-study/imagery/03-inline-prompts-3.gif')"
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<img')
+    expect(output).not.toContain('<a ')
+    expect(output).toContain(
+      'src="file:///Users/jimmytheghost/Dropbox/_Personal%20Projects/Ghost%20Writer/case-study/imagery/03-inline-prompts-3.gif"',
+    )
+  })
+
+  it('renders quoted local image links as images when markdown destination includes a title', () => {
+    const markdown = "[Inline Prompt Token Example]('/Users/jimmytheghost/Dropbox/animated.gif' \"Animated preview\")"
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<img')
+    expect(output).not.toContain('<a ')
+    expect(output).toContain('src="file:///Users/jimmytheghost/Dropbox/animated.gif"')
+  })
+
   it('renders local filesystem image paths that are already URI-encoded', () => {
     const markdown =
       '![Ghost Writer](/Users/jimmytheghost/Dropbox/_Personal%20Projects/Ghost%20Writer/case-study/imagery/01-hero.png)'
@@ -62,6 +91,19 @@ describe('renderMarkdownToSafeHtml', () => {
       'asset',
     )
     expect(output).toContain('src="asset://localhost/%2FUsers%2Fjimmytheghost%2FDropbox%2Fimage.png"')
+  })
+
+  it('converts local gif file URLs to tauri asset URLs when runtime support exists', () => {
+    window.__TAURI_INTERNALS__ = {
+      convertFileSrc: vi.fn((filePath, protocol = 'asset') => `${protocol}://localhost/${encodeURIComponent(filePath)}`),
+    }
+    const markdown = '![Animated demo](/Users/jimmytheghost/Dropbox/animated.gif)'
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(window.__TAURI_INTERNALS__.convertFileSrc).toHaveBeenCalledWith(
+      '/Users/jimmytheghost/Dropbox/animated.gif',
+      'asset',
+    )
+    expect(output).toContain('src="asset://localhost/%2FUsers%2Fjimmytheghost%2FDropbox%2Fanimated.gif"')
   })
 
   it('preserves web root-relative image URLs', () => {
