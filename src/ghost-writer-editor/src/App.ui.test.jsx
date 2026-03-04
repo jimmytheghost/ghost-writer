@@ -51,7 +51,7 @@ describe('App UI behaviors', () => {
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
 
-  it('hides unresolved inline prompt tokens in markdown preview', () => {
+  it('shows unresolved inline prompt tokens in markdown preview by default', () => {
     render(<App />)
 
     const editor = document.querySelector('textarea.editor__textarea')
@@ -64,8 +64,8 @@ describe('App UI behaviors', () => {
     const previewContent = document.querySelector('.preview__content')
     expect(previewContent?.textContent ?? '').toContain('Before')
     expect(previewContent?.textContent ?? '').toContain('after')
-    expect(previewContent?.textContent ?? '').not.toContain('hidden inline prompt')
-    expect(previewContent?.textContent ?? '').not.toContain('{{')
+    expect(previewContent?.textContent ?? '').toContain('hidden inline prompt')
+    expect(previewContent?.textContent ?? '').toContain('{{hidden inline prompt}}')
   })
 
   it('find and replace updates editor content', () => {

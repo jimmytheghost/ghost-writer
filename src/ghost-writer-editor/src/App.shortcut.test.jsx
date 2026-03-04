@@ -174,8 +174,8 @@ describe('App keyboard shortcuts', () => {
     const printRoot = document.getElementById('ghost-writer-print-root')
     expect(printRoot).not.toBeNull()
     expect(printRoot?.innerHTML ?? '').toContain('<h1>Title</h1>')
-    expect(printRoot?.innerHTML ?? '').toContain('<p>Body  text</p>')
-    expect(printRoot?.innerHTML ?? '').not.toContain('{{remove me}}')
+    expect(printRoot?.innerHTML ?? '').toContain('<p>Body {{remove me}} text</p>')
+    expect(printRoot?.innerHTML ?? '').toContain('{{remove me}}')
     expect(printMock).toHaveBeenCalledTimes(1)
 
     vi.runOnlyPendingTimers()
