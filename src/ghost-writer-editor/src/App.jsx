@@ -428,12 +428,12 @@ function App() {
   // Determine markdown used for the preview, honoring Hide/View MD Prompts setting
   const rawMdForPreview = isMdPromptsVisible ? activeContent : stripInlinePromptTokensForPresentation(activeContent)
   const normalizedPreviewMarkdown = useMemo(
-    () => (isPreviewOpen ? normalizeCustomCheckboxLines(rawMdForPreview) : ''),
-    [rawMdForPreview, isPreviewOpen],
+    () => normalizeCustomCheckboxLines(rawMdForPreview),
+    [rawMdForPreview],
   )
   const renderedMarkdown = useMemo(
-    () => (isPreviewOpen ? renderMarkdownToSafeHtml(normalizedPreviewMarkdown) : ''),
-    [isPreviewOpen, normalizedPreviewMarkdown],
+    () => renderMarkdownToSafeHtml(normalizedPreviewMarkdown),
+    [normalizedPreviewMarkdown],
   )
 
   useFooterHeightSync(appRef, footerRef, isFooterCollapsed ? 'collapsed' : 'expanded')

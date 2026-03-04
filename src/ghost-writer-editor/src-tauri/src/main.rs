@@ -161,7 +161,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let is_md_prompts_visible = app
         .try_state::<MdPromptsMenuState>()
         .map(|state| state.0.load(Ordering::SeqCst))
-        .unwrap_or(true);
+        .unwrap_or(false);
     let md_prompts_menu_label = if is_md_prompts_visible {
         "Hide MD Prompts"
     } else {
@@ -253,7 +253,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "view_toggle_md_prompts",
         md_prompts_menu_label,
         true,
-        Some("CmdOrCtrl+Shift+P"),
+        None::<&str>,
     )?;
     let view_toggle_colored_output = MenuItem::with_id(
         app,
@@ -1582,7 +1582,7 @@ mod tests {
 fn main() {
     let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
     let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
-    let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(true)));
+    let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(false)));
 
     tauri::Builder::default()
         .manage(ollama_cancel)
