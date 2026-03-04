@@ -247,7 +247,7 @@ function Editor({
 
   const misspelledRanges = useMemo(() => {
     if (!spellCheckEnabled || !spellcheckReadyAt || useLightweightOverlays) return []
-    return getMisspelledRanges(text)
+    return getMisspelledRanges(text, spellcheckRefreshKey)
   }, [spellCheckEnabled, spellcheckReadyAt, spellcheckRefreshKey, text, useLightweightOverlays])
 
   const spellCheckOverlay = useMemo(() => {
@@ -358,6 +358,7 @@ function Editor({
   }, [
     streamingColorEnabled,
     streamingRange?.end,
+    streamingRange?.isFading,
     streamingRange?.isActive,
     streamingRange?.start,
     text,

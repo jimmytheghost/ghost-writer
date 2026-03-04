@@ -151,6 +151,7 @@ export function useTauriMenuEvents({
     onToggleFooter,
     onToggleTabBar,
     onTogglePromptPanel,
+    onToggleMdPrompts,
     onToggleColoredOutput,
   ])
 }

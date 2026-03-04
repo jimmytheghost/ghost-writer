@@ -1172,7 +1172,7 @@ function App() {
   const handlePrintClick = useCallback(() => {
     if (!activeTab) return
     printRenderedMarkdown(activeContent, isMdPromptsVisible)
-  }, [activeContent, activeTab])
+  }, [activeContent, activeTab, isMdPromptsVisible])
 
   useEffect(() => {
     printActionRef.current = handlePrintClick
