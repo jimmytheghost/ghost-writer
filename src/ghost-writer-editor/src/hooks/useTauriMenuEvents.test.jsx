@@ -52,7 +52,7 @@ function TestHarness({ onTogglePromptPanel, onToggleColoredOutput }) {
 }
 
 describe('useTauriMenuEvents', () => {
-  it('registers and routes the View -> Hide Input Bar menu event', async () => {
+  it('registers and routes the View -> Toggle Input Bar menu event', async () => {
     listenMock.mockReset()
     listenMock.mockImplementation(async () => vi.fn())
 

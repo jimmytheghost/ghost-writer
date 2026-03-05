@@ -48,8 +48,8 @@ const DIAGNOSTICS_LOG_LINES_LIMIT: usize = 1000;
 
 pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
 pub struct MdPromptsMenuState(pub Arc<AtomicBool>);
-// State tracking whether inline MD prompts are visible in the UI menu
-// MdPromptsMenuState removed to avoid duplicate definitions in this patch cycle
+pub struct TabBarMenuState(pub Arc<AtomicBool>);
+pub struct PromptPanelMenuState(pub Arc<AtomicBool>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -167,6 +167,24 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     } else {
         "View MD Prompts"
     };
+    let is_tab_bar_visible = app
+        .try_state::<TabBarMenuState>()
+        .map(|state| state.0.load(Ordering::SeqCst))
+        .unwrap_or(true);
+    let tab_bar_menu_label = if is_tab_bar_visible {
+        "Hide Tab Bar"
+    } else {
+        "View Tab Bar"
+    };
+    let is_prompt_panel_visible = app
+        .try_state::<PromptPanelMenuState>()
+        .map(|state| state.0.load(Ordering::SeqCst))
+        .unwrap_or(true);
+    let prompt_panel_menu_label = if is_prompt_panel_visible {
+        "Hide Input Bar"
+    } else {
+        "View Input Bar"
+    };
 
     let about_show =
         MenuItem::with_id(app, "about_show", "About Ghost Writer", true, None::<&str>)?;
@@ -237,14 +255,14 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let view_toggle_tab_bar = MenuItem::with_id(
         app,
         "view_toggle_tab_bar",
-        "Hide Tab Bar",
+        tab_bar_menu_label,
         true,
         Some("CmdOrCtrl+Alt+H"),
     )?;
     let view_toggle_prompt_panel = MenuItem::with_id(
         app,
         "view_toggle_prompt_panel",
-        "Hide Input Bar",
+        prompt_panel_menu_label,
         true,
         Some("CmdOrCtrl+Shift+D"),
     )?;
@@ -1583,11 +1601,15 @@ fn main() {
     let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
     let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
     let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(false)));
+    let tab_bar_menu_state = TabBarMenuState(Arc::new(AtomicBool::new(true)));
+    let prompt_panel_menu_state = PromptPanelMenuState(Arc::new(AtomicBool::new(true)));
 
     tauri::Builder::default()
         .manage(ollama_cancel)
         .manage(colored_output_menu_state)
         .manage(md_prompts_menu_state)
+        .manage(tab_bar_menu_state)
+        .manage(prompt_panel_menu_state)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             save_markdown_file,
@@ -1720,8 +1742,20 @@ fn main() {
                 "view_preview" => emit_menu_event("ghost-writer://menu-preview"),
                 "view_text_edit" => emit_menu_event("ghost-writer://menu-text-edit"),
                 "view_toggle_footer" => emit_menu_event("ghost-writer://menu-toggle-footer"),
-                "view_toggle_tab_bar" => emit_menu_event("ghost-writer://menu-toggle-tab-bar"),
+                "view_toggle_tab_bar" => {
+                    if let Some(state) = app.try_state::<TabBarMenuState>() {
+                        let current = state.0.load(Ordering::SeqCst);
+                        state.0.store(!current, Ordering::SeqCst);
+                        refresh_app_menu(app);
+                    }
+                    emit_menu_event("ghost-writer://menu-toggle-tab-bar")
+                }
                 "view_toggle_prompt_panel" => {
+                    if let Some(state) = app.try_state::<PromptPanelMenuState>() {
+                        let current = state.0.load(Ordering::SeqCst);
+                        state.0.store(!current, Ordering::SeqCst);
+                        refresh_app_menu(app);
+                    }
                     emit_menu_event("ghost-writer://menu-toggle-prompt-panel")
                 }
                 "view_toggle_md_prompts" => {
