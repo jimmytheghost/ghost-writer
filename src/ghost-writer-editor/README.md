@@ -97,8 +97,10 @@ Canonical runbook for developers and agents:
 
 ## Environment variables
 
-- `VITE_OLLAMA_BASE_URL` (optional): Override the Ollama base URL.  
+- `VITE_OLLAMA_BASE_URL` (optional, web runtime): Override the Ollama base URL.  
   Default: `http://127.0.0.1:11434`
+- Desktop/Tauri runtime: configure `Ollama endpoint` in Settings.  
+  Default: `http://127.0.0.1:11434` and validated as `http(s)://host[:port]`.
 
 Example:
 

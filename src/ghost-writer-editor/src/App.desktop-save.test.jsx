@@ -270,6 +270,7 @@ describe('App desktop save flow', () => {
         defaultSpellCheck: false,
         autoSaveEnabled: true,
         autoSaveIntervalSeconds: 5,
+        ollamaBaseUrl: 'http://127.0.0.1:11434',
         customWordList: [],
         customWordListDisabled: [],
         sessionSavedTabPaths: [],

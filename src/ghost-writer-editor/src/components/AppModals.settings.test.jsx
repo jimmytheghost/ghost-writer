@@ -2,6 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import AppModals from './AppModals'
 
+vi.mock('../lib/desktopRuntime', () => ({
+  isDesktopRuntime: () => true,
+  openExternalUrl: vi.fn(),
+}))
+
 describe('AppModals settings', () => {
   it('does not show text zoom in settings modal', () => {
     const updateSetting = vi.fn()
@@ -24,6 +29,9 @@ describe('AppModals settings', () => {
           defaultFooterCollapsed: true,
           defaultStartupPreview: false,
           defaultSpellCheck: false,
+          autoSaveEnabled: false,
+          autoSaveIntervalSeconds: 60,
+          ollamaBaseUrl: 'http://127.0.0.1:11434',
           customWordList: [],
           customWordListDisabled: [],
         }}
@@ -48,6 +56,10 @@ describe('AppModals settings', () => {
     fireEvent.change(screen.getByLabelText('Auto save interval (seconds)'), { target: { value: '30' } })
     expect(updateSetting).toHaveBeenCalledWith('autoSaveIntervalSeconds', 30)
 
+    fireEvent.change(screen.getByLabelText('Ollama endpoint'), { target: { value: 'http://localhost:11435/' } })
+    fireEvent.blur(screen.getByLabelText('Ollama endpoint'))
+    expect(updateSetting).toHaveBeenCalledWith('ollamaBaseUrl', 'http://localhost:11435')
+
   })
 
   it('updates text zoom from text zoom modal', () => {
@@ -71,6 +83,9 @@ describe('AppModals settings', () => {
           defaultFooterCollapsed: true,
           defaultStartupPreview: false,
           defaultSpellCheck: false,
+          autoSaveEnabled: false,
+          autoSaveIntervalSeconds: 60,
+          ollamaBaseUrl: 'http://127.0.0.1:11434',
           customWordList: [],
           customWordListDisabled: [],
         }}

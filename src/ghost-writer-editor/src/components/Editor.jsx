@@ -6,8 +6,17 @@ const INDENT_UNIT = '  '
 const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
 const OVERLAY_HEAVY_LINE_LIMIT = 2_500
 const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)(\s+)(\[(?: |x|X)\]\s)?(.*)$/
+const SELECTION_EVENT_NAMES = ['mouseup', 'keyup', 'select', 'focus', 'blur']
 const INLINE_TOKEN_PATTERN =
   /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|<https?:\/\/[^>]+>|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_/g
+
+function isMacPlatform() {
+  return /Mac/.test(navigator.platform)
+}
+
+function isModShortcut(event) {
+  return isMacPlatform() ? event.metaKey : event.ctrlKey
+}
 
 function pushPlain(nodes, text, keyPrefix) {
   if (!text) return
@@ -561,8 +570,7 @@ function Editor({
       // Cmd/Ctrl + Backspace or Delete: delete leading indentation to line start
       // This makes indentation (spaces) act like a dedicated indentation block that
       // can be cleared quickly when the user wants to unindent to the start of the line.
-      const isMacPlatform = /Mac/.test(navigator.platform)
-      const isMod = isMacPlatform ? event.metaKey : event.ctrlKey
+      const isMod = isModShortcut(event)
       const modDeleteOrBackspace = isMod && (event.key === 'Backspace' || event.key === 'Delete')
       if (modDeleteOrBackspace) {
         const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
@@ -631,8 +639,6 @@ function Editor({
         const markerOffset = lineStart + indentation.length
         const markerTailOffset = markerOffset + marker.length + markerSpacing.length + checkboxPrefix.length
         const isEmptyListItem = itemText.trim().length === 0
-        const isMod = isMacPlatform ? event.metaKey : event.ctrlKey
-
         if (isMod) {
           event.preventDefault()
           const nextValue = `${text.slice(0, lineStart)}${text.slice(lineEnd)}`
@@ -757,8 +763,7 @@ function Editor({
         return
       }
 
-      const isMacPlatform2 = /Mac/.test(navigator.platform)
-      const isMod2 = isMacPlatform2 ? event.metaKey : event.ctrlKey
+      const isMod2 = isModShortcut(event)
       const key = event.key.toLowerCase()
       const isSystemEditShortcut = isMod2 && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
 
@@ -819,25 +824,20 @@ function Editor({
       }
     }
 
-      const textarea = textareaRef.current
-      if (textarea) {
-        setContentHeight(textarea.scrollHeight)
-      }
+    const textarea = textareaRef.current
+    if (!textarea) return undefined
 
-      textarea?.addEventListener('keydown', handleKeyDown)
-    textarea?.addEventListener('mouseup', handleSelectionUpdate)
-    textarea?.addEventListener('keyup', handleSelectionUpdate)
-    textarea?.addEventListener('select', handleSelectionUpdate)
-    textarea?.addEventListener('focus', handleSelectionUpdate)
-    textarea?.addEventListener('blur', handleSelectionUpdate)
+    setContentHeight(textarea.scrollHeight)
+    textarea.addEventListener('keydown', handleKeyDown)
+    for (const eventName of SELECTION_EVENT_NAMES) {
+      textarea.addEventListener(eventName, handleSelectionUpdate)
+    }
 
     return () => {
-      textarea?.removeEventListener('keydown', handleKeyDown)
-      textarea?.removeEventListener('mouseup', handleSelectionUpdate)
-      textarea?.removeEventListener('keyup', handleSelectionUpdate)
-      textarea?.removeEventListener('select', handleSelectionUpdate)
-      textarea?.removeEventListener('focus', handleSelectionUpdate)
-      textarea?.removeEventListener('blur', handleSelectionUpdate)
+      textarea.removeEventListener('keydown', handleKeyDown)
+      for (const eventName of SELECTION_EVENT_NAMES) {
+        textarea.removeEventListener(eventName, handleSelectionUpdate)
+      }
     }
   }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
 

@@ -39,6 +39,21 @@ function InteractiveEditor({ initialValue = '' }) {
   )
 }
 
+function mockNavigatorPlatform(platform) {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'platform')
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    get: () => platform,
+  })
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(window.navigator, 'platform', originalDescriptor)
+      return
+    }
+    delete window.navigator.platform
+  }
+}
+
 describe('Editor input behavior', () => {
   it('preserves double hyphen typing without auto-converting to triple hyphen', () => {
     const { textarea, onChange } = renderEditor()
@@ -94,6 +109,36 @@ describe('Editor input behavior', () => {
     textarea.setSelectionRange(1, 1 + 'example'.length)
     fireEvent.keyDown(textarea, { key: 'i', ctrlKey: true })
     expect(textarea).toHaveValue('example')
+  })
+
+  it('supports Meta+B as the modifier shortcut on macOS', () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+    try {
+      render(<InteractiveEditor initialValue="example" />)
+      const textarea = screen.getByRole('textbox')
+
+      textarea.focus()
+      textarea.setSelectionRange(0, 'example'.length)
+      fireEvent.keyDown(textarea, { key: 'b', metaKey: true })
+      expect(textarea).toHaveValue('**example**')
+    } finally {
+      restorePlatform()
+    }
+  })
+
+  it('does not treat Ctrl+B as the modifier shortcut on macOS', () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+    try {
+      render(<InteractiveEditor initialValue="example" />)
+      const textarea = screen.getByRole('textbox')
+
+      textarea.focus()
+      textarea.setSelectionRange(0, 'example'.length)
+      fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true })
+      expect(textarea).toHaveValue('example')
+    } finally {
+      restorePlatform()
+    }
   })
 
   it('wraps selection with single asterisks via Ctrl+Shift+8 shortcut', () => {

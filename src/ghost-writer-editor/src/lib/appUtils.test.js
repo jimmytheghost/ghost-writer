@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { exceedsLoadFileSizeLimit, MAX_LOAD_FILE_SIZE_BYTES, FILE_TOO_LARGE_MESSAGE } from './appUtils'
+import {
+  DEFAULT_OLLAMA_BASE_URL,
+  FILE_TOO_LARGE_MESSAGE,
+  MAX_LOAD_FILE_SIZE_BYTES,
+  exceedsLoadFileSizeLimit,
+  normalizeOllamaBaseUrl,
+} from './appUtils'
 
 describe('appUtils - file size limit', () => {
   it('should allow files under 10MB', () => {
@@ -21,5 +27,19 @@ describe('appUtils - file size limit', () => {
 
   it('should use 10MB limit', () => {
     expect(MAX_LOAD_FILE_SIZE_BYTES).toBe(10 * 1024 * 1024)
+  })
+})
+
+describe('appUtils - ollama base url', () => {
+  it('normalizes valid endpoint values', () => {
+    expect(normalizeOllamaBaseUrl('http://localhost:11434/')).toBe('http://localhost:11434')
+    expect(normalizeOllamaBaseUrl('https://example.com')).toBe('https://example.com')
+  })
+
+  it('falls back to default for invalid endpoint values', () => {
+    expect(normalizeOllamaBaseUrl('')).toBe(DEFAULT_OLLAMA_BASE_URL)
+    expect(normalizeOllamaBaseUrl('ws://localhost:11434')).toBe(DEFAULT_OLLAMA_BASE_URL)
+    expect(normalizeOllamaBaseUrl('http://localhost:11434/api')).toBe(DEFAULT_OLLAMA_BASE_URL)
+    expect(normalizeOllamaBaseUrl('http://user:pass@localhost:11434')).toBe(DEFAULT_OLLAMA_BASE_URL)
   })
 })

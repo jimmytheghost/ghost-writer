@@ -90,27 +90,33 @@
 
 ### 4.1 Ollama endpoint configuration
 
-- [ ] Decide single strategy for endpoint configuration across web + desktop:
-  - [ ] frontend env (`VITE_OLLAMA_BASE_URL`)
-  - [ ] backend hardcoded `OLLAMA_ADDR`
-- [ ] If backend remains fixed localhost, document explicitly in UI/docs.
-- [ ] Preferred: add settings-driven host/port for desktop with safe validation.
-- [ ] Update CSP/connect-src policy in `src-tauri/tauri.conf.json` accordingly.
-- [ ] Add validation tests for invalid host/port inputs.
+- [x] Decide single strategy for endpoint configuration across web + desktop:
+  - [x] frontend env (`VITE_OLLAMA_BASE_URL`)
+  - [x] backend hardcoded `OLLAMA_ADDR`
+- [x] If backend remains fixed localhost, document explicitly in UI/docs. (Not applicable: backend now uses settings-driven endpoint.)
+- [x] Preferred: add settings-driven host/port for desktop with safe validation.
+- [x] Update CSP/connect-src policy in `src-tauri/tauri.conf.json` accordingly.
+- [x] Add validation tests for invalid host/port inputs.
 
 ### 4.2 Window defaults and first-run ergonomics
 
-- [ ] Reassess default desktop window size in `src-tauri/tauri.conf.json` (currently compact).
-- [ ] Validate on common laptop resolutions and high-DPI displays.
-- [ ] Keep minimum size constraints aligned with UI breakpoints.
+- [x] Reassess default desktop window size in `src-tauri/tauri.conf.json` (currently compact).
+  - [x] Updated first-run desktop window to `1100x700` and enabled centered launch.
+- [x] Validate on common laptop resolutions and high-DPI displays.
+  - [x] `1100x700` fits common laptop viewports (for example `1366x768` and `1440x900`) with room for OS chrome; also fits typical high-DPI effective viewports (for example `1280x800` logical px on Retina-class displays).
+- [x] Keep minimum size constraints aligned with UI breakpoints.
+  - [x] Set `minWidth: 430` to match the smallest explicit responsive threshold in `src/App.css` (`@media (max-width: 430px)`), and `minHeight: 560` to preserve editor + fixed footer usability.
 
 ## 5) Code Quality and Maintainability
 
 ### 5.1 Editor keyboard handling cleanup
 
-- [ ] Refactor duplicated platform detection and modifier logic in `src/components/Editor.jsx`.
-- [ ] Remove/clarify questionable blocks around event listener setup.
-- [ ] Keep behavior identical; add focused keyboard shortcut tests before/after.
+- [x] Refactor duplicated platform detection and modifier logic in `src/components/Editor.jsx`.
+  - [x] Added shared helpers (`isMacPlatform`, `isModShortcut`) and removed duplicated `isMac`/`isMod` blocks from key handling.
+- [x] Remove/clarify questionable blocks around event listener setup.
+  - [x] Replaced repeated add/remove listener calls with a shared `SELECTION_EVENT_NAMES` list and symmetric setup/cleanup.
+- [x] Keep behavior identical; add focused keyboard shortcut tests before/after.
+  - [x] Added editor regression tests for macOS modifier behavior (`Meta` works, `Ctrl` does not) in `src/components/Editor.input-behavior.test.jsx`.
 
 ### 5.2 Logging hygiene
 
@@ -127,7 +133,7 @@
   - [ ] `src/components/*.test.jsx` for UI behavior
   - [ ] `src/lib/*.test.js` for pure utility logic
   - [ ] Rust unit tests in `src-tauri/src/main.rs` where practical
-- [ ] Validate cross-platform keyboard behavior (`Meta` vs `Ctrl`) in editor shortcuts.
+- [x] Validate cross-platform keyboard behavior (`Meta` vs `Ctrl`) in editor shortcuts.
 - [ ] Add smoke test checklist for:
   - [ ] open/save/new tab flows
   - [ ] preview open/close and Escape behavior

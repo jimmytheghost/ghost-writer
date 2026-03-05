@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { isDesktopRuntime, openExternalUrl } from '../lib/desktopRuntime'
+import { normalizeOllamaBaseUrl } from '../lib/appUtils'
 
 function uniqueWords(values = []) {
   const seen = new Set()
@@ -196,6 +197,40 @@ function WordListModal({
   )
 }
 
+function OllamaEndpointField({ value = '', onCommit }) {
+  const [draftValue, setDraftValue] = useState(value)
+
+  const commitDraft = () => {
+    const normalized = normalizeOllamaBaseUrl(draftValue)
+    setDraftValue(normalized)
+    onCommit(normalized)
+  }
+
+  return (
+    <>
+      <label className="modal__label" htmlFor="settings-ollama-base-url">
+        Ollama endpoint
+      </label>
+      <input
+        id="settings-ollama-base-url"
+        type="url"
+        className="modal__input"
+        value={draftValue}
+        placeholder="http://127.0.0.1:11434"
+        onChange={(event) => {
+          setDraftValue(event.target.value)
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          commitDraft()
+        }}
+      />
+    </>
+  )
+}
+
 function AppModals({
   isAboutOpen,
   setIsAboutOpen,
@@ -342,6 +377,13 @@ function AppModals({
                 updateSetting('autoSaveIntervalSeconds', safeValue)
               }}
             />
+            {isDesktopRuntime() && (
+              <OllamaEndpointField
+                key={settings.ollamaBaseUrl ?? ''}
+                value={settings.ollamaBaseUrl ?? ''}
+                onCommit={(nextValue) => updateSetting('ollamaBaseUrl', nextValue)}
+              />
+            )}
 
             <div className="modal__actions">
               <button type="button" className="modal__button modal__button--primary" onClick={() => setIsSettingsOpen(false)}>

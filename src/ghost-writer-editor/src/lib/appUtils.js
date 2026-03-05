@@ -4,6 +4,7 @@ export const MAX_LOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024
 export const FILE_TOO_LARGE_MESSAGE = 'File is too large to load. Maximum allowed file size is 10MB.'
 export const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 export const TEXT_ZOOM_OPTIONS = Object.freeze(['50%', '75%', '100%', '125%', '150%'])
+export const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
 export const DEFAULT_SETTINGS = Object.freeze({
   defaultModel: '',
   defaultTheme: 'dark',
@@ -18,9 +19,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
   customWordListDisabled: [],
   autoSaveEnabled: false,
   autoSaveIntervalSeconds: 60,
+  ollamaBaseUrl: DEFAULT_OLLAMA_BASE_URL,
   sessionSavedTabPaths: [],
   sessionActiveTabPath: '',
 })
+const OLLAMA_ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
 function toWordSet(values = []) {
   const set = new Set()
@@ -127,4 +130,23 @@ export function getTextByteSize(value = '') {
 
 export function exceedsLoadFileSizeLimit(value = '') {
   return getTextByteSize(value) > MAX_LOAD_FILE_SIZE_BYTES
+}
+
+export function normalizeOllamaBaseUrl(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return DEFAULT_OLLAMA_BASE_URL
+
+  try {
+    const parsed = new URL(raw)
+    if (!OLLAMA_ALLOWED_PROTOCOLS.has(parsed.protocol)) return DEFAULT_OLLAMA_BASE_URL
+    if (!parsed.hostname) return DEFAULT_OLLAMA_BASE_URL
+    if (parsed.username || parsed.password) return DEFAULT_OLLAMA_BASE_URL
+    if (parsed.pathname && parsed.pathname !== '/') return DEFAULT_OLLAMA_BASE_URL
+    if (parsed.search || parsed.hash) return DEFAULT_OLLAMA_BASE_URL
+
+    const port = parsed.port ? `:${parsed.port}` : ''
+    return `${parsed.protocol}//${parsed.hostname}${port}`
+  } catch {
+    return DEFAULT_OLLAMA_BASE_URL
+  }
 }

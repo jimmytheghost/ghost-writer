@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,7 +16,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager};
 
-const OLLAMA_ADDR: &str = "127.0.0.1:11434";
+const DEFAULT_OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
@@ -70,6 +70,8 @@ struct AppSettings {
     auto_save_enabled: bool,
     #[serde(default = "default_auto_save_interval_seconds")]
     auto_save_interval_seconds: u32,
+    #[serde(default = "default_ollama_base_url")]
+    ollama_base_url: String,
     #[serde(default = "default_custom_word_list")]
     custom_word_list: Vec<String>,
     #[serde(default)]
@@ -104,6 +106,10 @@ fn default_auto_save_interval_seconds() -> u32 {
     60
 }
 
+fn default_ollama_base_url() -> String {
+    DEFAULT_OLLAMA_BASE_URL.to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -116,6 +122,7 @@ impl Default for AppSettings {
             default_spell_check: false,
             auto_save_enabled: false,
             auto_save_interval_seconds: default_auto_save_interval_seconds(),
+            ollama_base_url: default_ollama_base_url(),
             custom_word_list: default_custom_word_list(),
             custom_word_list_disabled: Vec::new(),
             session_saved_tab_paths: Vec::new(),
@@ -1003,6 +1010,8 @@ fn validate_and_normalize_settings(mut settings: AppSettings) -> Result<AppSetti
         ));
     }
 
+    settings.ollama_base_url = normalize_ollama_base_url(&settings.ollama_base_url)?;
+
     settings.custom_word_list = sanitize_word_list("customWordList", settings.custom_word_list)?;
     settings.custom_word_list_disabled =
         sanitize_word_list("customWordListDisabled", settings.custom_word_list_disabled)?;
@@ -1096,6 +1105,42 @@ fn normalize_recent_files(paths: &[String]) -> Vec<String> {
         }
     }
     unique
+}
+
+fn normalize_ollama_base_url(raw_base_url: &str) -> Result<String, String> {
+    let trimmed = raw_base_url.trim();
+    if trimmed.is_empty() {
+        return Ok(default_ollama_base_url());
+    }
+
+    let parsed = url::Url::parse(trimmed)
+        .map_err(|_| "ERR_INVALID_FIELD:ollamaBaseUrl must be a valid URL".to_string())?;
+    let scheme = parsed.scheme().to_lowercase();
+    if scheme != "http" && scheme != "https" {
+        return Err("ERR_INVALID_FIELD:ollamaBaseUrl must use http or https".to_string());
+    }
+    if parsed.host_str().is_none() {
+        return Err("ERR_INVALID_FIELD:ollamaBaseUrl must include a host".to_string());
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err("ERR_INVALID_FIELD:ollamaBaseUrl must not include credentials".to_string());
+    }
+    if !parsed.path().is_empty() && parsed.path() != "/" {
+        return Err("ERR_INVALID_FIELD:ollamaBaseUrl cannot include a path".to_string());
+    }
+    if parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err("ERR_INVALID_FIELD:ollamaBaseUrl cannot include query or fragment".to_string());
+    }
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "ERR_INVALID_FIELD:ollamaBaseUrl must include a host".to_string())?;
+    let normalized = if let Some(port) = parsed.port() {
+        format!("{scheme}://{host}:{port}")
+    } else {
+        format!("{scheme}://{host}")
+    };
+    Ok(normalized)
 }
 
 fn is_allowed_external_url(raw_url: &str) -> bool {
@@ -1316,12 +1361,35 @@ fn save_settings(
     })
 }
 
-fn parse_ollama_addr() -> Option<SocketAddr> {
-    OLLAMA_ADDR.parse().ok()
+fn read_ollama_base_url(app: &tauri::AppHandle) -> String {
+    let (settings, _) = read_settings(app).unwrap_or((AppSettings::default(), false));
+    normalize_ollama_base_url(&settings.ollama_base_url).unwrap_or_else(|_| default_ollama_base_url())
 }
 
-fn is_ollama_running() -> bool {
-    let Some(addr) = parse_ollama_addr() else {
+fn parse_ollama_addr(base_url: &str) -> Option<SocketAddr> {
+    let parsed = url::Url::parse(base_url).ok()?;
+    let host = parsed.host_str()?;
+    let port = parsed.port_or_known_default()?;
+    format!("{host}:{port}").to_socket_addrs().ok()?.next()
+}
+
+fn is_local_ollama_endpoint(base_url: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(base_url) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    host.parse::<IpAddr>()
+        .map(|ip| ip.is_loopback())
+        .unwrap_or(false)
+}
+
+fn is_ollama_running(base_url: &str) -> bool {
+    let Some(addr) = parse_ollama_addr(base_url) else {
         return false;
     };
     TcpStream::connect_timeout(&addr, Duration::from_millis(OLLAMA_CONNECT_TIMEOUT_MS)).is_ok()
@@ -1340,11 +1408,6 @@ fn ollama_exe_fallback() -> Option<PathBuf> {
             None
         }
     })
-}
-
-#[cfg(not(target_os = "windows"))]
-fn ollama_exe_fallback() -> Option<PathBuf> {
-    None
 }
 
 fn launch_ollama_server() -> Result<(), String> {
@@ -1389,48 +1452,56 @@ fn launch_ollama_server() -> Result<(), String> {
     }
 }
 
-fn ensure_ollama_running_result() -> Result<(), String> {
-    if is_ollama_running() {
+fn ensure_ollama_running_result(app: &tauri::AppHandle) -> Result<(), String> {
+    let ollama_base_url = read_ollama_base_url(app);
+    if is_ollama_running(&ollama_base_url) {
         return Ok(());
+    }
+
+    if !is_local_ollama_endpoint(&ollama_base_url) {
+        return Err(format!(
+            "Ollama is not reachable at configured endpoint {ollama_base_url}. Auto-launch is only supported for localhost endpoints."
+        ));
     }
 
     launch_ollama_server()?;
 
     for _ in 0..OLLAMA_BOOT_WAIT_RETRIES {
-        if is_ollama_running() {
+        if is_ollama_running(&ollama_base_url) {
             return Ok(());
         }
         thread::sleep(Duration::from_millis(OLLAMA_BOOT_WAIT_INTERVAL_MS));
     }
 
     Err(format!(
-        "Ollama did not become reachable at {OLLAMA_ADDR} after launch (wait a few seconds and try again)."
+        "Ollama did not become reachable at {ollama_base_url} after launch (wait a few seconds and try again)."
     ))
 }
 
-fn ensure_ollama_running() {
-    if let Err(e) = ensure_ollama_running_result() {
+fn ensure_ollama_running(app: &tauri::AppHandle) {
+    if let Err(e) = ensure_ollama_running_result(app) {
         eprintln!("{e}");
     }
 }
 
 #[tauri::command]
 fn ensure_ollama_running_command(app: tauri::AppHandle) -> Result<(), String> {
-    let result = ensure_ollama_running_result();
+    let ollama_base_url = read_ollama_base_url(&app);
+    let result = ensure_ollama_running_result(&app);
     match &result {
         Ok(_) => append_structured_log(
             &app,
             "info",
             "ollama.ensure.success",
             "Ollama is reachable",
-            serde_json::json!({ "addr": OLLAMA_ADDR }),
+            serde_json::json!({ "baseUrl": ollama_base_url }),
         ),
         Err(error) => append_structured_log(
             &app,
             "error",
             "ollama.ensure.failed",
             "Failed to ensure Ollama running",
-            serde_json::json!({ "addr": OLLAMA_ADDR, "error": error }),
+            serde_json::json!({ "baseUrl": ollama_base_url, "error": error }),
         ),
     }
     result
@@ -1532,7 +1603,8 @@ async fn ollama_generate_stream(
         .get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
 
-    let url = format!("http://{OLLAMA_ADDR}/api/generate");
+    let ollama_base_url = read_ollama_base_url(&app);
+    let url = format!("{ollama_base_url}/api/generate");
     let body = serde_json::json!({
         "model": model,
         "prompt": prompt,
@@ -1647,6 +1719,30 @@ mod tests {
         settings.auto_save_interval_seconds = 2;
         let result = validate_and_normalize_settings(settings);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_ollama_base_url_with_unsupported_scheme() {
+        let mut settings = AppSettings::default();
+        settings.ollama_base_url = "ws://localhost:11434".to_string();
+        let result = validate_and_normalize_settings(settings);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rejects_ollama_base_url_with_path() {
+        let mut settings = AppSettings::default();
+        settings.ollama_base_url = "http://localhost:11434/api".to_string();
+        let result = validate_and_normalize_settings(settings);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn normalizes_ollama_base_url() {
+        let mut settings = AppSettings::default();
+        settings.ollama_base_url = " http://localhost:11435/ ".to_string();
+        let normalized = validate_and_normalize_settings(settings).expect("settings should normalize");
+        assert_eq!(normalized.ollama_base_url, "http://localhost:11435");
     }
 
     #[test]
@@ -1768,7 +1864,8 @@ fn main() {
                 "Ghost Writer desktop runtime started",
                 serde_json::json!({}),
             );
-            tauri::async_runtime::spawn_blocking(ensure_ollama_running);
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || ensure_ollama_running(&app_handle));
             Ok(())
         })
         .on_menu_event(|app, event| {
