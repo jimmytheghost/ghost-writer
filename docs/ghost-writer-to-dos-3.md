@@ -142,28 +142,29 @@
 
 ## 7) Release Readiness Gate
 
-- [ ] Run full quality gate from `src/ghost-writer-editor/`:
+- [x] Run full quality gate from `src/ghost-writer-editor/`:
   - [x] `npm run check`
   - [x] `npm run build:tauri` (or platform-specific build command)
 - [ ] Manual QA pass:
-  - [ ] macOS app launch + core workflows
+  - [x] macOS app launch + core workflows
   - [ ] Windows app launch + core workflows
-  - [ ] verify About/version display
-  - [ ] verify settings persistence and restart behavior
-- [ ] Confirm documentation matches actual shipped behavior:
-  - [ ] endpoint configuration
-  - [ ] file size limits
-  - [ ] supported shortcuts
+  - [x] verify About/version display
+  - [x] verify settings persistence and restart behavior
+  - [x] evidence logged in `docs/dev-logs/2026/2026-03-05.md`
+- [x] Confirm documentation matches actual shipped behavior:
+  - [x] endpoint configuration
+  - [x] file size limits
+  - [x] supported shortcuts
 
 ## 8) Completion Criteria (Definition of Done)
 
-- [ ] No placeholder production constants for critical runtime limits/messages.
-- [ ] Version display is accurate and derived from a single source strategy.
-- [ ] No duplicated/stale review docs driving contradictory priorities.
+- [x] No placeholder production constants for critical runtime limits/messages.
+- [x] Version display is accurate and derived from a single source strategy.
+- [x] No duplicated/stale review docs driving contradictory priorities.
 - [x] Added regression tests pass locally.
 - [x] `npm run check` passes.
 - [x] Tauri build passes for intended target(s).
-- [ ] Final changelog/release notes mention user-visible fixes.
+- [x] Final changelog/release notes mention user-visible fixes.
 
 ## 9) Suggested Work Order for a Future Agent
 

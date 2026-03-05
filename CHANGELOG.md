@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.6] - 2026-03-05
+
+### Added
+
+- Desktop Ollama endpoint setting with validation (`http(s)://host[:port]`) and persistence.
+- App-level error boundary fallback with copyable diagnostics support for fatal render/runtime crashes.
+- Regression coverage for desktop file-size limits, shortcut parity (`Meta`/`Ctrl`), stream cancellation/guardrails, and settings validation.
+
+### Changed
+
+- About version defaults to package version in web runtime and continues to use Tauri metadata on desktop.
+- Desktop first-run window defaults updated to `1100x700`, centered, with minimum `430x560`.
+- Rust streaming parser now applies bounded buffering fail-fast behavior for malformed/non-newline payloads.
+- Desktop menu label typo corrected to `View Colored Output`.
+- Timeout strategy aligned between frontend request handling and backend health/streaming behavior.
+
+### Fixed
+
+- Enforced 10MB markdown load guardrail across open dialog and open-recent flows with explicit rejection messaging.
+
 ## [0.1.3] - 2026-02-26
 
 ### Added

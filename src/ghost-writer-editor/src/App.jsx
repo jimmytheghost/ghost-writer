@@ -12,6 +12,7 @@ import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useModelLoader } from './hooks/useModelLoader'
 import { usePromptGeneration } from './hooks/usePromptGeneration'
 import { useTauriMenuEvents } from './hooks/useTauriMenuEvents'
+import { DEFAULT_APP_NAME, DEFAULT_APP_VERSION } from './lib/appMetadata'
 import {
   collectCheckboxLineIndexes,
   normalizeCustomCheckboxLines,
@@ -90,8 +91,8 @@ function App() {
   const [spellCheckScanItems, setSpellCheckScanItems] = useState([])
   const [spellCheckScanTotal, setSpellCheckScanTotal] = useState(0)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
-  const [appName, setAppName] = useState('Ghost Writer')
-  const [appVersion, setAppVersion] = useState('0.1.0')
+  const [appName, setAppName] = useState(DEFAULT_APP_NAME)
+  const [appVersion, setAppVersion] = useState(DEFAULT_APP_VERSION)
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)

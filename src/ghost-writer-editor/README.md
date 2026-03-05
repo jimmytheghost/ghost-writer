@@ -4,12 +4,14 @@ This folder contains the Vite + React web app for Ghost Writer.
 
 ## Current behavior highlights
 
-- Desktop window launches at `400x500` with minimum `400x500`.
+- Desktop window launches at `1100x700` and starts centered.
+- Desktop minimum window size is `430x560`, aligned to responsive breakpoints.
 - Universal shortcuts use `Cmd` on macOS and `Ctrl` on Windows/Linux.
 - Footer includes always-on-top toggle (`Cmd/Ctrl + T`) in Tauri builds.
 - Narrow-width footer mode (`<=430px`) uses compact square controls, including a model selector icon button.
 - Model list is snapshot-based and refreshed by `npm run sync:models` (no in-app reload button).
 - Inline prompt highlighting starts as soon as `{{` is typed and closes when `}}` is typed.
+- Markdown load/open flows enforce a 10MB max file-size guardrail with an explicit error message.
 
 ## Commands
 
