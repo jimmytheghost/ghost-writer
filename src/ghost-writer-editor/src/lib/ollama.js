@@ -1,6 +1,8 @@
 const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
 
 export const OLLAMA_REQUEST_TIMEOUT_MS = 15_000
+// Streaming requests are intentionally unbounded and rely on user cancellation.
+export const OLLAMA_STREAM_REQUEST_TIMEOUT_MS = 0
 
 export function getOllamaBaseUrl() {
   const fromEnv = import.meta.env.VITE_OLLAMA_BASE_URL

@@ -54,37 +54,37 @@
 
 - [x] Fix typo in `src-tauri/src/main.rs` (line 159):
   - [x] `"View Color Output"` -> `"View Colored Output"`
-- [ ] Review neighboring menu labels for consistency ("View/Hide …" symmetry).
-- [ ] Validate menu event wiring still matches label IDs.
+- [x] Review neighboring menu labels for consistency ("View/Hide …" symmetry).
+- [x] Validate menu event wiring still matches label IDs.
 
 ## 3) Stability and Resilience
 
 ### 3.1 React crash containment
 
-- [ ] Add app-level Error Boundary for fatal render/runtime errors.
-- [ ] Decide fallback UX:
-  - [ ] show recoverable error panel
-  - [ ] keep app chrome available if possible
-  - [ ] include "copy diagnostics" action if diagnostics API exists
-- [ ] Add tests proving boundary catches child throw and renders fallback.
+- [x] Add app-level Error Boundary for fatal render/runtime errors.
+- [x] Decide fallback UX:
+  - [x] show recoverable error panel
+  - [x] keep app chrome available if possible
+  - [x] include "copy diagnostics" action if diagnostics API exists
+- [x] Add tests proving boundary catches child throw and renders fallback.
 
 ### 3.2 Stream buffering and cancellation safety (Rust backend)
 
-- [ ] Review streaming parser in `src-tauri/src/main.rs` (`ollama_generate_stream`):
-  - [ ] confirm `buf` cannot grow without bound on malformed/non-newline streams.
-  - [ ] add upper bound + fail-fast behavior for pathological payloads.
-  - [ ] preserve cancellation responsiveness.
-- [ ] Add tests for:
-  - [ ] normal newline-delimited stream
-  - [ ] long chunk without newline
-  - [ ] cancelled stream path
+- [x] Review streaming parser in `src-tauri/src/main.rs` (`ollama_generate_stream`):
+  - [x] confirm `buf` cannot grow without bound on malformed/non-newline streams.
+  - [x] add upper bound + fail-fast behavior for pathological payloads.
+  - [x] preserve cancellation responsiveness.
+- [x] Add tests for:
+  - [x] normal newline-delimited stream
+  - [x] long chunk without newline
+  - [x] cancelled stream path
 
 ### 3.3 Timeout alignment (frontend vs backend)
 
-- [ ] Document and intentionally set timeout strategy:
-  - [ ] frontend `OLLAMA_REQUEST_TIMEOUT_MS` in `src/lib/ollama.js`
-  - [ ] backend reqwest timeout in `src-tauri/src/main.rs`
-- [ ] Ensure behavior is coherent (streaming can be long; health checks should be short).
+- [x] Document and intentionally set timeout strategy:
+  - [x] frontend `OLLAMA_REQUEST_TIMEOUT_MS` in `src/lib/ollama.js`
+  - [x] backend reqwest timeout in `src-tauri/src/main.rs`
+- [x] Ensure behavior is coherent (streaming can be long; health checks should be short).
 
 ## 4) Configurability and Runtime UX
 
@@ -136,7 +136,7 @@
 ## 7) Release Readiness Gate
 
 - [ ] Run full quality gate from `src/ghost-writer-editor/`:
-  - [ ] `npm run check`
+  - [x] `npm run check`
   - [ ] `npm run build:tauri` (or platform-specific build command)
 - [ ] Manual QA pass:
   - [ ] macOS app launch + core workflows

@@ -4,6 +4,7 @@ import {
   buildOllamaUrl,
   fetchWithTimeout,
   getOllamaBaseUrl,
+  OLLAMA_STREAM_REQUEST_TIMEOUT_MS,
 } from '../lib/ollama'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -260,7 +261,7 @@ export function usePromptGeneration({
             },
           }),
         },
-        0,
+        OLLAMA_STREAM_REQUEST_TIMEOUT_MS,
       )
 
       if (!response.ok) {

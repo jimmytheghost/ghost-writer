@@ -20,6 +20,9 @@ const OLLAMA_ADDR: &str = "127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
+// Streaming generation can run for a long time and is cancelled explicitly by the user.
+const OLLAMA_STREAM_REQUEST_TIMEOUT_MS: u64 = 0;
+const MAX_OLLAMA_STREAM_BUFFER_BYTES: usize = 1024 * 1024;
 const SETTINGS_FILE_NAME: &str = "settings.json";
 const MAX_RECENT_FILES: usize = 10;
 const OPEN_RECENT_EMPTY_ITEM_ID: &str = "file_open_recent_empty";
@@ -1436,6 +1439,72 @@ fn ensure_ollama_running_command(app: tauri::AppHandle) -> Result<(), String> {
 /// Shared flag so the frontend can cancel an in-flight Ollama stream.
 pub struct OllamaStreamCancel(pub Arc<AtomicBool>);
 
+#[derive(Debug, Default)]
+struct StreamChunkProcessResult {
+    cancelled: bool,
+    responses: Vec<String>,
+}
+
+fn extract_ollama_response(line_bytes: &[u8]) -> Option<String> {
+    let line = String::from_utf8_lossy(line_bytes).trim().to_string();
+    if line.is_empty() {
+        return None;
+    }
+
+    serde_json::from_str::<serde_json::Value>(&line)
+        .ok()
+        .and_then(|parsed| {
+            parsed
+                .get("response")
+                .and_then(|value| value.as_str())
+                .map(|response| response.to_string())
+        })
+}
+
+fn process_ollama_stream_chunk(
+    cancel: &AtomicBool,
+    buf: &mut Vec<u8>,
+    chunk: &[u8],
+) -> Result<StreamChunkProcessResult, String> {
+    if cancel.load(Ordering::SeqCst) {
+        return Ok(StreamChunkProcessResult {
+            cancelled: true,
+            responses: Vec::new(),
+        });
+    }
+
+    if buf.len().saturating_add(chunk.len()) > MAX_OLLAMA_STREAM_BUFFER_BYTES
+        && !chunk.contains(&b'\n')
+    {
+        buf.clear();
+        return Err(format!(
+            "Ollama stream payload exceeded {MAX_OLLAMA_STREAM_BUFFER_BYTES} bytes without newline delimiter"
+        ));
+    }
+
+    buf.extend_from_slice(chunk);
+
+    let mut responses: Vec<String> = Vec::new();
+    while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+        let line_bytes: Vec<u8> = buf.drain(..=pos).collect();
+        if let Some(response) = extract_ollama_response(&line_bytes) {
+            responses.push(response);
+        }
+    }
+
+    if buf.len() > MAX_OLLAMA_STREAM_BUFFER_BYTES {
+        buf.clear();
+        return Err(format!(
+            "Ollama stream payload exceeded {MAX_OLLAMA_STREAM_BUFFER_BYTES} bytes without newline delimiter"
+        ));
+    }
+
+    Ok(StreamChunkProcessResult {
+        cancelled: false,
+        responses,
+    })
+}
+
 #[tauri::command]
 async fn ollama_generate_stream(
     app: tauri::AppHandle,
@@ -1471,10 +1540,13 @@ async fn ollama_generate_stream(
         "options": { "num_predict": -1 }
     });
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3600))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client_builder = reqwest::Client::builder();
+    let client_builder = if OLLAMA_STREAM_REQUEST_TIMEOUT_MS > 0 {
+        client_builder.timeout(Duration::from_millis(OLLAMA_STREAM_REQUEST_TIMEOUT_MS))
+    } else {
+        client_builder
+    };
+    let client = client_builder.build().map_err(|e| e.to_string())?;
 
     let res = client
         .post(&url)
@@ -1500,7 +1572,23 @@ async fn ollama_generate_stream(
     let mut buf: Vec<u8> = Vec::new();
 
     while let Some(item) = stream.next().await {
-        if cancel.0.load(Ordering::SeqCst) {
+        let chunk = item.map_err(|e| e.to_string())?;
+        let processed = match process_ollama_stream_chunk(&cancel.0, &mut buf, &chunk) {
+            Ok(processed) => processed,
+            Err(error) => {
+                let _ = window.emit("ollama-stream-error", &error);
+                append_structured_log(
+                    &app,
+                    "error",
+                    "ollama.stream.buffer_overflow",
+                    "Ollama stream buffer exceeded safe limit",
+                    serde_json::json!({ "model": &model, "limitBytes": MAX_OLLAMA_STREAM_BUFFER_BYTES, "error": &error }),
+                );
+                return Err(error);
+            }
+        };
+
+        if processed.cancelled {
             let _ = window.emit("ollama-stream-cancelled", ());
             append_structured_log(
                 &app,
@@ -1512,33 +1600,16 @@ async fn ollama_generate_stream(
             return Ok(());
         }
 
-        let chunk = item.map_err(|e| e.to_string())?;
-        buf.extend_from_slice(&chunk);
-
-        while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
-            let line_bytes: Vec<u8> = buf.drain(..=pos).collect();
-            let line = String::from_utf8_lossy(&line_bytes).trim().to_string();
-            if line.is_empty() {
-                continue;
-            }
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
-                if let Some(response) = parsed.get("response").and_then(|v| v.as_str()) {
-                    if window.emit("ollama-stream-chunk", response).is_err() {
-                        return Ok(());
-                    }
-                }
+        for response in processed.responses {
+            if window.emit("ollama-stream-chunk", response).is_err() {
+                return Ok(());
             }
         }
     }
 
     if !buf.is_empty() {
-        let line = String::from_utf8_lossy(&buf).trim().to_string();
-        if !line.is_empty() {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&line) {
-                if let Some(response) = parsed.get("response").and_then(|v| v.as_str()) {
-                    let _ = window.emit("ollama-stream-chunk", response);
-                }
-            }
+        if let Some(response) = extract_ollama_response(&buf) {
+            let _ = window.emit("ollama-stream-chunk", response);
         }
     }
 
@@ -1594,6 +1665,47 @@ mod tests {
     fn validates_absolute_path_strings() {
         let relative = validate_path_string("path", "notes.md");
         assert!(relative.is_err());
+    }
+
+    #[test]
+    fn processes_newline_delimited_stream_chunk() {
+        let cancel = AtomicBool::new(false);
+        let mut buf: Vec<u8> = Vec::new();
+        let chunk = b"{\"response\":\"Hello\"}\n{\"response\":\" world\"}\n";
+
+        let result =
+            process_ollama_stream_chunk(&cancel, &mut buf, chunk).expect("chunk should parse");
+        assert!(!result.cancelled);
+        assert_eq!(
+            result.responses,
+            vec!["Hello".to_string(), " world".to_string()]
+        );
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn fails_fast_on_long_chunk_without_newline() {
+        let cancel = AtomicBool::new(false);
+        let mut buf: Vec<u8> = Vec::new();
+        let chunk = vec![b'x'; MAX_OLLAMA_STREAM_BUFFER_BYTES + 1];
+
+        let err = process_ollama_stream_chunk(&cancel, &mut buf, &chunk)
+            .expect_err("oversized non-delimited chunk should fail");
+        assert!(err.contains("without newline delimiter"));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn returns_cancelled_without_mutating_buffer() {
+        let cancel = AtomicBool::new(true);
+        let mut buf: Vec<u8> = b"pending".to_vec();
+        let chunk = b"{\"response\":\"ignored\"}\n";
+
+        let result =
+            process_ollama_stream_chunk(&cancel, &mut buf, chunk).expect("cancel should short-circuit");
+        assert!(result.cancelled);
+        assert!(result.responses.is_empty());
+        assert_eq!(buf, b"pending".to_vec());
     }
 }
 
