@@ -111,6 +111,7 @@ describe('App inline prompts', () => {
     )
 
     render(<App />)
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(getEditor(), {
       target: {
@@ -122,7 +123,10 @@ describe('App inline prompts', () => {
       target: { value: 'Keep it concise and plain.' },
     })
 
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
+    fireEvent.click(sendButton)
 
     await waitFor(() => {
       expect(getEditor().value).toBe('Markdown is common in docs. README files usually explain setup and usage. End.')
@@ -163,9 +167,13 @@ describe('App inline prompts', () => {
     )
 
     render(<App />)
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(getEditor(), { target: { value: 'A {{one}} B {{two}} C' } })
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
+    fireEvent.click(sendButton)
 
     await waitFor(() => {
       expect(getEditor().value).toBe('A FIRST B SECOND C')
@@ -209,9 +217,13 @@ describe('App inline prompts', () => {
     )
 
     render(<App />)
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(getEditor(), { target: { value: 'A {{one}} B {{two}} C' } })
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
+    fireEvent.click(sendButton)
 
     await waitFor(() => {
       expect(screen.getByText('Ollama request failed. Is the server running?')).toBeInTheDocument()
@@ -256,12 +268,16 @@ describe('App inline prompts', () => {
     )
 
     render(<App />)
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(getEditor(), { target: { value: 'Document content' } })
     const promptInput = screen.getByLabelText('Prompt input')
     fireEvent.change(promptInput, { target: { value: 'Continue this sentence' } })
 
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
+    fireEvent.click(sendButton)
     await waitFor(() => {
       expect(screen.getByLabelText('Stop generation')).toBeInTheDocument()
     })

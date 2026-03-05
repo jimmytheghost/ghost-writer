@@ -35,8 +35,12 @@ describe('App error paths', () => {
     render(<App />)
 
     const promptInput = screen.getByLabelText('Prompt input')
+    const sendButton = screen.getByLabelText('Send prompt')
     fireEvent.change(promptInput, { target: { value: 'test prompt' } })
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
+    fireEvent.click(sendButton)
 
     await waitFor(() => {
       expect(screen.getByText('Ollama request failed. Is the server running?')).toBeInTheDocument()

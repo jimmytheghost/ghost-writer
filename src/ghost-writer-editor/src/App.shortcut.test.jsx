@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -54,8 +54,12 @@ describe('App keyboard shortcuts', () => {
 
     render(<App />)
     const promptInput = screen.getByLabelText('Prompt input')
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(promptInput, { target: { value: 'polish this paragraph' } })
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
     fireEvent.keyDown(promptInput, { key: 'Enter', ctrlKey: true })
 
     expect(requestSubmitSpy).toHaveBeenCalledTimes(1)
@@ -68,8 +72,12 @@ describe('App keyboard shortcuts', () => {
 
     render(<App />)
     const promptInput = screen.getByLabelText('Prompt input')
+    const sendButton = screen.getByLabelText('Send prompt')
 
     fireEvent.change(promptInput, { target: { value: 'polish this paragraph' } })
+    await waitFor(() => {
+      expect(sendButton).not.toBeDisabled()
+    })
     fireEvent.keyDown(promptInput, { key: 'Enter', metaKey: true })
 
     expect(requestSubmitSpy).toHaveBeenCalledTimes(1)

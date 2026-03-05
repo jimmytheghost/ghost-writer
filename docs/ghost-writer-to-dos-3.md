@@ -156,6 +156,24 @@
   - [x] file size limits
   - [x] supported shortcuts
 
+### 7.1 Windows Manual QA Runbook (for final signoff)
+
+- [ ] Install and launch Windows build:
+  - [ ] Run installer: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`
+  - [ ] Launch app from Start Menu/Desktop shortcut
+  - [ ] Verify top menus render (`File`, `Edit`, `View`, `Settings`)
+- [ ] Core document workflows:
+  - [ ] New tab, type text, save as `.md`, reopen file, confirm content round-trip
+  - [ ] Open Markdown preview, toggle off, confirm Escape closes preview
+  - [ ] Prompt generation: send prompt, verify streamed output appears, verify stop button works
+- [ ] Version + settings:
+  - [ ] Open About modal and confirm version is `1.4.7`
+  - [ ] Change settings (theme/text zoom), quit, relaunch, verify persistence
+- [ ] Evidence capture:
+  - [ ] Append results (pass/fail + notes) to `docs/dev-logs/2026/2026-03-05.md`
+  - [ ] Check `Windows app launch + core workflows`
+  - [ ] Check `Manual QA pass` and `Phase 5: release gate + manual QA signoff`
+
 ## 8) Completion Criteria (Definition of Done)
 
 - [x] No placeholder production constants for critical runtime limits/messages.
@@ -168,8 +186,8 @@
 
 ## 9) Suggested Work Order for a Future Agent
 
-- [ ] Phase 1: high-risk correctness fixes (file size limits, version display, menu typo).
-- [ ] Phase 2: resilience (error boundary, stream guardrails, timeout policy).
-- [ ] Phase 3: configurability + UX defaults (Ollama settings, window size).
-- [ ] Phase 4: cleanup/refactor/tests/docs.
+- [x] Phase 1: high-risk correctness fixes (file size limits, version display, menu typo).
+- [x] Phase 2: resilience (error boundary, stream guardrails, timeout policy).
+- [x] Phase 3: configurability + UX defaults (Ollama settings, window size).
+- [x] Phase 4: cleanup/refactor/tests/docs.
 - [ ] Phase 5: release gate + manual QA signoff.

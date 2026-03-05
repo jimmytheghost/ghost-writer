@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.7] - 2026-03-05
+
+### Changed
+
+- Bumped app version to `1.4.7` for Windows QA verification build.
+- Stabilized prompt-related regression tests by waiting for model readiness before submit actions in shortcut and inline prompt suites.
+
 ## [1.4.6] - 2026-03-05
 
 ### Added
