@@ -220,4 +220,57 @@ describe('App inline prompts', () => {
     expect(getEditor().value).toBe('A FIRST B {{two}} C')
     expect(generateCallCount).toBe(2)
   })
+
+  it('can stop an active streaming generation from the prompt button', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input, options = {}) => {
+        const url = String(input ?? '')
+        if (url.includes('/ollama-models.json')) {
+          return {
+            ok: true,
+            json: async () => ({ models: ['devstral-small-2:24b'] }),
+          }
+        }
+
+        if (url.includes('/api/generate')) {
+          const { signal } = options
+          return await new Promise((resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              const error = new Error('Generation stopped.')
+              error.name = 'AbortError'
+              reject(error)
+            })
+
+            // Keep request pending until user triggers stop.
+            void resolve
+          })
+        }
+
+        return {
+          ok: false,
+          body: null,
+          json: async () => ({}),
+        }
+      }),
+    )
+
+    render(<App />)
+
+    fireEvent.change(getEditor(), { target: { value: 'Document content' } })
+    const promptInput = screen.getByLabelText('Prompt input')
+    fireEvent.change(promptInput, { target: { value: 'Continue this sentence' } })
+
+    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await waitFor(() => {
+      expect(screen.getByLabelText('Stop generation')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('Stop generation'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Stopped')).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+  })
 })

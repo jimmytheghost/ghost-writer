@@ -61,10 +61,32 @@ describe('App keyboard shortcuts', () => {
     expect(requestSubmitSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('submits prompt with Meta+Enter', async () => {
+    const requestSubmitSpy = vi
+      .spyOn(HTMLFormElement.prototype, 'requestSubmit')
+      .mockImplementation(() => {})
+
+    render(<App />)
+    const promptInput = screen.getByLabelText('Prompt input')
+
+    fireEvent.change(promptInput, { target: { value: 'polish this paragraph' } })
+    fireEvent.keyDown(promptInput, { key: 'Enter', metaKey: true })
+
+    expect(requestSubmitSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('creates a new tab with Ctrl+N', () => {
     render(<App />)
 
     fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('creates a new tab with Meta+N', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', metaKey: true })
 
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
   })

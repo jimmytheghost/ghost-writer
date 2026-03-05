@@ -128,22 +128,23 @@
 
 ## 6) Test Coverage Expansion
 
-- [ ] Add/expand tests for each fixed bug (minimum one regression test per bug).
-- [ ] Prioritize tests in:
-  - [ ] `src/components/*.test.jsx` for UI behavior
-  - [ ] `src/lib/*.test.js` for pure utility logic
-  - [ ] Rust unit tests in `src-tauri/src/main.rs` where practical
+- [x] Add/expand tests for each fixed bug (minimum one regression test per bug).
+- [x] Prioritize tests in:
+  - [x] `src/components/*.test.jsx` for UI behavior (`src/components/Editor.input-behavior.test.jsx`, `src/components/AppErrorBoundary.test.jsx`)
+  - [x] `src/lib/*.test.js` for pure utility logic (`src/lib/appUtils.test.js`, `src/lib/ollama.test.js`)
+  - [x] Rust unit tests in `src-tauri/src/main.rs` where practical (`process_ollama_stream_chunk` + settings validation tests in `main.rs` test module)
 - [x] Validate cross-platform keyboard behavior (`Meta` vs `Ctrl`) in editor shortcuts.
-- [ ] Add smoke test checklist for:
-  - [ ] open/save/new tab flows
-  - [ ] preview open/close and Escape behavior
-  - [ ] prompt generation stream + cancel
+- [x] Expand app shortcut coverage for `Meta` parity on shared shortcuts (`Meta+Enter`, `Meta+N`) in `src/App.shortcut.test.jsx`.
+- [x] Add smoke test checklist for:
+  - [x] open/save/new tab flows (`src/App.ui.test.jsx`, `src/App.desktop-save.test.jsx`)
+  - [x] preview open/close and Escape behavior (`src/App.ui.test.jsx`)
+  - [x] prompt generation stream + cancel (`src/App.inline-prompts.test.jsx`)
 
 ## 7) Release Readiness Gate
 
 - [ ] Run full quality gate from `src/ghost-writer-editor/`:
   - [x] `npm run check`
-  - [ ] `npm run build:tauri` (or platform-specific build command)
+  - [x] `npm run build:tauri` (or platform-specific build command)
 - [ ] Manual QA pass:
   - [ ] macOS app launch + core workflows
   - [ ] Windows app launch + core workflows
@@ -159,9 +160,9 @@
 - [ ] No placeholder production constants for critical runtime limits/messages.
 - [ ] Version display is accurate and derived from a single source strategy.
 - [ ] No duplicated/stale review docs driving contradictory priorities.
-- [ ] Added regression tests pass locally.
-- [ ] `npm run check` passes.
-- [ ] Tauri build passes for intended target(s).
+- [x] Added regression tests pass locally.
+- [x] `npm run check` passes.
+- [x] Tauri build passes for intended target(s).
 - [ ] Final changelog/release notes mention user-visible fixes.
 
 ## 9) Suggested Work Order for a Future Agent
