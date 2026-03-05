@@ -1,7 +1,7 @@
 import { DEFAULT_CUSTOM_WORD_LIST } from './spellcheck'
 
-export const MAX_LOAD_FILE_SIZE_BYTES = Number.POSITIVE_INFINITY
-export const FILE_TOO_LARGE_MESSAGE = ''
+export const MAX_LOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024
+export const FILE_TOO_LARGE_MESSAGE = 'File is too large to load. Maximum allowed file size is 10MB.'
 export const ALWAYS_ON_TOP_STORAGE_KEY = 'ghost-writer-always-on-top'
 export const TEXT_ZOOM_OPTIONS = Object.freeze(['50%', '75%', '100%', '125%', '150%'])
 export const DEFAULT_SETTINGS = Object.freeze({
