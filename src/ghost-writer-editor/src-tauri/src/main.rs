@@ -156,7 +156,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let colored_output_menu_label = if is_colored_output_visible {
         "Hide Colored Output"
     } else {
-        "View Color Output"
+        "View Colored Output"
     };
     let is_md_prompts_visible = app
         .try_state::<MdPromptsMenuState>()
