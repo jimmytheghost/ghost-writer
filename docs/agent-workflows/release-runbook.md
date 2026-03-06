@@ -7,7 +7,7 @@ This runbook defines the CI-first release path for Ghost Writer desktop bundles.
 - Workflow file: `.github/workflows/release.yml`
 - Trigger: push tag matching `v*` (example: `v0.1.4`)
 - Targets:
-  - macOS DMG (`x86_64-apple-darwin`)
+  - macOS DMG (`aarch64-apple-darwin` and `x86_64-apple-darwin`)
   - Windows NSIS EXE (`x86_64-pc-windows-msvc`)
 
 ## Release model
@@ -28,7 +28,7 @@ Release publishing is intentionally draft-first. A maintainer must review and pu
 3. Add branch/tag protection so only approved tags are pushed.
 4. Set `contents: write` permission for Actions (repo setting).
 
-## Required secrets (if signing/notarization is enabled)
+## Required secrets (mandatory for macOS release)
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
@@ -39,7 +39,7 @@ Release publishing is intentionally draft-first. A maintainer must review and pu
 - `APPLE_PASSWORD`
 - `APPLE_TEAM_ID`
 
-If these secrets are missing, builds may still produce unsigned artifacts depending on Tauri config.
+The macOS release jobs fail immediately if any of these secrets are missing.
 
 ## How to cut a release
 
@@ -52,9 +52,13 @@ git push origin v0.1.4
 ```
 
 3. Open the Actions run for `Release`.
-4. Verify both matrix builds succeeded and checksum files were generated.
-5. Open the draft release and verify attached files.
-6. Publish the release draft.
+4. Verify all matrix builds succeeded and checksum files were generated.
+5. Verify macOS build logs include successful:
+   - `codesign --verify`
+   - `xcrun stapler validate`
+   - `spctl -a -vv -t open` output with `accepted` and `Notarized Developer ID`
+6. Open the draft release and verify attached files.
+7. Publish the release draft.
 
 ## Artifact verification
 
@@ -65,6 +69,14 @@ shasum -a 256 <artifact-file>
 ```
 
 Match output against the uploaded `sha256-*.txt`.
+
+For each macOS DMG, validate signing/notarization locally:
+
+```bash
+codesign --verify --verbose=2 <artifact.dmg>
+xcrun stapler validate <artifact.dmg>
+spctl -a -vv -t open <artifact.dmg>
+```
 
 ## Rollback
 

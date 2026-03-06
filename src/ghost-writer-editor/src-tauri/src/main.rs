@@ -394,6 +394,32 @@ fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), 
         .map_err(|error| error.to_string())
 }
 
+fn allow_asset_scope_for_path(app: &tauri::AppHandle, path: &Path) {
+    let Some(parent_dir) = path.parent() else {
+        append_structured_log(
+            app,
+            "warn",
+            "asset.scope.parent_dir.missing",
+            "Could not determine parent directory for asset protocol scope",
+            serde_json::json!({ "path": path.to_string_lossy() }),
+        );
+        return;
+    };
+
+    if let Err(error) = app
+        .asset_protocol_scope()
+        .allow_directory(parent_dir.to_path_buf(), true)
+    {
+        append_structured_log(
+            app,
+            "warn",
+            "asset.scope.allow_directory.failed",
+            "Failed to allow directory for asset protocol",
+            serde_json::json!({ "path": parent_dir.to_string_lossy(), "error": error.to_string() }),
+        );
+    }
+}
+
 // MD Prompts visibility control removed in this patch cycle to keep frontend/backend in sync with simpler wiring
 
 #[tauri::command]
@@ -434,6 +460,7 @@ fn save_markdown_file(
     }
 
     fs::write(&destination, content).map_err(|error| error.to_string())?;
+    allow_asset_scope_for_path(&app, &destination);
     push_recent_file_path(&app, &destination);
     append_structured_log(
         &app,
@@ -457,6 +484,7 @@ fn save_markdown_to_path(
         return Err("ERR_INVALID_PATH:path must use a .md extension".to_string());
     }
     fs::write(&destination, content).map_err(|error| error.to_string())?;
+    allow_asset_scope_for_path(&app, &destination);
     push_recent_file_path(&app, &destination);
     append_structured_log(
         &app,
@@ -579,6 +607,7 @@ fn rename_markdown_file_with_dialog(
             }
         }
     }
+    allow_asset_scope_for_path(&app, &destination_path);
     push_recent_file_path(&app, &destination_path);
     append_structured_log(
         &app,
@@ -616,6 +645,7 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
 
     let content = fs::read_to_string(&path).map_err(|error| error.to_string())?;
     ensure_max_bytes("content", &content, MAX_TEXT_PAYLOAD_BYTES)?;
+    allow_asset_scope_for_path(&app, &path);
     push_recent_file_path(&app, &path);
     append_structured_log(
         &app,
@@ -631,7 +661,10 @@ fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>
 }
 
 #[tauri::command]
-fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayload>, String> {
+fn load_markdown_files_by_paths(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<Vec<OpenRecentPayload>, String> {
     if paths.len() > MAX_PATHS_PER_REQUEST {
         return Err(format!(
             "ERR_INVALID_FIELD:paths exceeds {} items",
@@ -662,6 +695,7 @@ fn load_markdown_files_by_paths(paths: Vec<String>) -> Result<Vec<OpenRecentPayl
             continue;
         }
 
+        allow_asset_scope_for_path(&app, &canonical);
         results.push(OpenRecentPayload {
             path: canonical.to_string_lossy().into_owned(),
             content,
@@ -1879,25 +1913,6 @@ fn main() {
         .setup(|app| {
             let menu = build_app_menu(&app.handle())?;
             app.set_menu(menu)?;
-            if let Ok(home_dir) = app.path().home_dir() {
-                if let Err(error) = app.handle().asset_protocol_scope().allow_directory(home_dir, true) {
-                    append_structured_log(
-                        &app.handle(),
-                        "warn",
-                        "asset.scope.allow_directory.failed",
-                        "Failed to allow home directory for asset protocol",
-                        serde_json::json!({ "error": error.to_string() }),
-                    );
-                }
-            } else {
-                append_structured_log(
-                    &app.handle(),
-                    "warn",
-                    "asset.scope.home_dir.missing",
-                    "Could not resolve home directory for asset protocol scope",
-                    serde_json::json!({}),
-                );
-            }
             append_structured_log(
                 &app.handle(),
                 "info",

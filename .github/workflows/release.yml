@@ -43,8 +43,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: macos-14
+            artifact_name: ghost-writer-macos-arm64
+            rust_target: aarch64-apple-darwin
+            build_command: npm run build:tauri:mac
+            bundle_glob: src/ghost-writer-editor/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           - os: macos-13
-            artifact_name: ghost-writer-macos
+            artifact_name: ghost-writer-macos-x64
             rust_target: x86_64-apple-darwin
             build_command: npm run build:tauri:mac
             bundle_glob: src/ghost-writer-editor/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
@@ -94,8 +99,69 @@ jobs:
       - name: Sync model snapshot
         run: npm run sync:models
 
+      - name: Validate required macOS signing secrets
+        if: runner.os == 'macOS'
+        run: |
+          required_vars=(
+            TAURI_SIGNING_PRIVATE_KEY
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+            APPLE_CERTIFICATE
+            APPLE_CERTIFICATE_PASSWORD
+            APPLE_SIGNING_IDENTITY
+            APPLE_ID
+            APPLE_PASSWORD
+            APPLE_TEAM_ID
+          )
+          missing=()
+          for var_name in "${required_vars[@]}"; do
+            if [ -z "${!var_name}" ]; then
+              missing+=("$var_name")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required macOS signing/notarization secrets:"
+            printf ' - %s\n' "${missing[@]}"
+            exit 1
+          fi
+
       - name: Build release bundle
         run: ${{ matrix.build_command }}
+
+      - name: Verify macOS signing, notarization, and Gatekeeper
+        if: runner.os == 'macOS'
+        run: |
+          shopt -s nullglob
+          dmg_files=( ${{ matrix.bundle_glob }} )
+          app_files=( src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/*.app )
+          if [ ${#dmg_files[@]} -eq 0 ]; then
+            echo "No DMG artifacts found at ${{ matrix.bundle_glob }}"
+            exit 1
+          fi
+          if [ ${#app_files[@]} -eq 0 ]; then
+            echo "No .app bundle found for target ${{ matrix.rust_target }}"
+            exit 1
+          fi
+
+          for app in "${app_files[@]}"; do
+            echo "Verifying app bundle: $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+          done
+
+          for dmg in "${dmg_files[@]}"; do
+            echo "Verifying DMG: $dmg"
+            codesign --verify --verbose=2 "$dmg"
+            xcrun stapler validate "$dmg"
+            spctl_output="$(spctl -a -vv -t open "$dmg" 2>&1 || true)"
+            echo "$spctl_output"
+            if ! printf '%s' "$spctl_output" | grep -q "accepted"; then
+              echo "Gatekeeper rejected $dmg"
+              exit 1
+            fi
+            if ! printf '%s' "$spctl_output" | grep -q "Notarized Developer ID"; then
+              echo "Notarization validation failed for $dmg"
+              exit 1
+            fi
+          done
 
       - name: Build checksums (macOS)
         if: runner.os == 'macOS'

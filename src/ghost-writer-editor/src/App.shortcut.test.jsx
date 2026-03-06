@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -208,7 +208,9 @@ describe('App keyboard shortcuts', () => {
     expect(printRoot?.innerHTML ?? '').toContain('{{remove me}}')
     expect(printMock).toHaveBeenCalledTimes(1)
 
-    vi.runOnlyPendingTimers()
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
     vi.useRealTimers()
   })
 })
