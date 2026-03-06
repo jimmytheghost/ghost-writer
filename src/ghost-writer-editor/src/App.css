@@ -1485,11 +1485,53 @@
   gap: var(--space-2);
 }
 
+.modal__confirm-file {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
+  background: var(--color-gray-100);
+}
+
+.modal__confirm-label {
+  margin-bottom: var(--space-1);
+  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.modal__confirm-name {
+  color: var(--color-gray-900);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
+}
+
 .modal--settings {
   width: min(400px, 100%);
   max-height: 420px;
   padding: var(--space-5);
   overflow-y: auto;
+}
+
+.modal--confirm-close {
+  width: min(420px, 100%);
+  padding: var(--space-6);
+}
+
+.modal--confirm-close .modal__title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.modal--confirm-close .modal__description {
+  margin-bottom: var(--space-4);
+  color: var(--color-gray-600);
+  line-height: var(--line-height-normal);
 }
 
 .modal--settings .modal__title {
@@ -1668,6 +1710,19 @@
 .app--dark .modal {
   background: var(--color-gray-800);
   border-color: var(--color-gray-700);
+}
+
+.app--dark .modal__confirm-file {
+  border-color: var(--color-gray-700);
+  background: var(--color-gray-900);
+}
+
+.app--dark .modal__confirm-label {
+  color: var(--color-gray-400);
+}
+
+.app--dark .modal__confirm-name {
+  color: var(--color-gray-100);
 }
 
 .app--dark .modal__description {

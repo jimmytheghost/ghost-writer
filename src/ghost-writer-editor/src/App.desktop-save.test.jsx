@@ -209,7 +209,7 @@ describe('App desktop save flow', () => {
     expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
   })
 
-  it('opens native save dialog when closing a modified saved tab', async () => {
+  it('opens custom save confirmation before native save dialog when closing a modified tab', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/chapter-four.md',
       content: 'Original content',
@@ -231,6 +231,14 @@ describe('App desktop save flow', () => {
     fireEvent.click(screen.getByLabelText('Close chapter-four*'))
 
     await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'Save before closing?' })).toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+
+    await waitFor(() => {
       expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(
         'Original content\nChanged',
         'chapter-four.md',
@@ -238,7 +246,41 @@ describe('App desktop save flow', () => {
     })
   })
 
-  it('keeps a dirty tab open when the close save dialog is cancelled', async () => {
+  it('closes a dirty tab without opening save dialog when No is selected', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-no-save.md',
+      content: 'Original content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-no-save' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-no-save*'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'Save before closing?' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'No' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tab', { name: 'Switch to chapter-no-save*' })).not.toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+  })
+
+  it('keeps a dirty tab open when the save dialog is cancelled after confirming Yes', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/chapter-cancel.md',
       content: 'Original content',
@@ -259,6 +301,12 @@ describe('App desktop save flow', () => {
     fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
 
     fireEvent.click(screen.getByLabelText('Close chapter-cancel*'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'Save before closing?' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
 
     await waitFor(() => {
       expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(

@@ -117,6 +117,7 @@ function App() {
   const [editorFocusRequestId, setEditorFocusRequestId] = useState(0)
   const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
   const [isColoredStreamingOutputEnabled, setIsColoredStreamingOutputEnabled] = useState(true)
+  const [dirtyCloseConfirmTab, setDirtyCloseConfirmTab] = useState(null)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -139,6 +140,7 @@ function App() {
   const previewScrollTopRef = useRef(0)
   const isPreviewScrollTickingRef = useRef(false)
   const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
+  const dirtyCloseConfirmResolverRef = useRef(null)
 
   const escapeFindQueryForRegex = useCallback((query) => {
     return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -147,6 +149,15 @@ function App() {
   useEffect(() => {
     scrollPositionsByTabRef.current = scrollPositionsByTab
   }, [scrollPositionsByTab])
+
+  useEffect(() => {
+    return () => {
+      if (dirtyCloseConfirmResolverRef.current) {
+        dirtyCloseConfirmResolverRef.current(false)
+        dirtyCloseConfirmResolverRef.current = null
+      }
+    }
+  }, [])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
@@ -186,11 +197,38 @@ function App() {
     [],
   )
 
+  const resolveDirtyCloseConfirm = useCallback((shouldSave) => {
+    const resolver = dirtyCloseConfirmResolverRef.current
+    dirtyCloseConfirmResolverRef.current = null
+    setDirtyCloseConfirmTab(null)
+    if (resolver) {
+      resolver(Boolean(shouldSave))
+    }
+  }, [])
+
+  const requestDirtyCloseConfirm = useCallback(
+    async (tab) =>
+      new Promise((resolve) => {
+        if (dirtyCloseConfirmResolverRef.current) {
+          dirtyCloseConfirmResolverRef.current(false)
+        }
+
+        dirtyCloseConfirmResolverRef.current = resolve
+        setDirtyCloseConfirmTab(tab ?? null)
+      }),
+    [],
+  )
+
   const promptToSaveDirtyTab = useCallback(async (tab) => {
     const hasContent = String(tab?.content || '').trim().length > 0
     const shouldPromptToSave = hasContent && tab?.isDirty
     if (!shouldPromptToSave || !isDesktopRuntime()) {
       return { didContinue: true }
+    }
+
+    const shouldSave = await requestDirtyCloseConfirm(tab)
+    if (!shouldSave) {
+      return { didContinue: true, skippedSave: true }
     }
 
     const suggestedName = ensureMarkdownFileName(tab?.title || 'untitled')
@@ -200,7 +238,7 @@ function App() {
     }
 
     return { didContinue: true, savedPath }
-  }, [])
+  }, [requestDirtyCloseConfirm])
 
   const confirmSafeToCloseTabs = useCallback(
     async (tabsToClose = []) => {
@@ -2141,6 +2179,9 @@ ${escapeLatex(exportMarkdownSource)}
         models={models}
         appName={appName}
         appVersion={appVersion}
+        dirtyCloseConfirmTab={dirtyCloseConfirmTab}
+        onConfirmDirtyCloseSave={() => resolveDirtyCloseConfirm(true)}
+        onConfirmDirtyCloseDiscard={() => resolveDirtyCloseConfirm(false)}
         onExportDiagnostics={() => {
           void handleExportDiagnostics()
         }}

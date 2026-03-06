@@ -252,6 +252,9 @@ function AppModals({
   models,
   appName,
   appVersion,
+  dirtyCloseConfirmTab = null,
+  onConfirmDirtyCloseSave = () => {},
+  onConfirmDirtyCloseDiscard = () => {},
   onExportDiagnostics = () => {},
 }) {
   const normalizedWordList = Array.isArray(settings.customWordList) ? settings.customWordList : []
@@ -265,6 +268,7 @@ function AppModals({
   useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
   useEscapeToClose(isSpellCheckScanOpen, () => setIsSpellCheckScanOpen(false))
   useEscapeToClose(isAboutOpen, () => setIsAboutOpen(false))
+  useEscapeToClose(Boolean(dirtyCloseConfirmTab), onConfirmDirtyCloseDiscard)
 
   const handleAboutLinkClick = (event) => {
     const anchor = event.target.closest('a[href]')
@@ -278,6 +282,40 @@ function AppModals({
 
   return (
     <>
+      {dirtyCloseConfirmTab && (
+        <div className="modal-overlay">
+          <div
+            className="modal modal--confirm-close"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dirty-close-confirm-title"
+            aria-describedby="dirty-close-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="dirty-close-confirm-title" className="modal__title">Save before closing?</h2>
+            <p id="dirty-close-confirm-description" className="modal__description">
+              This tab has unsaved changes. Choose <strong>Yes</strong> to open the save dialog, or{' '}
+              <strong>No</strong> to close without saving.
+            </p>
+            <div className="modal__confirm-file" aria-label="Tab being closed">
+              <div className="modal__confirm-label">File</div>
+              <div className="modal__confirm-name">{dirtyCloseConfirmTab.title || 'Untitled'}</div>
+            </div>
+            <div className="modal__actions">
+              <button type="button" className="modal__button" onClick={onConfirmDirtyCloseDiscard}>
+                No
+              </button>
+              <button
+                type="button"
+                className="modal__button modal__button--primary"
+                onClick={onConfirmDirtyCloseSave}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isSettingsOpen && (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
           <div
