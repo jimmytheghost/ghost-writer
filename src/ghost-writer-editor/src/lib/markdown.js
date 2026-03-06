@@ -80,7 +80,7 @@ const markdownRenderer = new MarkdownIt({
   .use(markdownItSup)
   .use(markdownItAttrs)
   .use(markdownItEmojiFull)
-  .use(markdownItTaskLists, { enabled: true, label: true })
+  .use(markdownItTaskLists, { enabled: true, label: false })
 
 const defaultValidateLink = markdownRenderer.validateLink.bind(markdownRenderer)
 markdownRenderer.validateLink = (url) => {
@@ -92,6 +92,31 @@ function normalizeDirectionalArrows(markdown = '') {
   return String(markdown)
     .replaceAll('<--', '←')
     .replaceAll('-->', '→')
+}
+
+function normalizeStandaloneFilesystemPathLines(markdown = '') {
+  const lines = String(markdown).split('\n')
+  let activeFenceMarker = ''
+
+  return lines
+    .map((line) => {
+      const trimmed = line.trim()
+      const fenceMatch = trimmed.match(/^(```+|~~~+)/)
+      if (fenceMatch) {
+        const marker = fenceMatch[1][0]
+        activeFenceMarker = activeFenceMarker === marker ? '' : marker
+        return line
+      }
+
+      if (activeFenceMarker) return line
+      if (!trimmed || !looksLikeInlineFilesystemPath(trimmed)) return line
+      if (/^`+.*`+$/.test(trimmed)) return line
+
+      const leadingWhitespace = line.match(/^\s*/)?.[0] ?? ''
+      const tickWrapper = trimmed.includes('`') ? '``' : '`'
+      return `${leadingWhitespace}${tickWrapper}${trimmed}${tickWrapper}`
+    })
+    .join('\n')
 }
 
 function trimWrappingQuotes(value = '') {
@@ -119,6 +144,17 @@ function looksLikeFilesystemPath(value = '') {
   return false
 }
 
+function looksLikeInlineFilesystemPath(value = '') {
+  const trimmed = String(value ?? '').trim()
+  if (!trimmed) return false
+  if (looksLikeFilesystemPath(trimmed)) return true
+  if (trimmed.includes('://')) return false
+  if (!(trimmed.includes('/') || trimmed.includes('\\'))) return false
+  if (/^[#@]/.test(trimmed)) return false
+  if (!/[a-zA-Z0-9_-][\\/]/.test(trimmed) && !/^\.\.?[\\/]/.test(trimmed)) return false
+  return /[\\/][^\\/]+\.[a-zA-Z0-9]{1,8}$/.test(trimmed)
+}
+
 function normalizeUriEncoding(value = '') {
   if (!value) return value
   try {
@@ -126,6 +162,24 @@ function normalizeUriEncoding(value = '') {
   } catch {
     return value
   }
+}
+
+function addFilesystemPathWrapHints(element, doc) {
+  const text = element.textContent ?? ''
+  if (!text) return
+
+  const fragment = doc.createDocumentFragment()
+  const segments = text.split(/([\\/ _-]+)/)
+
+  for (const segment of segments) {
+    if (!segment) continue
+    fragment.append(doc.createTextNode(segment))
+    if (/[\\/ _-]+/.test(segment)) {
+      fragment.append(doc.createElement('wbr'))
+    }
+  }
+
+  element.replaceChildren(fragment)
 }
 
 function extractMarkdownImageDestination(rawDestination = '') {
@@ -295,6 +349,25 @@ function sanitizeHtml(html) {
       element.setAttribute('target', '_blank')
     }
 
+    if (
+      tagName === 'code' &&
+      element.parentElement?.tagName.toLowerCase() !== 'pre' &&
+      looksLikeInlineFilesystemPath(element.textContent ?? '')
+    ) {
+      element.classList.add('preview__path')
+      addFilesystemPathWrapHints(element, doc)
+      let previousSibling = element.previousSibling
+      while (previousSibling?.nodeType === Node.TEXT_NODE && !previousSibling.textContent?.trim()) {
+        previousSibling = previousSibling.previousSibling
+      }
+      if (previousSibling?.nodeType === Node.ELEMENT_NODE && previousSibling.nodeName.toLowerCase() === 'br') {
+        element.classList.add('preview__path--standalone')
+        const pre = doc.createElement('pre')
+        element.replaceWith(pre)
+        pre.append(element)
+      }
+    }
+
     if (tagName === 'input') {
       const inputType = (element.getAttribute('type') || '').toLowerCase()
       if (inputType !== 'checkbox') {
@@ -303,10 +376,49 @@ function sanitizeHtml(html) {
     }
   }
 
+  const taskListItems = [...doc.body.querySelectorAll('li.task-list-item')]
+  for (const item of taskListItems) {
+    const directCheckbox = [...item.children].find((child) => {
+      return child.tagName.toLowerCase() === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
+    })
+
+    if (!directCheckbox) continue
+
+    const nestedLists = []
+    const contentWrapper = doc.createElement('span')
+    contentWrapper.className = 'preview__task-content'
+
+    for (const node of [...item.childNodes]) {
+      if (node === directCheckbox) continue
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = /** @type {HTMLElement} */ (node)
+        const tagName = element.tagName.toLowerCase()
+        if (tagName === 'ul' || tagName === 'ol') {
+          nestedLists.push(element)
+          continue
+        }
+      }
+
+      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue
+      contentWrapper.append(node)
+    }
+
+    if (contentWrapper.childNodes.length) {
+      item.insertBefore(contentWrapper, nestedLists[0] ?? null)
+    }
+
+    for (const nestedList of nestedLists) {
+      item.append(nestedList)
+    }
+  }
+
   return doc.body.innerHTML
 }
 
 export function renderMarkdownToSafeHtml(markdown) {
-  const normalizedMarkdown = normalizeMarkdownImagePaths(normalizeDirectionalArrows(markdown ?? ''))
+  const normalizedMarkdown = normalizeMarkdownImagePaths(
+    normalizeStandaloneFilesystemPathLines(normalizeDirectionalArrows(markdown ?? '')),
+  )
   return sanitizeHtml(markdownRenderer.render(normalizedMarkdown))
 }

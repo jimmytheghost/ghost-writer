@@ -118,6 +118,31 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).toContain('type="checkbox"')
   })
 
+  it('wraps task-list item content in a stable container next to the checkbox', () => {
+    const output = renderMarkdownToSafeHtml(
+      '- [ ] Run installer: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`',
+    )
+    expect(output).toContain('<span class="preview__task-content">')
+    expect(output).toContain('<wbr>')
+    expect(output).toContain('<code class="preview__path">src/')
+    expect(output).toContain('setup.exe</code>')
+  })
+
+  it('marks inline filesystem paths for path-specific preview styling', () => {
+    const output =
+      renderMarkdownToSafeHtml('Run installer: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`')
+    expect(output).toContain('<code class="preview__path">')
+  })
+
+  it('wraps standalone filesystem path lines in code so preview path styling still applies', () => {
+    const output = renderMarkdownToSafeHtml(
+      '- [ ] Install and launch:\n  - Run installer:\n    src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe',
+    )
+    expect(output).toContain('<pre><code class="preview__path preview__path--standalone">src/')
+    expect(output).toContain('<wbr>')
+    expect(output).toContain('setup.exe</code></pre>')
+  })
+
   it('removes non-checkbox input elements', () => {
     const output = renderMarkdownToSafeHtml('<input type="text" value="x" />')
     expect(output).not.toContain('<input')

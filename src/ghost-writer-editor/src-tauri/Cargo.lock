@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "ghost_writer"
-version = "0.1.8"
+version = "0.1.15"
 dependencies = [
  "futures-util",
  "objc2-app-kit",
