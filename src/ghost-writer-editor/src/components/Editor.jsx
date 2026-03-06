@@ -243,6 +243,7 @@ function Editor({
   }, [text])
   const useLightweightOverlays =
     text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
+  const shouldUseNativeSpellcheck = spellCheckEnabled && useLightweightOverlays
   const effectiveScrollTop = Number.isFinite(Number(externalScrollTop))
     ? Math.max(0, Number(externalScrollTop))
     : 0
@@ -1068,7 +1069,7 @@ function Editor({
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
-          spellCheck={spellCheckEnabled}
+          spellCheck={shouldUseNativeSpellcheck}
           lang="en-US"
           data-gramm="false"
           data-lt-active="false"
