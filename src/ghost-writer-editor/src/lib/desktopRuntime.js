@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
+import { report } from './errorReporting'
 
 function hasWindow() {
   return typeof window !== 'undefined'
@@ -26,13 +27,38 @@ export function markRendererInteractive(payload = {}) {
   }
 }
 
+function getErrorDetail(error) {
+  if (error == null) return ''
+  if (typeof error === 'string') return error.slice(0, 400)
+  if (error instanceof Error) {
+    return (error.stack || error.message || String(error)).slice(0, 400)
+  }
+  try {
+    return String(error).slice(0, 400)
+  } catch {
+    return ''
+  }
+}
+
+export function warnDesktopRuntime(event, message, error = null) {
+  report(error, message)
+  if (import.meta.env?.DEV) {
+    // Keep developer visibility in local runs without noisy production console output.
+    console.warn(`${event}:`, error ?? message)
+  }
+
+  if (!isDesktopRuntime()) return
+  const detail = getErrorDetail(error)
+  void invoke('log_frontend_warning', { event, message, detail }).catch(() => {})
+}
+
 export async function setAlwaysOnTop(enabled) {
   if (!isDesktopRuntime()) return false
   try {
     await invoke('set_always_on_top', { enabled })
     return true
   } catch (error) {
-    console.warn('Failed to set always-on-top state:', error)
+    warnDesktopRuntime('desktop.always_on_top.set_failed', 'Failed to set always-on-top state.', error)
     return false
   }
 }
@@ -46,7 +72,11 @@ export async function saveMarkdownWithNativeDialog(content, suggestedName) {
       suggestedName,
     })
   } catch (error) {
-    console.warn('Failed to save markdown with native dialog:', error)
+    warnDesktopRuntime(
+      'desktop.file.save_dialog.failed',
+      'Failed to save markdown with native dialog.',
+      error,
+    )
     return null
   }
 }
@@ -60,7 +90,7 @@ export async function saveMarkdownToPath(content, path) {
       path,
     })
   } catch (error) {
-    console.warn('Failed to save markdown to existing path:', error)
+    warnDesktopRuntime('desktop.file.save_path.failed', 'Failed to save markdown to existing path.', error)
     return null
   }
 }
@@ -74,7 +104,11 @@ export async function renameMarkdownFileWithNativeDialog(currentPath, suggestedN
       suggestedName,
     })
   } catch (error) {
-    console.warn('Failed to rename markdown file with native dialog:', error)
+    warnDesktopRuntime(
+      'desktop.file.rename_dialog.failed',
+      'Failed to rename markdown file with native dialog.',
+      error,
+    )
     return null
   }
 }
@@ -95,7 +129,7 @@ export async function saveTextFileWithNativeDialog({
       extensions,
     })
   } catch (error) {
-    console.warn('Failed to save export file with native dialog:', error)
+    warnDesktopRuntime('desktop.file.export_dialog.failed', 'Failed to save export file with native dialog.', error)
     return null
   }
 }
@@ -106,7 +140,7 @@ export async function openMarkdownWithNativeDialog() {
   try {
     return await invoke('open_markdown_file')
   } catch (error) {
-    console.warn('Failed to open markdown with native dialog:', error)
+    warnDesktopRuntime('desktop.file.open_dialog.failed', 'Failed to open markdown with native dialog.', error)
     return null
   }
 }
@@ -117,7 +151,7 @@ export async function loadMarkdownFilesByPaths(paths = []) {
   try {
     return await invoke('load_markdown_files_by_paths', { paths })
   } catch (error) {
-    console.warn('Failed to load markdown files by paths:', error)
+    warnDesktopRuntime('desktop.file.load_by_paths.failed', 'Failed to load markdown files by paths.', error)
     return []
   }
 }
@@ -129,7 +163,7 @@ export async function openExternalUrl(url) {
     await invoke('open_external_url', { url })
     return true
   } catch (error) {
-    console.warn('Failed to open external URL:', error)
+    warnDesktopRuntime('desktop.url.open_external.failed', 'Failed to open external URL.', error)
     return false
   }
 }
@@ -141,7 +175,7 @@ export async function printCurrentWebview() {
     await invoke('print_current_webview')
     return true
   } catch (error) {
-    console.warn('Failed to open native print dialog:', error)
+    warnDesktopRuntime('desktop.print.native_dialog.failed', 'Failed to open native print dialog.', error)
     return false
   }
 }
@@ -152,7 +186,7 @@ export async function loadSettings() {
   try {
     return await invoke('load_settings')
   } catch (error) {
-    console.warn('Failed to load settings:', error)
+    warnDesktopRuntime('desktop.settings.load.failed', 'Failed to load settings.', error)
     return null
   }
 }
@@ -163,7 +197,7 @@ export async function saveSettings(settings) {
   try {
     return await invoke('save_settings', { settings })
   } catch (error) {
-    console.warn('Failed to save settings:', error)
+    warnDesktopRuntime('desktop.settings.save.failed', 'Failed to save settings.', error)
     return null
   }
 }
@@ -174,7 +208,11 @@ export async function exportDiagnosticsBundle() {
   try {
     return await invoke('export_diagnostics_bundle')
   } catch (error) {
-    console.warn('Failed to export diagnostics bundle:', error)
+    warnDesktopRuntime(
+      'desktop.diagnostics.export_bundle.failed',
+      'Failed to export diagnostics bundle.',
+      error,
+    )
     return null
   }
 }
@@ -191,7 +229,7 @@ export async function ensureOllamaRunning() {
     return { ok: true }
   } catch (error) {
     const message = error?.message ?? String(error)
-    console.warn('ensureOllamaRunning:', message)
+    warnDesktopRuntime('desktop.ollama.ensure_running.failed', 'Failed to ensure Ollama is running.', message)
     return { ok: false, error: message }
   }
 }

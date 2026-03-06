@@ -9,6 +9,7 @@ This document outlines the workflow for developing the `ghost-writer` project.
 *   **Print/PDF Runbook:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/agent-workflows/print-and-pdf-runbook.md`
 *   **Dash Input Stability Runbook:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/agent-workflows/dash-input-stability-runbook.md`
 *   **Backups:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/_backups`
+*   **Backup + Workspace Policy:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/reference/repo-backup-and-workspace-policy.md`
 
 **Familiarization:** Before beginning work, please read the files above to understand the current state.
 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { listen } from '@tauri-apps/api/event'
-import { isDesktopRuntime } from '../lib/desktopRuntime'
+import { isDesktopRuntime, warnDesktopRuntime } from '../lib/desktopRuntime'
 
 export function useTauriMenuEvents({
   onNew,
@@ -106,8 +106,10 @@ export function useTauriMenuEvents({
       unlistenFns.push(...successfulListeners)
 
       if (failedEventNames.length > 0) {
-        console.warn(
-          `Failed to register ${failedEventNames.length} Tauri menu listener(s): ${failedEventNames.join(', ')}`,
+        warnDesktopRuntime(
+          'desktop.menu.listeners.register_failed',
+          `Failed to register ${failedEventNames.length} Tauri menu listener(s).`,
+          failedEventNames.join(', '),
         )
       }
     }

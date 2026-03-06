@@ -1,229 +1,33 @@
 # Ghost Writer Issues (Canonical)
 
-**Status**: Active issues - single source of truth
-
----
-
-## 🔴 Critical Issues
-
-### 1. File Size Guardrails - Placeholder Never Filled
-
-**Location**: `src/lib/appUtils.js:3-4`
-
-```javascript
-export const MAX_LOAD_FILE_SIZE_BYTES = Number.POSITIVE_INFINITY
-export const FILE_TOO_LARGE_MESSAGE = ''
-```
-
-**Impact**: Users can load arbitrarily large files; no error message displayed.
-
-**Fix Required**: Set to ~10MB (document rationale) and add user-friendly message.
-
----
-
-### 2. App Version Mismatch
-
-**Location**: `src/App.jsx:94`
-
-```javascript
-const [appVersion, setAppVersion] = useState('0.1.0')
-```
-
-**Impact**: Hardcoded fallback `0.1.0` doesn't match `package.json/tauri.conf.json` versions.
-
-**Fix Required**: Read version from config or use neutral placeholder.
-
----
-
-### 3. Default Window Size Too Small
-
-**Location**: `src-tauri/tauri.conf.json:16-17`
-
-```json
-"width": 400,
-"height": 500,
-```
-
-**Impact**: 400x500px is unusable for a markdown editor.
-
-**Fix Required**: Increase to at least 800x600 or 1024x768.
-
----
-
-### 4. Menu Typo
-
-**Location**: `src-tauri/src/main.rs:155`
-
-```rust
-"View Color Output"
-```
-
-**Impact**: Typo in menu label.
-
-**Fix Required**: Change to `"View Colored Output"`.
-
----
-
-### 5. Missing Error Boundary
-
-**Impact**: Runtime errors crash the entire React app.
-
-**Fix Required**: Add error boundary component with fallback UX.
-
----
-
-### 6. Unbounded Stream Buffer
-
-**Location**: `src-tauri/src/main.rs:1459`
-
-```rust
-let mut buf: Vec<u8> = Vec::new();
-```
-
-**Impact**: Memory could be exhausted by malformed/non-newline streams.
-
-**Fix Required**: Add upper bound + fail-fast behavior.
-
----
-
-### 7. Hardcoded Ollama Address
-
-**Location**: `src-tauri/src/main.rs:18`
-
-```rust
-const OLLAMA_ADDR: &str = "127.0.0.1:11434";
-```
-
-**Impact**: Users with Ollama on different host/port can't connect.
-
-**Fix Required**: Make endpoint configurable via settings.
-
----
-
-## 🟡 Code Quality Issues
-
-### 8. Unused `.backups` Directory
-
-**Location**: `.backups/`
-
-**Impact**: Old backup files shouldn't ship.
-
-**Fix Required**: Delete or document purpose and exclude from release.
-
----
-
-### 9. Unused `previewContentRef`
-
-**Location**: `src/App.jsx:130`
-
-**Impact**: Unused ref creates clutter.
-
-**Fix Required**: Remove unused ref.
-
----
-
-### 10. Duplicate Platform Detection
-
-**Location**: `Editor.jsx:563` and `Editor.jsx:759`
-
-```javascript
-const isMacPlatform = /Mac/.test(navigator.platform)
-const isMacPlatform2 = /Mac/.test(navigator.platform)
-```
-
-**Impact**: Duplicated logic violates DRY principle.
-
-**Fix Required**: Extract to shared utility.
-
----
-
-### 11. Console Logging in Production Paths
-
-**Locations**: 
-- `src/lib/desktopRuntime.js`
-- `src/hooks/useTauriMenuEvents.js`
-
-**Impact**: Non-critical warnings clutter production logs.
-
-**Fix Required**: Gate or route to diagnostics channel.
-
----
-
-### 12. Dead Code in Keyboard Handler
-
-**Location**: `Editor.jsx:821-825`
-
-```javascript
-const textarea = textareaRef.current
-if (textarea) {
-  setContentHeight(textarea.scrollHeight)
-}
-
-textarea?.addEventListener('keydown', handleKeyDown)
-```
-
-**Impact**: First block is unreachable dead code.
-
-**Fix Required**: Remove dead code.
-
----
-
-### 13. Root vs. Subproject `package.json` Confusion
-
-**Locations**:
-- `ghost-writer/package.json` (root)
-- `src/ghost-writer-editor/package.json`
-
-**Impact**: Dual structure causes confusion for developers/CI.
-
-**Fix Required**: Decide and document which serves what purpose.
-
----
-
----
-
-## ✅ Resolved (for tracking)
-
-- [ ] Model snapshot duplication (bundled vs public snapshots)
-- [ ] CSP hardcoded Ollama URL
-- [ ] Backend request timeout too long (3600s vs frontend 15s)
-- [ ] Bundle identifier verification (`com.ghostwriter.editor`)
-
----
-
-## 📋 Agent Todo Checklist (Progress Tracking)
-
-*See `ghost-writer-to-dos-3md.md` for detailed agent checklist and work order.*
-
-### Phase 1: High-Priority Fixes
-
-- [ ] **2.1 File size guardrails** - Set `MAX_LOAD_FILE_SIZE_BYTES` ~10MB
-- [ ] **2.2 Version consistency** - Fix `useState('0.1.0')` fallback
-- [ ] **2.3 Menu typo** - Fix `"View Color Output"` → `"View Colored Output"`
-
-### Phase 2: Stability & Resilience  
-
-- [ ] **3.1 React crash containment** - Add Error Boundary
-- [ ] **3.2 Stream buffering** - Add upper bound to stream buffer
-- [ ] **3.3 Timeout alignment** - Document frontend/backend timeout strategy
-
-### Phase 3: Configurability & UX
-
-- [ ] **4.1 Ollama endpoint** - Decide strategy for endpoint config
-- [ ] **4.2 Window defaults** - Reassess window size in `tauri.conf.json`
-
-### Phase 4: Code Cleanup
-
-- [ ] **5.1 Editor cleanup** - Refactor duplicated platform detection  
-- [ ] **5.2 Logging hygiene** - Audit `console.warn` usage
-- [ ] **5.3 Repo hygiene** - Decide policy for `backups/` and root `package.json`
-
-### Phase 5: Release Gate
-
-- [ ] Run `npm run check`
-- [ ] Run `npm run build:tauri`
-- [ ] Manual QA pass on macOS/Windows
-
----
-
-*Generated by Ghost Writer Agent*.
+Last reviewed: 2026-03-05
+
+This file tracks only currently open issues and release blockers.
+
+## Open Issues
+
+### 1. Windows manual QA signoff is still pending
+- Severity: high (release readiness)
+- Location: `docs/ghost-writer-to-dos-3.md`, `docs/dev-logs/2026/2026-03-05.md`
+- Current state:
+  - Windows build artifact exists: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`
+  - Automated checks passed (`npm run check`, `npm run build:tauri`)
+  - Interactive installer + app workflow validation on Windows is not logged yet.
+- Acceptance criteria:
+  - Install and launch the 1.4.7 Windows build.
+  - Verify core workflows (new/open/save, preview toggle, prompt stream + cancel, settings persistence).
+  - Append pass/fail evidence to `docs/dev-logs/2026/2026-03-05.md`.
+
+## Recently Resolved (kept for context)
+
+- File-size load guardrails implemented (`MAX_LOAD_FILE_SIZE_BYTES = 10MB` + user-facing error).
+- Version fallback now uses shared app metadata defaults + Tauri metadata hook.
+- Tauri desktop defaults updated to `1100x700`, centered, with min size constraints.
+- View menu label corrected to `View Colored Output`.
+- App-level error boundary is in place (`AppErrorBoundary`).
+- Ollama stream chunk parser now enforces buffer guardrails.
+- Ollama endpoint is settings-driven and validated (`ollamaBaseUrl`).
+- Production warning paths now route through diagnostics logging (`log_frontend_warning`).
+- Backup and package/workspace ownership policy is documented in `docs/reference/repo-backup-and-workspace-policy.md`.
+
+Detailed execution evidence lives in `docs/dev-logs/2026/2026-03-05.md`.

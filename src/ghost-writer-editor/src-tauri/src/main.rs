@@ -48,6 +48,9 @@ const LOG_FILE_ROTATED_PREFIX: &str = "ghost-writer.log.";
 const LOG_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
 const LOG_MAX_FILES: usize = 5;
 const DIAGNOSTICS_LOG_LINES_LIMIT: usize = 1000;
+const MAX_LOG_EVENT_BYTES: usize = 128;
+const MAX_LOG_MESSAGE_BYTES: usize = 512;
+const MAX_LOG_DETAIL_BYTES: usize = 2048;
 
 pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
 pub struct MdPromptsMenuState(pub Arc<AtomicBool>);
@@ -1334,6 +1337,43 @@ fn export_diagnostics_bundle(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn log_frontend_warning(
+    app: tauri::AppHandle,
+    event: String,
+    message: String,
+    detail: Option<String>,
+) -> Result<(), String> {
+    let event = event.trim();
+    if event.is_empty() {
+        return Err("ERR_MISSING_FIELD:event is required".to_string());
+    }
+    ensure_max_bytes("event", event, MAX_LOG_EVENT_BYTES)?;
+
+    let message = message.trim();
+    if message.is_empty() {
+        return Err("ERR_MISSING_FIELD:message is required".to_string());
+    }
+    ensure_max_bytes("message", message, MAX_LOG_MESSAGE_BYTES)?;
+
+    let detail = detail
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
+    ensure_max_bytes("detail", &detail, MAX_LOG_DETAIL_BYTES)?;
+
+    append_structured_log(
+        &app,
+        "warn",
+        event,
+        message,
+        serde_json::json!({
+            "source": "frontend",
+            "detail": detail
+        }),
+    );
+    Ok(())
+}
+
+#[tauri::command]
 fn save_settings(
     app: tauri::AppHandle,
     mut settings: AppSettings,
@@ -1831,6 +1871,7 @@ fn main() {
             load_settings,
             save_settings,
             export_diagnostics_bundle,
+            log_frontend_warning,
             ensure_ollama_running_command,
             ollama_generate_stream,
             ollama_cancel_stream

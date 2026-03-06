@@ -1,4 +1,4 @@
-Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
+Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.7`):
 
 1. **Core Editor Experience**
 - Distraction-focused single-document editing pane with tabbed multi-document workflow.
@@ -55,7 +55,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Closing an unchanged saved tab skips unnecessary save confirmation prompts.
 - Browser fallback download flow when not in desktop runtime.
 - Markdown-only guardrails for open/overwrite paths.
-- No active file-size load cap in current runtime configuration.
+- File load size guardrail enforced at 10MB with explicit user-facing error message.
 - Copy behavior prioritizes:
   - OS text selection,
   - editor selection,
@@ -127,7 +127,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`0.1.3`):
 - Native save/open/rename dialogs and export dialogs.
 - Auto-attempt to ensure Ollama server is running on desktop app startup.
 - Desktop metadata surfaced in About modal (app name/version).
-- Default desktop window sizing: `400x500` min and initial.
+- Default desktop window sizing: initial `1100x700`, centered, with minimum `430x560`.
 - Packaging targets configured: NSIS (Windows), DMG (macOS).
 
 11. **Settings and Persistence**

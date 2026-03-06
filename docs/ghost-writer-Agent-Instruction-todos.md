@@ -3,12 +3,12 @@
 ## Read Before Starting
 
 1. **DO NOT DELETE ANY DOC FILES**. All documentation must be preserved in git.
-2. Track progress by marking checkboxes in `ghost-writer-to-dos-3md.md`
+2. Track progress by marking checkboxes in `ghost-writer-to-dos-3.md`
 3. Reference `ghost-writer-issues.md` as the single source of truth for what needs fixing
 ## Your Workflow
 ### Step 1: Understand the Scope
 - Read `ghost-writer-issues.md` to see what issues exist
-- Review `ghost-writer-to-dos-3md.md` for detailed subtasks and phases
+- Review `ghost-writer-to-dos-3.md` for detailed subtasks and phases
 - Check `docs-index.md` if you need the documentation map
 ### Step 2: Plan Your Changes
 For each issue:
@@ -21,7 +21,7 @@ For each issue:
 - If you need to make multiple related changes, group them logically
 ### Step 4: Update Checkboxes
 After completing a task:
-1. Find the corresponding task in `ghost-writer-to-dos-3md.md`
+1. Find the corresponding task in `ghost-writer-to-dos-3.md`
 2. Mark it with `[x]` (green check)
 3. DO NOT delete any files - preserve documentation
 ### Step 5: Validate
@@ -35,7 +35,7 @@ After completing a task:
 - **If uncertain, ask**. Don't make assumptions about undocumented behavior.
 ## Stop and Report
 After completing a phase or encountering blockers:
-1. Update checkboxes in `ghost-writer-to-dos-3md.md`
+1. Update checkboxes in `ghost-writer-to-dos-3.md`
 2. Summarize what was fixed
 3. Note any issues that need clarification
 ## Done
