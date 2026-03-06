@@ -356,6 +356,14 @@ function AppModals({
             <label className="modal__checkbox">
               <input
                 type="checkbox"
+                checked={Boolean(settings.defaultShowMdPrompts)}
+                onChange={(event) => updateSetting('defaultShowMdPrompts', event.target.checked)}
+              />
+              Show MD prompts in preview/export by default
+            </label>
+            <label className="modal__checkbox">
+              <input
+                type="checkbox"
                 checked={Boolean(settings.autoSaveEnabled)}
                 onChange={(event) => updateSetting('autoSaveEnabled', event.target.checked)}
               />
@@ -515,7 +523,7 @@ function AppModals({
               <div className="about-modal__title-block">
                 <h2 id="about-title" className="modal__title about-modal__app-name">{appName}</h2>
                 <div className="about-modal__meta">Version {appVersion}</div>
-                <div className="about-modal__meta">Vibe Coded by Jimmy Weber</div>
+                <div className="about-modal__meta">Vibe Coded by JimmyTheGhost (www.JimmyWeber.com)</div>
               </div>
             </div>
             <hr className="about-modal__divider" />

@@ -20,10 +20,13 @@ import {
   toggleCheckboxOnLine,
 } from './lib/contentTransforms'
 import {
+  closeCurrentWindow,
   ensureOllamaRunning,
+  exitApp,
   exportDiagnosticsBundle,
   isDesktopRuntime,
   isMacDesktopRuntime,
+  listenDesktopEvent,
   loadSettings,
   loadMarkdownFilesByPaths,
   markRendererInteractive,
@@ -132,11 +135,18 @@ function App() {
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
   const findInputRef = useRef(null)
-  const lastPersistedSessionRef = useRef({ paths: [], activePath: '' })
+  const lastPersistedSessionRef = useRef({ paths: [], activePath: '', sessionKey: '' })
+  const previewScrollTopRef = useRef(0)
+  const isPreviewScrollTickingRef = useRef(false)
+  const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
 
   const escapeFindQueryForRegex = useCallback((query) => {
     return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   }, [])
+
+  useEffect(() => {
+    scrollPositionsByTabRef.current = scrollPositionsByTab
+  }, [scrollPositionsByTab])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
@@ -162,6 +172,48 @@ function App() {
   const setTabContentById = useCallback((tabId, content) => {
     setTabs((currentTabs) => updateTabContent(currentTabs, tabId, content))
   }, [])
+
+  const getSessionSnapshotTabs = useCallback(
+    (tabsToSnapshot) =>
+      tabsToSnapshot.map((tab) => ({
+        id: String(tab.id || ''),
+        title: String(tab.title || 'Untitled'),
+        content: String(tab.content || ''),
+        filePath: String(tab.filePath || ''),
+        lastSavedContent: String(tab.lastSavedContent || ''),
+        isDirty: Boolean(tab.isDirty),
+      })),
+    [],
+  )
+
+  const promptToSaveDirtyTab = useCallback(async (tab) => {
+    const hasContent = String(tab?.content || '').trim().length > 0
+    const shouldPromptToSave = hasContent && tab?.isDirty
+    if (!shouldPromptToSave || !isDesktopRuntime()) {
+      return { didContinue: true }
+    }
+
+    const suggestedName = ensureMarkdownFileName(tab?.title || 'untitled')
+    const savedPath = await saveMarkdownWithNativeDialog(String(tab?.content || ''), suggestedName)
+    if (!savedPath) {
+      return { didContinue: false }
+    }
+
+    return { didContinue: true, savedPath }
+  }, [])
+
+  const confirmSafeToCloseTabs = useCallback(
+    async (tabsToClose = []) => {
+      for (const tab of tabsToClose) {
+        const result = await promptToSaveDirtyTab(tab)
+        if (!result.didContinue) {
+          return false
+        }
+      }
+      return true
+    },
+    [promptToSaveDirtyTab],
+  )
 
   const findMatchRanges = useCallback(
     (content, query) => {
@@ -484,7 +536,20 @@ function App() {
 
   // Toggle for showing/hiding MD prompts in preview/exports
   const handleToggleMdPrompts = useCallback(() => {
-    setIsMdPromptsVisible((prev) => !prev)
+    setIsMdPromptsVisible((prev) => {
+      const nextValue = !prev
+      setSettings((current) => {
+        const nextSettings = {
+          ...current,
+          defaultShowMdPrompts: nextValue,
+        }
+        if (isDesktopRuntime()) {
+          void saveSettings(nextSettings)
+        }
+        return nextSettings
+      })
+      return nextValue
+    })
   }, [])
 
   useEffect(() => {
@@ -518,6 +583,55 @@ function App() {
       lastPersistedSessionRef.current = {
         paths: Array.isArray(nextSettings.sessionSavedTabPaths) ? nextSettings.sessionSavedTabPaths : [],
         activePath: String(nextSettings.sessionActiveTabPath || ''),
+        sessionKey: JSON.stringify({
+          sessionTabs: Array.isArray(nextSettings.sessionTabs) ? nextSettings.sessionTabs : [],
+          sessionActiveTabId: String(nextSettings.sessionActiveTabId || ''),
+          sessionNextUntitledIndex: Number(nextSettings.sessionNextUntitledIndex || 2),
+        }),
+      }
+
+      const sessionTabs = Array.isArray(nextSettings.sessionTabs) ? nextSettings.sessionTabs : []
+      if (sessionTabs.length) {
+        const restoredTabs = sessionTabs.map((tab, index) => {
+          const fallbackTab = createNewTab(index + 1)
+          return {
+            ...fallbackTab,
+            id: String(tab?.id || fallbackTab.id),
+            title: String(tab?.title || fallbackTab.title),
+            content: String(tab?.content || ''),
+            filePath: String(tab?.filePath || ''),
+            lastSavedContent: String(tab?.lastSavedContent || ''),
+            isDirty: Boolean(tab?.isDirty),
+          }
+        })
+
+        setTabs(restoredTabs)
+        setSelectionRangesByTab(
+          restoredTabs.reduce((acc, tab) => {
+            acc[tab.id] = { start: 0, end: 0 }
+            return acc
+          }, {}),
+        )
+        setScrollPositionsByTab(
+          restoredTabs.reduce((acc, tab) => {
+            acc[tab.id] = { editorTop: 0, previewTop: 0 }
+            return acc
+          }, {}),
+        )
+
+        const restoredActiveTab =
+          restoredTabs.find((tab) => tab.id === String(nextSettings.sessionActiveTabId || '')) ?? restoredTabs[0]
+        setActiveTabId(restoredActiveTab.id)
+        setNextUntitledIndex(
+          Math.max(
+            2,
+            Number.isFinite(Number(nextSettings.sessionNextUntitledIndex))
+              ? Number(nextSettings.sessionNextUntitledIndex)
+              : 2,
+          ),
+        )
+        setHasLoadedDesktopSettings(true)
+        return
       }
 
       const sessionSavedTabPaths = Array.isArray(nextSettings.sessionSavedTabPaths)
@@ -578,6 +692,12 @@ function App() {
       .map((tab) => tab.filePath?.trim() ?? '')
       .filter(Boolean)
     const activeTabPath = (tabs.find((tab) => tab.id === activeTabId)?.filePath ?? '').trim()
+    const sessionTabs = getSessionSnapshotTabs(tabs)
+    const sessionKey = JSON.stringify({
+      sessionTabs,
+      sessionActiveTabId: activeTabId ?? '',
+      sessionNextUntitledIndex: nextUntitledIndex,
+    })
 
     const persistedPaths = Array.isArray(lastPersistedSessionRef.current.paths)
       ? lastPersistedSessionRef.current.paths
@@ -586,20 +706,25 @@ function App() {
       persistedPaths.length === sessionSavedTabPaths.length &&
       persistedPaths.every((path, index) => path === sessionSavedTabPaths[index])
     const sameActivePath = (lastPersistedSessionRef.current.activePath || '').trim() === activeTabPath
+    const sameSessionKey = (lastPersistedSessionRef.current.sessionKey || '') === sessionKey
 
-    if (samePaths && sameActivePath) return
+    if (samePaths && sameActivePath && sameSessionKey) return
 
     lastPersistedSessionRef.current = {
       paths: sessionSavedTabPaths,
       activePath: activeTabPath,
+      sessionKey,
     }
 
     void saveSettings({
       ...settings,
+      sessionTabs,
+      sessionActiveTabId: activeTabId ?? '',
+      sessionNextUntitledIndex: nextUntitledIndex,
       sessionSavedTabPaths,
       sessionActiveTabPath: activeTabPath,
     })
-  }, [activeTabId, hasLoadedDesktopSettings, settings, tabs])
+  }, [activeTabId, getSessionSnapshotTabs, hasLoadedDesktopSettings, nextUntitledIndex, settings, tabs])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined
@@ -742,12 +867,9 @@ function App() {
       const tabToClose = tabs.find((tab) => tab.id === tabId)
       if (!tabToClose) return
 
-      const hasContent = tabToClose.content.trim().length > 0
-      const shouldPromptToSave = hasContent && tabToClose.isDirty
-      if (shouldPromptToSave && isDesktopRuntime()) {
-        const suggestedName = ensureMarkdownFileName(tabToClose.title || 'untitled')
-        // Save dialog is shown for non-empty tabs; cancel still closes per product request.
-        await saveMarkdownWithNativeDialog(tabToClose.content, suggestedName)
+      const canClose = await confirmSafeToCloseTabs([tabToClose])
+      if (!canClose) {
+        return
       }
 
       if (isLoadingPrompt && tabId === activeTabId) {
@@ -788,7 +910,7 @@ function App() {
         setActiveTabId(nextActiveTab.id)
       }
     },
-    [abortGeneration, activeTabId, isLoadingPrompt, nextUntitledIndex, tabs],
+    [abortGeneration, activeTabId, confirmSafeToCloseTabs, isLoadingPrompt, nextUntitledIndex, tabs],
   )
 
   const handleCloseAllTabs = useCallback(async () => {
@@ -798,15 +920,9 @@ function App() {
       abortGeneration()
     }
 
-    if (isDesktopRuntime()) {
-      for (const tab of tabs) {
-        const hasContent = (tab.content ?? '').trim().length > 0
-        const shouldPromptToSave = hasContent && tab.isDirty
-        if (!shouldPromptToSave) continue
-        const suggestedName = ensureMarkdownFileName(tab.title || 'untitled')
-        // Save dialog is shown for non-empty tabs; cancel still closes per product request.
-        await saveMarkdownWithNativeDialog(tab.content, suggestedName)
-      }
+    const canCloseAll = await confirmSafeToCloseTabs(tabs)
+    if (!canCloseAll) {
+      return
     }
 
     const replacementTab = createNewTab(nextUntitledIndex)
@@ -821,7 +937,7 @@ function App() {
     setActiveTabId(replacementTab.id)
     setIsPreviewOpen(false)
     resetGenerationState({ tabId: replacementTab.id })
-  }, [abortGeneration, isLoadingPrompt, nextUntitledIndex, resetGenerationState, tabs])
+  }, [abortGeneration, confirmSafeToCloseTabs, isLoadingPrompt, nextUntitledIndex, resetGenerationState, tabs])
 
   const handleSaveClick = useCallback(async () => {
     if (!activeTabId) return
@@ -1212,7 +1328,7 @@ function App() {
       const nextTop = Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0
       setScrollPositionsByTab((currentPositions) => {
         const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-        if (Math.abs(previous.editorTop - nextTop) < 1 && Math.abs(previous.previewTop - nextTop) < 1) {
+        if (Math.abs(previous.editorTop - nextTop) < 1) {
           return currentPositions
         }
         return {
@@ -1220,7 +1336,6 @@ function App() {
           [activeTabId]: {
             ...previous,
             editorTop: nextTop,
-            previewTop: nextTop,
           },
         }
       })
@@ -1348,6 +1463,30 @@ function App() {
   const handleToggleColoredStreamingOutput = useCallback(() => {
     setIsColoredStreamingOutputEnabled((previous) => !previous)
   }, [])
+
+  const handleRequestAppQuit = useCallback(async () => {
+    const canQuit = await confirmSafeToCloseTabs(tabs)
+    if (!canQuit) {
+      return false
+    }
+    if (isLoadingPrompt) {
+      abortGeneration()
+    }
+
+    return exitApp()
+  }, [abortGeneration, confirmSafeToCloseTabs, isLoadingPrompt, tabs])
+
+  const handleRequestWindowClose = useCallback(async () => {
+    const canClose = await confirmSafeToCloseTabs(tabs)
+    if (!canClose) {
+      return false
+    }
+    if (isLoadingPrompt) {
+      abortGeneration()
+    }
+
+    return closeCurrentWindow()
+  }, [abortGeneration, confirmSafeToCloseTabs, isLoadingPrompt, tabs])
 
   const handleShowFindReplace = useCallback(() => {
     if (!activeTabId) return
@@ -1497,8 +1636,8 @@ ${body}
   const handleExportWord = useCallback(async () => {
     await exportWithNativeDialog({
       content: exportHtmlDocument,
-      extension: 'doc',
-      filterName: 'Word',
+      extension: 'html',
+      filterName: 'Word-Compatible HTML',
     })
   }, [exportHtmlDocument, exportWithNativeDialog])
 
@@ -1691,13 +1830,14 @@ ${escapeLatex(exportMarkdownSource)}
     const previewElement = previewContentRef.current
     if (!previewElement || !activeTabId) return
 
-    const positions = scrollPositionsByTab[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+    const positions = scrollPositionsByTabRef.current[activeTabId] ?? { editorTop: 0, previewTop: 0 }
     const nextScrollTop =
       Number.isFinite(positions.previewTop) && positions.previewTop > 0
         ? positions.previewTop
         : positions.editorTop
     previewElement.scrollTop = Math.max(0, Number(nextScrollTop) || 0)
-  }, [activeTabId, isPreviewOpen, scrollPositionsByTab])
+    previewScrollTopRef.current = previewElement.scrollTop
+  }, [activeTabId, isPreviewOpen])
 
   useEffect(() => {
     if (!isPreviewOpen || !activeTabId) return undefined
@@ -1705,21 +1845,27 @@ ${escapeLatex(exportMarkdownSource)}
     if (!previewElement) return undefined
 
     const handlePreviewScroll = () => {
-      const nextTop = Math.max(0, Number(previewElement.scrollTop) || 0)
-      setScrollPositionsByTab((currentPositions) => {
-        const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-        if (Math.abs(previous.previewTop - nextTop) < 1 && Math.abs(previous.editorTop - nextTop) < 1) {
-          return currentPositions
-        }
+      previewScrollTopRef.current = Math.max(0, Number(previewElement.scrollTop) || 0)
+      if (isPreviewScrollTickingRef.current) return
 
-        return {
-          ...currentPositions,
-          [activeTabId]: {
-            ...previous,
-            previewTop: nextTop,
-            editorTop: nextTop,
-          },
-        }
+      isPreviewScrollTickingRef.current = true
+      requestAnimationFrame(() => {
+        isPreviewScrollTickingRef.current = false
+        const nextTop = previewScrollTopRef.current
+        setScrollPositionsByTab((currentPositions) => {
+          const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+          if (Math.abs(previous.previewTop - nextTop) < 1) {
+            return currentPositions
+          }
+
+          return {
+            ...currentPositions,
+            [activeTabId]: {
+              ...previous,
+              previewTop: nextTop,
+            },
+          }
+        })
       })
     }
 
@@ -1743,6 +1889,33 @@ ${escapeLatex(exportMarkdownSource)}
       window.removeEventListener('keydown', handleEscapeKey)
     }
   }, [isPreviewOpen])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return undefined
+
+    let disposed = false
+    let unlistenQuit = () => {}
+    let unlistenClose = () => {}
+
+    const registerListeners = async () => {
+      unlistenQuit = await listenDesktopEvent('ghost-writer://menu-request-quit', async () => {
+        if (disposed) return
+        await handleRequestAppQuit()
+      })
+      unlistenClose = await listenDesktopEvent('ghost-writer://window-close-requested', async () => {
+        if (disposed) return
+        await handleRequestWindowClose()
+      })
+    }
+
+    void registerListeners()
+
+    return () => {
+      disposed = true
+      unlistenQuit()
+      unlistenClose()
+    }
+  }, [handleRequestAppQuit, handleRequestWindowClose])
 
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>

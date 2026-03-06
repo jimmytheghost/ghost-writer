@@ -56,6 +56,18 @@ pub struct ColoredOutputMenuState(pub Arc<AtomicBool>);
 pub struct MdPromptsMenuState(pub Arc<AtomicBool>);
 pub struct TabBarMenuState(pub Arc<AtomicBool>);
 pub struct PromptPanelMenuState(pub Arc<AtomicBool>);
+pub struct AllowWindowCloseState(pub Arc<AtomicBool>);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct SessionTabSnapshot {
+    id: String,
+    title: String,
+    content: String,
+    file_path: String,
+    last_saved_content: String,
+    is_dirty: bool,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +81,8 @@ struct AppSettings {
     default_startup_preview: bool,
     #[serde(default)]
     default_spell_check: bool,
+    #[serde(default = "default_show_md_prompts")]
+    default_show_md_prompts: bool,
     #[serde(default)]
     auto_save_enabled: bool,
     #[serde(default = "default_auto_save_interval_seconds")]
@@ -79,6 +93,12 @@ struct AppSettings {
     custom_word_list: Vec<String>,
     #[serde(default)]
     custom_word_list_disabled: Vec<String>,
+    #[serde(default)]
+    session_tabs: Vec<SessionTabSnapshot>,
+    #[serde(default)]
+    session_active_tab_id: String,
+    #[serde(default = "default_session_next_untitled_index")]
+    session_next_untitled_index: u32,
     #[serde(default)]
     session_saved_tab_paths: Vec<String>,
     #[serde(default)]
@@ -105,6 +125,14 @@ fn default_text_zoom() -> String {
     "100%".to_string()
 }
 
+fn default_show_md_prompts() -> bool {
+    true
+}
+
+fn default_session_next_untitled_index() -> u32 {
+    2
+}
+
 fn default_auto_save_interval_seconds() -> u32 {
     60
 }
@@ -123,11 +151,15 @@ impl Default for AppSettings {
             default_footer_collapsed: true,
             default_startup_preview: false,
             default_spell_check: false,
+            default_show_md_prompts: default_show_md_prompts(),
             auto_save_enabled: false,
             auto_save_interval_seconds: default_auto_save_interval_seconds(),
             ollama_base_url: default_ollama_base_url(),
             custom_word_list: default_custom_word_list(),
             custom_word_list_disabled: Vec::new(),
+            session_tabs: Vec::new(),
+            session_active_tab_id: String::new(),
+            session_next_untitled_index: default_session_next_untitled_index(),
             session_saved_tab_paths: Vec::new(),
             session_active_tab_path: String::new(),
             recent_files: Vec::new(),
@@ -233,7 +265,13 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let export_html = MenuItem::with_id(app, "file_export_html", "HTML...", true, None::<&str>)?;
     let export_pdf = MenuItem::with_id(app, "file_export_pdf", "PDF...", true, None::<&str>)?;
     let export_rtf = MenuItem::with_id(app, "file_export_rtf", "RTF...", true, None::<&str>)?;
-    let export_word = MenuItem::with_id(app, "file_export_word", "Word...", true, None::<&str>)?;
+    let export_word = MenuItem::with_id(
+        app,
+        "file_export_word",
+        "Word-Compatible HTML...",
+        true,
+        None::<&str>,
+    )?;
     let export_latex = MenuItem::with_id(app, "file_export_latex", "LaTeX...", true, None::<&str>)?;
     let export_diagnostics =
         MenuItem::with_id(app, "file_export_diagnostics", "Diagnostics...", true, None::<&str>)?;
@@ -392,6 +430,23 @@ fn set_always_on_top(window: tauri::WebviewWindow, enabled: bool) -> Result<(), 
     window
         .set_always_on_top(enabled)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+fn close_main_window(
+    app: tauri::AppHandle,
+    allow_close: tauri::State<'_, AllowWindowCloseState>,
+) -> Result<(), String> {
+    allow_close.0.store(true, Ordering::SeqCst);
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    window.close().map_err(|error| error.to_string())
 }
 
 fn allow_asset_scope_for_path(app: &tauri::AppHandle, path: &Path) {
@@ -1053,6 +1108,49 @@ fn validate_and_normalize_settings(mut settings: AppSettings) -> Result<AppSetti
     settings.custom_word_list_disabled =
         sanitize_word_list("customWordListDisabled", settings.custom_word_list_disabled)?;
 
+    if settings.session_tabs.len() > MAX_SESSION_SAVED_TAB_PATHS {
+        return Err(format!(
+            "ERR_INVALID_FIELD:sessionTabs exceeds {} items",
+            MAX_SESSION_SAVED_TAB_PATHS
+        ));
+    }
+    settings.session_tabs = settings
+        .session_tabs
+        .into_iter()
+        .map(|mut tab| {
+            tab.id = tab.id.trim().to_string();
+            ensure_max_bytes("sessionTabs[].id", &tab.id, MAX_PATH_BYTES)?;
+            tab.title = tab.title.trim().to_string();
+            ensure_max_bytes("sessionTabs[].title", &tab.title, MAX_SUGGESTED_NAME_BYTES)?;
+            ensure_max_bytes("sessionTabs[].content", &tab.content, MAX_TEXT_PAYLOAD_BYTES)?;
+            tab.file_path = tab.file_path.trim().to_string();
+            if !tab.file_path.is_empty() {
+                ensure_max_bytes("sessionTabs[].filePath", &tab.file_path, MAX_PATH_BYTES)?;
+                if !PathBuf::from(&tab.file_path).is_absolute() {
+                    return Err(
+                        "ERR_INVALID_FIELD:sessionTabs[].filePath must be an absolute path".to_string(),
+                    );
+                }
+            }
+            ensure_max_bytes(
+                "sessionTabs[].lastSavedContent",
+                &tab.last_saved_content,
+                MAX_TEXT_PAYLOAD_BYTES,
+            )?;
+            Ok(tab)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    settings.session_active_tab_id = settings.session_active_tab_id.trim().to_string();
+    ensure_max_bytes(
+        "sessionActiveTabId",
+        &settings.session_active_tab_id,
+        MAX_PATH_BYTES,
+    )?;
+    if settings.session_next_untitled_index < 2 {
+        settings.session_next_untitled_index = default_session_next_untitled_index();
+    }
+
     if settings.session_saved_tab_paths.len() > MAX_SESSION_SAVED_TAB_PATHS {
         return Err(format!(
             "ERR_INVALID_FIELD:sessionSavedTabPaths exceeds {} items",
@@ -1270,6 +1368,15 @@ fn refresh_app_menu(app: &tauri::AppHandle) {
     }
 }
 
+fn sync_md_prompts_menu_state(app: &tauri::AppHandle, is_visible: bool) -> bool {
+    let Some(state) = app.try_state::<MdPromptsMenuState>() else {
+        return false;
+    };
+
+    let previous = state.0.swap(is_visible, Ordering::SeqCst);
+    previous != is_visible
+}
+
 fn push_recent_file_path(app: &tauri::AppHandle, path: &PathBuf) {
     let value = path.to_string_lossy().trim().to_string();
     if value.is_empty() {
@@ -1335,6 +1442,9 @@ fn load_recent_file_by_index(
 #[tauri::command]
 fn load_settings(app: tauri::AppHandle) -> Result<SettingsResponse, String> {
     let (settings, has_file) = read_settings(&app)?;
+    if sync_md_prompts_menu_state(&app, settings.default_show_md_prompts) {
+        refresh_app_menu(&app);
+    }
     append_structured_log(
         &app,
         "info",
@@ -1418,6 +1528,9 @@ fn save_settings(
         .unwrap_or_default();
     settings.recent_files = current_recent_files;
     write_settings(&app, &settings)?;
+    if sync_md_prompts_menu_state(&app, settings.default_show_md_prompts) {
+        refresh_app_menu(&app);
+    }
     append_structured_log(
         &app,
         "info",
@@ -1882,9 +1995,10 @@ mod tests {
 fn main() {
     let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
     let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
-    let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(false)));
+    let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(default_show_md_prompts())));
     let tab_bar_menu_state = TabBarMenuState(Arc::new(AtomicBool::new(true)));
     let prompt_panel_menu_state = PromptPanelMenuState(Arc::new(AtomicBool::new(true)));
+    let allow_window_close_state = AllowWindowCloseState(Arc::new(AtomicBool::new(false)));
 
     tauri::Builder::default()
         .manage(ollama_cancel)
@@ -1892,8 +2006,11 @@ fn main() {
         .manage(md_prompts_menu_state)
         .manage(tab_bar_menu_state)
         .manage(prompt_panel_menu_state)
+        .manage(allow_window_close_state)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
+            exit_app,
+            close_main_window,
             save_markdown_file,
             save_markdown_to_path,
             save_text_file_with_dialog,
@@ -1911,6 +2028,8 @@ fn main() {
             ollama_cancel_stream
         ])
         .setup(|app| {
+            let (settings, _) = read_settings(&app.handle()).unwrap_or_default();
+            let _ = sync_md_prompts_menu_state(&app.handle(), settings.default_show_md_prompts);
             let menu = build_app_menu(&app.handle())?;
             app.set_menu(menu)?;
             append_structured_log(
@@ -1923,6 +2042,29 @@ fn main() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || ensure_ollama_running(&app_handle));
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                let Some(allow_close) = app.try_state::<AllowWindowCloseState>() else {
+                    return;
+                };
+
+                if allow_close.0.swap(false, Ordering::SeqCst) {
+                    return;
+                }
+
+                api.prevent_close();
+                if let Err(error) = window.emit("ghost-writer://window-close-requested", ()) {
+                    append_structured_log(
+                        &app,
+                        "error",
+                        "window.close_requested.emit.failed",
+                        "Failed to emit close-requested event to renderer",
+                        serde_json::json!({ "error": error.to_string() }),
+                    );
+                }
+            }
         })
         .on_menu_event(|app, event| {
             let Some(window) = app.get_webview_window("main") else {
@@ -1951,7 +2093,7 @@ fn main() {
                 "file_duplicate" => emit_menu_event("ghost-writer://menu-duplicate"),
                 "file_rename" => emit_menu_event("ghost-writer://menu-rename"),
                 "file_print" => emit_menu_event("ghost-writer://menu-print"),
-                "file_quit" => app.exit(0),
+                "file_quit" => emit_menu_event("ghost-writer://menu-request-quit"),
                 "file_export_copy_html" => emit_menu_event("ghost-writer://menu-export-copy-html"),
                 "file_export_copy_rich_text" => {
                     emit_menu_event("ghost-writer://menu-export-copy-rich-text")

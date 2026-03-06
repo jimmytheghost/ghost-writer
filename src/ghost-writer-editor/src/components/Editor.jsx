@@ -9,6 +9,10 @@ const LIST_ITEM_PATTERN = /^(\s*)([-*+]|\d+\.)(\s+)(\[(?: |x|X)\]\s)?(.*)$/
 const SELECTION_EVENT_NAMES = ['mouseup', 'keyup', 'select', 'focus', 'blur']
 const INLINE_TOKEN_PATTERN =
   /!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|<https?:\/\/[^>]+>|~~[^~]+~~|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_/g
+const EM_DASH = '\u2014'
+const EN_DASH = '\u2013'
+const LEGACY_EM_DASH = 'â€”'
+const LEGACY_EN_DASH = 'â€“'
 
 function isMacPlatform() {
   return /Mac/.test(navigator.platform)
@@ -228,6 +232,7 @@ function Editor({
   streamingColorEnabled = true,
 }) {
   const textareaRef = useRef(null)
+  const isComposingRef = useRef(false)
   const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
   const [contentHeight, setContentHeight] = useState(0)
   const [spellcheckReadyAt, setSpellcheckReadyAt] = useState(() => (isSpellcheckReady() ? 1 : 0))
@@ -429,6 +434,7 @@ function Editor({
     if (!externalSelectionRange) return
     const textarea = textareaRef.current
     if (!textarea) return
+    if (isComposingRef.current) return
 
     const isTextareaFocused = document.activeElement === textarea
     const shouldForceSelectionWhileFocused =
@@ -846,6 +852,46 @@ function Editor({
     const inputValue = target.value
     const previousValue = value ?? ''
 
+    if (inputValue.includes(EM_DASH) || inputValue.includes(EN_DASH)) {
+      let didRestoreUnicodeDash = false
+      const restoredUnicodeValue = Array.from(inputValue)
+        .map((char, index) => {
+          if (char !== EM_DASH && char !== EN_DASH) return char
+
+          let runStart = index
+          while (runStart > 0 && previousValue[runStart - 1] === '-') {
+            runStart -= 1
+          }
+          let runEnd = index
+          while (runEnd < previousValue.length && previousValue[runEnd] === '-') {
+            runEnd += 1
+          }
+          const runLength = runEnd - runStart
+          if (runLength < 2) return char
+          didRestoreUnicodeDash = true
+          return '-'.repeat(runLength)
+        })
+        .join('')
+
+      if (didRestoreUnicodeDash) {
+        const selectionStart = target.selectionStart ?? inputValue.length
+        const caretDelta = restoredUnicodeValue.length - inputValue.length
+        const nextPosition = Math.max(0, Math.min(selectionStart + caretDelta, restoredUnicodeValue.length))
+
+        onChange(restoredUnicodeValue)
+
+        requestAnimationFrame(() => {
+          target.focus()
+          target.setSelectionRange(nextPosition, nextPosition)
+          onSelectionChange?.({
+            selectionStart: nextPosition,
+            selectionEnd: nextPosition,
+          })
+        })
+        return
+      }
+    }
+
     if (!inputValue.includes('—') && !inputValue.includes('–')) {
       onChange(inputValue)
       return
@@ -981,11 +1027,22 @@ function Editor({
           value={value ?? ''}
           style={editorTextStyle}
           onChange={handleTextareaChange}
+          onCompositionStart={() => {
+            isComposingRef.current = true
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false
+          }}
           onBeforeInput={(event) => {
+            if (isComposingRef.current) return
             const nativeEvent = event.nativeEvent
             const inputType = nativeEvent?.inputType
             const inputData = nativeEvent?.data
             if (inputType === 'insertReplacementText') {
+              event.preventDefault()
+              return
+            }
+            if (inputData === EM_DASH || inputData === EN_DASH) {
               event.preventDefault()
               return
             }

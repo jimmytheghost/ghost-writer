@@ -20,6 +20,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   autoSaveEnabled: false,
   autoSaveIntervalSeconds: 60,
   ollamaBaseUrl: DEFAULT_OLLAMA_BASE_URL,
+  sessionTabs: [],
+  sessionActiveTabId: '',
+  sessionNextUntitledIndex: 2,
   sessionSavedTabPaths: [],
   sessionActiveTabPath: '',
 })

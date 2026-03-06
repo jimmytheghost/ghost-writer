@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { report } from './errorReporting'
 
 function hasWindow() {
@@ -199,6 +200,47 @@ export async function saveSettings(settings) {
   } catch (error) {
     warnDesktopRuntime('desktop.settings.save.failed', 'Failed to save settings.', error)
     return null
+  }
+}
+
+export async function exitApp() {
+  if (!isDesktopRuntime()) return false
+
+  try {
+    await invoke('exit_app')
+    return true
+  } catch (error) {
+    warnDesktopRuntime('desktop.app.exit.failed', 'Failed to exit application.', error)
+    return false
+  }
+}
+
+export async function closeCurrentWindow() {
+  if (!isDesktopRuntime()) return false
+
+  try {
+    await invoke('close_main_window')
+    return true
+  } catch (error) {
+    warnDesktopRuntime('desktop.window.close.failed', 'Failed to close application window.', error)
+    return false
+  }
+}
+
+export async function listenDesktopEvent(eventName, handler) {
+  if (!isDesktopRuntime()) {
+    return () => {}
+  }
+
+  try {
+    return await listen(eventName, handler)
+  } catch (error) {
+    warnDesktopRuntime(
+      'desktop.event.listen.failed',
+      `Failed to register desktop event listener for ${eventName}.`,
+      error,
+    )
+    return () => {}
   }
 }
 

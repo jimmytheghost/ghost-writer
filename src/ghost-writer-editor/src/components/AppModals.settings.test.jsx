@@ -29,6 +29,7 @@ describe('AppModals settings', () => {
           defaultFooterCollapsed: true,
           defaultStartupPreview: false,
           defaultSpellCheck: false,
+          defaultShowMdPrompts: true,
           autoSaveEnabled: false,
           autoSaveIntervalSeconds: 60,
           ollamaBaseUrl: 'http://127.0.0.1:11434',
@@ -52,6 +53,9 @@ describe('AppModals settings', () => {
 
     fireEvent.click(screen.getByLabelText('Auto save (saved files only)'))
     expect(updateSetting).toHaveBeenCalledWith('autoSaveEnabled', true)
+
+    fireEvent.click(screen.getByLabelText('Show MD prompts in preview/export by default'))
+    expect(updateSetting).toHaveBeenCalledWith('defaultShowMdPrompts', false)
 
     fireEvent.change(screen.getByLabelText('Auto save interval (seconds)'), { target: { value: '30' } })
     expect(updateSetting).toHaveBeenCalledWith('autoSaveIntervalSeconds', 30)
@@ -83,6 +87,7 @@ describe('AppModals settings', () => {
           defaultFooterCollapsed: true,
           defaultStartupPreview: false,
           defaultSpellCheck: false,
+          defaultShowMdPrompts: true,
           autoSaveEnabled: false,
           autoSaveIntervalSeconds: 60,
           ollamaBaseUrl: 'http://127.0.0.1:11434',

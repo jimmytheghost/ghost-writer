@@ -13,6 +13,9 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   loadMarkdownFilesByPaths: vi.fn(async () => []),
   markRendererInteractive: vi.fn(),
   openExternalUrl: vi.fn(async () => true),
+  exitApp: vi.fn(async () => true),
+  closeCurrentWindow: vi.fn(async () => true),
+  listenDesktopEvent: vi.fn(async () => () => {}),
 }))
 
 vi.mock('./hooks/useDesktopAppMetadata', () => ({
@@ -38,6 +41,9 @@ vi.mock('./lib/desktopRuntime', async () => ({
   loadMarkdownFilesByPaths: desktopRuntimeMocks.loadMarkdownFilesByPaths,
   markRendererInteractive: desktopRuntimeMocks.markRendererInteractive,
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
+  exitApp: desktopRuntimeMocks.exitApp,
+  closeCurrentWindow: desktopRuntimeMocks.closeCurrentWindow,
+  listenDesktopEvent: desktopRuntimeMocks.listenDesktopEvent,
 }))
 
 import App from './App'
@@ -232,6 +238,38 @@ describe('App desktop save flow', () => {
     })
   })
 
+  it('keeps a dirty tab open when the close save dialog is cancelled', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-cancel.md',
+      content: 'Original content',
+    })
+    desktopRuntimeMocks.saveMarkdownWithNativeDialog.mockResolvedValue(null)
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-cancel' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-cancel*'))
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(
+        'Original content\nChanged',
+        'chapter-cancel.md',
+      )
+    })
+
+    expect(screen.getByRole('tab', { name: 'Switch to chapter-cancel*' })).toBeInTheDocument()
+  })
+
   it('persists theme changes from footer toggle', async () => {
     render(<App />)
 
@@ -268,11 +306,15 @@ describe('App desktop save flow', () => {
         defaultFooterCollapsed: true,
         defaultStartupPreview: false,
         defaultSpellCheck: false,
+        defaultShowMdPrompts: true,
         autoSaveEnabled: true,
         autoSaveIntervalSeconds: 5,
         ollamaBaseUrl: 'http://127.0.0.1:11434',
         customWordList: [],
         customWordListDisabled: [],
+        sessionTabs: [],
+        sessionActiveTabId: '',
+        sessionNextUntitledIndex: 2,
         sessionSavedTabPaths: [],
         sessionActiveTabPath: '',
       },
