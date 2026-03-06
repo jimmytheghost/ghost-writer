@@ -139,6 +139,12 @@ Still required before production declaration:
 - One full tag-to-draft release dry run in GitHub Actions.
 - Release-owner confirmation of environment protections and secret availability.
 
+Execution aids added:
+
+- Hardware QA checklist: `docs/agent-workflows/macos-hardware-release-qa-checklist.md`
+- CI dry-run checklist: `docs/agent-workflows/release-dry-run-checklist.md`
+- Owner/secrets checklist: `docs/agent-workflows/release-owner-readiness-checklist.md`
+
 ## Pre-Release Checklist (from findings)
 
 Use this as a release gate checklist before shipping macOS as production-ready.
@@ -155,7 +161,7 @@ Use this as a release gate checklist before shipping macOS as production-ready.
 - [x] Add CI fail-fast checks for required Apple/Tauri signing secrets in release jobs.
 - [x] Add post-build verification steps (`codesign` validation, notarization status, stapling validation, Gatekeeper `spctl` assessment).
 - [x] Fail build/release job if any verification step fails.
-- [ ] Document failure handling and rerun procedure in release runbook.
+- [x] Document failure handling and rerun procedure in release runbook.
 
 ### Architecture coverage
 
@@ -163,6 +169,7 @@ Use this as a release gate checklist before shipping macOS as production-ready.
 - [x] Update release matrix to produce chosen macOS architecture set.
 - [x] Update checksum and artifact upload globs for all published macOS targets.
 - [ ] Verify install + launch behavior on both Apple Silicon and Intel machines.
+  - Hardware test checklist: `docs/agent-workflows/macos-hardware-release-qa-checklist.md`
 
 ### Test and quality signal
 

@@ -78,6 +78,36 @@ xcrun stapler validate <artifact.dmg>
 spctl -a -vv -t open <artifact.dmg>
 ```
 
+## Failure handling and rerun procedure
+
+Use this flow when any macOS release verification step fails in CI.
+
+1. Open the failed `build-release` job logs and identify the first failing check:
+   - secrets validation
+   - `codesign --verify`
+   - `xcrun stapler validate`
+   - `spctl -a -vv -t open`
+2. Classify the failure:
+   - Secret/config issue (missing or wrong value)
+   - Signing identity/certificate mismatch
+   - Notarization service/auth issue
+   - Artifact/signature integrity issue
+3. Apply the fix before rerun:
+   - Update GitHub Environment secrets for `production-release`
+   - Confirm certificate + identity pair are valid and unexpired
+   - Confirm Apple account credentials/app-specific password are current
+4. Re-run only after configuration is corrected:
+   - If the workflow run supports re-run, use `Re-run failed jobs`.
+   - If credentials were rotated or tag context is suspect, delete the draft release, delete/recreate the tag, and push a new patch tag.
+5. Re-validate successful rerun:
+   - Confirm both macOS architectures passed verification checks.
+   - Confirm artifacts and checksum files in the draft release match expected names.
+6. Record the incident:
+   - Add a short note in release notes or team log with root cause and fix.
+   - If failure was credential-related, rotate affected secrets and document owner action.
+
+Do not publish a release draft when any macOS verification check failed in the current run lineage.
+
 ## Rollback
 
 1. If draft release is wrong: delete the draft and rerun with a new tag.
@@ -92,3 +122,10 @@ spctl -a -vv -t open <artifact.dmg>
 - Secondary owner: backup maintainer with Actions + secrets access.
 
 A release is not complete until both owners can execute this runbook.
+
+## Supporting checklists
+
+- Release packet (recommended entry point): `docs/agent-workflows/macos-release-packet.md`
+- Hardware validation: `docs/agent-workflows/macos-hardware-release-qa-checklist.md`
+- CI dry run: `docs/agent-workflows/release-dry-run-checklist.md`
+- Owner/secrets readiness: `docs/agent-workflows/release-owner-readiness-checklist.md`
