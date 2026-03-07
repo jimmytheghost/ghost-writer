@@ -43,7 +43,6 @@ import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import { printRenderedMarkdown } from './lib/print'
 import { getMisspelledWordCounts, preloadSpellcheck, setCustomSpellcheckWords } from './lib/spellcheck'
 import {
-  closeTabById,
   createNewTab,
   replaceActiveTab,
   updateTabContent,
@@ -219,10 +218,13 @@ function App() {
     [],
   )
 
-  const promptToSaveDirtyTab = useCallback(async (tab) => {
+  const tabNeedsDirtyClosePrompt = useCallback((tab) => {
     const hasContent = String(tab?.content || '').trim().length > 0
-    const shouldPromptToSave = hasContent && tab?.isDirty
-    if (!shouldPromptToSave || !isDesktopRuntime()) {
+    return Boolean(hasContent && tab?.isDirty && isDesktopRuntime())
+  }, [])
+
+  const promptToSaveDirtyTab = useCallback(async (tab) => {
+    if (!tabNeedsDirtyClosePrompt(tab)) {
       return { didContinue: true }
     }
 
@@ -238,7 +240,7 @@ function App() {
     }
 
     return { didContinue: true, savedPath }
-  }, [requestDirtyCloseConfirm])
+  }, [requestDirtyCloseConfirm, tabNeedsDirtyClosePrompt])
 
   const confirmSafeToCloseTabs = useCallback(
     async (tabsToClose = []) => {
@@ -900,33 +902,32 @@ function App() {
     setActiveTabId(tabId)
   }, [])
 
-  const handleCloseTab = useCallback(
-    async (tabId) => {
-      const tabToClose = tabs.find((tab) => tab.id === tabId)
-      if (!tabToClose) return
+  const closeTabsInState = useCallback(
+    (tabsToClose = [], tabsSnapshot = tabs) => {
+      if (!tabsToClose.length) return
 
-      const canClose = await confirmSafeToCloseTabs([tabToClose])
-      if (!canClose) {
-        return
-      }
+      const tabIdsToClose = new Set(tabsToClose.map((tab) => tab.id).filter(Boolean))
+      if (!tabIdsToClose.size) return
 
-      if (isLoadingPrompt && tabId === activeTabId) {
-        abortGeneration()
-      }
+      const nextTabs = tabsSnapshot.filter((tab) => !tabIdsToClose.has(tab.id))
 
-      const { tabs: remainingTabs, closedIndex } = closeTabById(tabs, tabId)
       setSelectionRangesByTab((currentRanges) => {
         const nextRanges = { ...currentRanges }
-        delete nextRanges[tabId]
+        tabIdsToClose.forEach((tabId) => {
+          delete nextRanges[tabId]
+        })
         return nextRanges
       })
       setScrollPositionsByTab((currentPositions) => {
         const nextPositions = { ...currentPositions }
-        delete nextPositions[tabId]
+        tabIdsToClose.forEach((tabId) => {
+          delete nextPositions[tabId]
+        })
         return nextPositions
       })
 
-      if (remainingTabs.length === 0) {
+      const activeTabWasClosed = activeTabId ? tabIdsToClose.has(activeTabId) : false
+      if (!nextTabs.length) {
         const replacementTab = createNewTab(nextUntitledIndex)
         setNextUntitledIndex((current) => current + 1)
         setTabs([replacementTab])
@@ -941,18 +942,61 @@ function App() {
         return
       }
 
-      setTabs(remainingTabs)
-      if (tabId === activeTabId) {
-        const nextActiveTab =
-          remainingTabs[closedIndex] ?? remainingTabs[closedIndex - 1] ?? remainingTabs[0]
-        setActiveTabId(nextActiveTab.id)
-      }
+      setTabs(nextTabs)
+      if (!activeTabWasClosed) return
+
+      const closedIndexes = tabsToClose
+        .map((tab) => tabsSnapshot.findIndex((candidate) => candidate.id === tab.id))
+        .filter((index) => index >= 0)
+      const fallbackIndex =
+        closedIndexes.length > 0
+          ? Math.min(...closedIndexes)
+          : tabsSnapshot.findIndex((tab) => tab.id === activeTabId)
+      const nextActiveTab = nextTabs[fallbackIndex] ?? nextTabs[fallbackIndex - 1] ?? nextTabs[nextTabs.length - 1]
+      setActiveTabId(nextActiveTab.id)
     },
-    [abortGeneration, activeTabId, confirmSafeToCloseTabs, isLoadingPrompt, nextUntitledIndex, tabs],
+    [activeTabId, nextUntitledIndex, tabs],
+  )
+
+  const handleCloseTab = useCallback(
+    async (tabId) => {
+      const tabToClose = tabs.find((tab) => tab.id === tabId)
+      if (!tabToClose) return
+
+      if (!tabNeedsDirtyClosePrompt(tabToClose)) {
+        if (isLoadingPrompt && tabId === activeTabId) {
+          abortGeneration()
+        }
+        closeTabsInState([tabToClose], tabs)
+        return
+      }
+
+      const canClose = await confirmSafeToCloseTabs([tabToClose])
+      if (!canClose) {
+        return
+      }
+
+      if (isLoadingPrompt && tabId === activeTabId) {
+        abortGeneration()
+      }
+
+      closeTabsInState([tabToClose], tabs)
+    },
+    [abortGeneration, activeTabId, closeTabsInState, confirmSafeToCloseTabs, isLoadingPrompt, tabNeedsDirtyClosePrompt, tabs],
   )
 
   const handleCloseAllTabs = useCallback(async () => {
     if (!tabs.length) return
+
+    const tabsNeedingPrompt = tabs.filter((tab) => tabNeedsDirtyClosePrompt(tab))
+    if (!tabsNeedingPrompt.length) {
+      if (isLoadingPrompt) {
+        abortGeneration()
+      }
+      closeTabsInState(tabs, tabs)
+      resetGenerationState()
+      return
+    }
 
     if (isLoadingPrompt) {
       abortGeneration()
@@ -963,19 +1007,9 @@ function App() {
       return
     }
 
-    const replacementTab = createNewTab(nextUntitledIndex)
-    setNextUntitledIndex((current) => current + 1)
-    setTabs([replacementTab])
-    setSelectionRangesByTab({
-      [replacementTab.id]: { start: 0, end: 0 },
-    })
-    setScrollPositionsByTab({
-      [replacementTab.id]: { editorTop: 0, previewTop: 0 },
-    })
-    setActiveTabId(replacementTab.id)
-    setIsPreviewOpen(false)
-    resetGenerationState({ tabId: replacementTab.id })
-  }, [abortGeneration, confirmSafeToCloseTabs, isLoadingPrompt, nextUntitledIndex, resetGenerationState, tabs])
+    closeTabsInState(tabs, tabs)
+    resetGenerationState()
+  }, [abortGeneration, closeTabsInState, confirmSafeToCloseTabs, isLoadingPrompt, resetGenerationState, tabNeedsDirtyClosePrompt, tabs])
 
   const handleSaveClick = useCallback(async () => {
     if (!activeTabId) return
@@ -1473,17 +1507,44 @@ function App() {
     [setSelectedModel],
   )
 
+  const syncPreviewScrollBackToEditor = useCallback(() => {
+    if (!activeTabId) return
+    const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
+    setScrollPositionsByTab((currentPositions) => {
+      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+      const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
+        ? Math.max(0, livePreviewScrollTop)
+        : previous.previewTop
+
+      if (Math.abs(previous.editorTop - nextPreviewTop) < 1 && Math.abs(previous.previewTop - nextPreviewTop) < 1) {
+        return currentPositions
+      }
+      return {
+        ...currentPositions,
+        [activeTabId]: {
+          ...previous,
+          editorTop: nextPreviewTop,
+          previewTop: nextPreviewTop,
+        },
+      }
+    })
+  }, [activeTabId])
+
   const handleShowPreview = useCallback(() => {
     setIsPreviewOpen(true)
   }, [])
 
   const handleShowTextEdit = useCallback(() => {
+    syncPreviewScrollBackToEditor()
     setIsPreviewOpen(false)
-  }, [])
+  }, [syncPreviewScrollBackToEditor])
 
   const handleTogglePreview = useCallback(() => {
+    if (isPreviewOpen) {
+      syncPreviewScrollBackToEditor()
+    }
     setIsPreviewOpen((previous) => !previous)
-  }, [])
+  }, [isPreviewOpen, syncPreviewScrollBackToEditor])
 
   const handleToggleFooter = useCallback(() => {
     setIsFooterCollapsed((previous) => !previous)
@@ -1540,9 +1601,9 @@ function App() {
       setFindQuery(selectedText)
     }
     setFindStatusMessage('')
-    setIsPreviewOpen(false)
+    handleShowTextEdit()
     setIsFindReplaceOpen(true)
-  }, [activeContent, activeTabId, selectionRange.end, selectionRange.start])
+  }, [activeContent, activeTabId, handleShowTextEdit, selectionRange.end, selectionRange.start])
 
   const handleCloseFindReplace = useCallback(() => {
     setIsFindReplaceOpen(false)
@@ -1919,14 +1980,14 @@ ${escapeLatex(exportMarkdownSource)}
     const handleEscapeKey = (event) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
-      setIsPreviewOpen(false)
+      handleShowTextEdit()
     }
 
     window.addEventListener('keydown', handleEscapeKey)
     return () => {
       window.removeEventListener('keydown', handleEscapeKey)
     }
-  }, [isPreviewOpen])
+  }, [handleShowTextEdit, isPreviewOpen])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined

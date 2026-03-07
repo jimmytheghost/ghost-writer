@@ -6,7 +6,14 @@ This list tracks remaining work first. When no work is open, it keeps a short re
 
 ## Remaining Work
 
-No open items in this batch. The `2026-03-06` release-blocking fixes were completed and shipped in `1.4.16`.
+### Developer Tasks
+
+[ ] Manual Smoke Test
+
+### Agent Notes
+
+[ ] Version up to 1.5.0
+[ ] Create branding and custom installer graphics
 
 ## Current Release Status
 
