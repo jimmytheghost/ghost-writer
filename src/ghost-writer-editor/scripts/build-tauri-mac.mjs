@@ -104,7 +104,10 @@ if (target) {
 
 console.log(`[build-tauri-mac] Building DMG with target: ${target ?? 'default toolchain target'}`)
 const preferredNode = resolvePreferredNodeBinDir()
-const env = { ...process.env, CI: 'false' }
+const env = { ...process.env }
+if (typeof env.CI === 'undefined') {
+  env.CI = 'false'
+}
 if (preferredNode) {
   env.PATH = `${preferredNode.dir}:${process.env.PATH ?? ''}`
   console.log(

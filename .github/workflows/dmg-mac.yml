@@ -10,6 +10,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/ghost-writer-editor/src-tauri
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
