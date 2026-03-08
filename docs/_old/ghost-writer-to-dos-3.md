@@ -14,6 +14,16 @@ This list tracks remaining work first. When no work is open, it keeps a short re
 
 [ ] Version up to 1.5.0
 [ ] Create branding and custom installer graphics
+[ ] When "Pin to Top" is toggled and user clicks Save or Open, that dialogue should be on top of the Ghost Writer window. This prevents dialogue windows from "hiding" behind the "pinned to top" window.
+[ ] Cursor issues remain on Windows. In longer documents, the cursor is not synced properly with the text. You get this kind of effect where the cursor appears "ahead" of the text by many spaces:
+    ```
+    [ ] Cursor issues remain    |
+    ```
+    - Also, when the cursor should be at the end of a line, sometimes it appears a few spaces before the end of the line like this.
+    ```
+    At the end of a | line.
+    ```
+    - This is a major issue because the user will move the cursor to edit something and when they type or delete, the real cursor is in a different location causing all kinds of issues.
 
 ## Current Release Status
 

@@ -18,6 +18,10 @@ function isMacPlatform() {
   return /Mac/.test(navigator.platform)
 }
 
+function isWindowsPlatform() {
+  return /Win/i.test(navigator.platform)
+}
+
 function isModShortcut(event) {
   return isMacPlatform() ? event.metaKey : event.ctrlKey
 }
@@ -243,6 +247,8 @@ function Editor({
   }, [text])
   const useLightweightOverlays =
     text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
+  const isWindows = isWindowsPlatform()
+  const useSyntaxTextOverlay = !useLightweightOverlays && !isWindowsPlatform()
   const shouldUseNativeSpellcheck = spellCheckEnabled && useLightweightOverlays
   const effectiveScrollTop = Number.isFinite(Number(externalScrollTop))
     ? Math.max(0, Number(externalScrollTop))
@@ -302,7 +308,7 @@ function Editor({
   }, [misspelledRanges, spellCheckEnabled, text])
 
   const inlinePromptOverlay = useMemo(() => {
-    if (useLightweightOverlays) return null
+    if (useLightweightOverlays || isWindows) return null
     const ranges = extractInlinePromptOverlayRanges(text)
     if (!ranges.length) return null
 
@@ -339,7 +345,7 @@ function Editor({
     }
 
     return nodes
-  }, [text, useLightweightOverlays])
+  }, [isWindows, text, useLightweightOverlays])
 
   const selectionOverlay = useMemo(() => {
     if (!showSelectionOverlay || useLightweightOverlays) return null
@@ -381,7 +387,7 @@ function Editor({
   ])
 
   const syntaxOverlay = useMemo(() => {
-    if (useLightweightOverlays) return null
+    if (!useSyntaxTextOverlay) return null
     const lines = text.split('\n')
     const nodes = []
 
@@ -401,7 +407,7 @@ function Editor({
     })
 
     return nodes
-  }, [text, useLightweightOverlays])
+  }, [text, useSyntaxTextOverlay])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -949,7 +955,7 @@ function Editor({
   return (
     <section className="editor">
       <div className="editor__field">
-        {!useLightweightOverlays && (
+        {syntaxOverlay && (
           <div
             className="editor__syntax-overlay"
             style={{
@@ -1024,7 +1030,7 @@ function Editor({
         )}
         <textarea
           ref={textareaRef}
-          className="editor__textarea editor__textarea--syntax"
+          className={`editor__textarea${useSyntaxTextOverlay ? ' editor__textarea--syntax' : ''}`}
           value={value ?? ''}
           style={editorTextStyle}
           onChange={handleTextareaChange}

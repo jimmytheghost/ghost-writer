@@ -1,10 +1,12 @@
-Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.15`):
+Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.16`):
 
 1. **Core Editor Experience**
 - Distraction-focused single-document editing pane with tabbed multi-document workflow.
 - True distraction-free layout controls: hide/show prompt input panel, footer, and tab bar.
 - Native-feel textarea editor with custom syntax overlays for headings, lists, checkboxes, links, emphasis, strikethrough, quotes, inline markdown tokens, and fenced code markers (``` + language tag).
-- Prompt-focused selection highlight overlay while AI prompt input is focused.
+- Platform-specific selection context behavior:
+  - macOS keeps the persistent in-editor selection highlight while the AI prompt input is focused.
+  - Windows is moving to a prompt-adjacent selected-text context model so caret/input behavior can stay native and stable.
 - Automatic fallback to lightweight editor mode for large documents (disables heavy overlays for performance).
 
 2. **AI Writing With Local Models (Ollama)**
@@ -13,6 +15,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.15`):
 - Selection-aware generation:
   - Rewrites selected text.
   - Inserts at cursor when no selection is active.
+- Windows selection-aware prompting is documented to preserve the selected range in app state and surface the targeted text near the prompt instead of relying on a blurred in-editor text overlay.
 - Inline placeholder generation using `{{...}}` tokens, processed sequentially across a document.
 - Live inline placeholder highlighting: typing `{{` immediately turns placeholder text blue, and blue state continues until `}}` is typed.
 - Global prompt + inline prompt composition for richer instructions.
@@ -127,7 +130,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.15`):
 - Native save/open/rename dialogs and export dialogs.
 - Auto-attempt to ensure Ollama server is running on desktop app startup.
 - Desktop metadata surfaced in About modal (app name/version).
-- Default desktop window sizing: initial `1100x700`, centered, with minimum `430x560`.
+- Default desktop window sizing: initial `600x900`, centered, with minimum `430x560`.
 - Packaging targets configured: NSIS (Windows), DMG (macOS).
 
 11. **Settings and Persistence**

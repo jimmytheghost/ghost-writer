@@ -61,6 +61,8 @@ Use this checklist after producing a Windows installer build for Ghost Writer. T
 - [ ] Confirm `Ctrl+Shift+W` closes all tabs and leaves one fresh tab.
 - [ ] Confirm duplicate tab works and preserves content.
 - [ ] Confirm rename works for untitled tabs and saved files.
+- [ ] Select text in the editor, click into the prompt input, and confirm the app still shows clear selected-text context near the prompt.
+- [ ] Confirm Windows does not rely on a blurred in-editor selection text overlay after focus leaves the editor.
 
 ## Save/Open/File Handling
 
@@ -156,8 +158,11 @@ Run this section only if the release includes prompt-generation functionality.
 
 ### With Ollama Available
 
+- [ ] Select text in the editor before opening the prompt input.
+- [ ] Confirm the selected-text context shown near the prompt matches the intended edit target.
 - [ ] Confirm the model list loads.
 - [ ] Submit a short prompt.
+- [ ] Confirm the generation rewrites the previously selected text, not the wrong range.
 - [ ] Confirm streaming output appears in the active tab.
 - [ ] Cancel a running generation.
 - [ ] Confirm undo/redo generation controls work if enabled.
@@ -197,6 +202,7 @@ Do not call the release production-ready until all of the following are true:
 - [ ] Prompt/Ollama flows pass for both available and unavailable cases if they are in scope.
 - [ ] No user-facing crashes, corrupted text, or obvious UI regressions were observed.
 - [ ] Any failures are either fixed or explicitly accepted and documented before release.
+- [ ] Windows selected-text prompt context is clear and stable during editor-to-prompt transitions.
 
 ## Suggested Result Template
 

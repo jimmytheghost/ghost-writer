@@ -6,8 +6,8 @@ Use the platform-specific checklists below when validating packaged Ghost Writer
 
 ## Platform Checklists
 
-- [Windows Manual Install Smoke Test](B:\AI-Local-Stack\ghost-writer\docs\manual-install-smoke-test-windows.md)
-- [macOS Manual Install Smoke Test](B:\AI-Local-Stack\ghost-writer\docs\manual-install-smoke-test-macos.md)
+- [Windows Manual Install Smoke Test](./manual-install-smoke-test-windows.md)
+- [macOS Manual Install Smoke Test](./manual-install-smoke-test-macos.md)
 
 ## Notes
 

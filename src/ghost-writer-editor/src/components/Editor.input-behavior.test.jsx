@@ -141,6 +141,34 @@ describe('Editor input behavior', () => {
     }
   })
 
+  it('disables syntax and inline prompt text overlays on Windows to avoid caret drift', () => {
+    const restorePlatform = mockNavigatorPlatform('Win32')
+    try {
+      render(
+        <Editor
+          value="test {{prompt}}"
+          onChange={vi.fn()}
+          onPromptOpen={vi.fn()}
+          onSelectionChange={vi.fn()}
+          selectionRange={{ start: 0, end: 4 }}
+          showSelectionOverlay={true}
+          spellCheckEnabled={false}
+          textZoomPercent={100}
+        />,
+      )
+
+      const textarea = screen.getByRole('textbox')
+
+      expect(textarea.className).not.toContain('editor__textarea--syntax')
+      expect(document.querySelector('.editor__syntax-overlay')).toBeNull()
+      expect(document.querySelector('.editor__inline-prompt-overlay')).toBeNull()
+      expect(document.querySelector('.editor__selection-overlay')).not.toBeNull()
+      expect(document.querySelector('.editor__streaming-overlay')).toBeNull()
+    } finally {
+      restorePlatform()
+    }
+  })
+
   it('wraps selection with single asterisks via Ctrl+Shift+8 shortcut', () => {
     render(<InteractiveEditor initialValue="example" />)
     const textarea = screen.getByRole('textbox')

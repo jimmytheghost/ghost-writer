@@ -71,6 +71,14 @@
     - Frictionless local LLM integration (selecting text and sending a prompt replaces text -- otherwise it prints where the cursor is)
     - Don't reinvent the wheel -- besides a few unique features (such as {{…}}) -- it should look, feel and function like a common markdown text editor like Byword.
 
+### Current Platform Note (2026-03-07)
+
+- macOS and Windows are now treated differently for prompt-selection visuals.
+- On macOS, the current persistent in-editor selection highlight remains acceptable.
+- On Windows, the same blurred overlay approach causes caret/text desync and duplicated text rendering during manual QA.
+- The product requirement is unchanged: the user must be able to select text, move to the prompt input, and clearly understand what text the LLM will edit.
+- The implementation direction on Windows is to preserve the selected range in app state and show the selected text beside the prompt, rather than repainting the full selected text in the editor after blur.
+
 9. Why single-pane editor instead of split-by-default?
     - I personally can't stand the split side-by-side editors. More importantly, Ghost Writer was designed to be 400px wide and 500px tall to be a small note taker or 400px wide and the height of your screen so you can easily have a “main screen" while drafting text.
 
@@ -111,6 +119,7 @@
 
 19. Why selection-aware rewriting instead of separate “chat panel”?
   - I wanted Ghost Writer to feel like you're sharing a Google Doc with an LLM, not like you're in a chat panel with an LLM. The goal is for the user to spend as little time thinking about how to communicate with the LLM as possible to concentrate their thinking on their writing. That is why the prompt input is a single line tall and the {{...}} function is designed to act like writing partner notes than a DM to a friend. 
+  - As of 2026-03-07, that goal still stands, but Windows will likely express the selected-text target in a prompt-adjacent context panel rather than a blurred in-editor highlight because that approach is more stable on the Windows textarea/rendering stack.
 
 20. Why no conversation history model like ChatGPT?
   - Because there is no chat history or chat. The less the user thinks about communicating with the LLM, the more they concentrate on what they are writing. The LLM's can write your entire document.  But Ghost Writer was designed for writer's who want a clean, distraction free markdown editor with the ability to instantly access an LLM for any reason.
