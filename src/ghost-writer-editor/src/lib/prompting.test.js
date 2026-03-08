@@ -10,7 +10,8 @@ describe('buildGenerationPrompt', () => {
     })
 
     expect(prompt).toContain('You are editing part of a markdown document.')
-    expect(prompt).toContain('Rewrite only the selected text to satisfy the request.')
+    expect(prompt).toContain('Return only the revised selected passage that satisfies the request.')
+    expect(prompt).toContain('The revised passage may be shorter, longer, or structurally different than the original selection.')
     expect(prompt).toContain('Selected text:\nbody')
     expect(prompt).toContain('Full document context:\n# Doc\nbody')
   })

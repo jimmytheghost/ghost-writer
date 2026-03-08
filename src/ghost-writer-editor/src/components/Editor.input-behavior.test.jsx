@@ -141,7 +141,7 @@ describe('Editor input behavior', () => {
     }
   })
 
-  it('disables syntax and inline prompt text overlays on Windows to avoid caret drift', () => {
+  it('disables syntax, inline prompt, selection text, and streaming text overlays on Windows to avoid caret drift', () => {
     const restorePlatform = mockNavigatorPlatform('Win32')
     try {
       render(
@@ -153,6 +153,7 @@ describe('Editor input behavior', () => {
           selectionRange={{ start: 0, end: 4 }}
           showSelectionOverlay={true}
           spellCheckEnabled={false}
+          streamingRange={{ start: 5, end: 12, isActive: true, isFading: false }}
           textZoomPercent={100}
         />,
       )
@@ -162,7 +163,7 @@ describe('Editor input behavior', () => {
       expect(textarea.className).not.toContain('editor__textarea--syntax')
       expect(document.querySelector('.editor__syntax-overlay')).toBeNull()
       expect(document.querySelector('.editor__inline-prompt-overlay')).toBeNull()
-      expect(document.querySelector('.editor__selection-overlay')).not.toBeNull()
+      expect(document.querySelector('.editor__selection-overlay')).toBeNull()
       expect(document.querySelector('.editor__streaming-overlay')).toBeNull()
     } finally {
       restorePlatform()

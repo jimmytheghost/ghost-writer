@@ -14,7 +14,8 @@ export function buildGenerationPrompt({ promptText, documentText, selectedText }
     return [
       'You are editing part of a markdown document.',
       ...SHARED_RULES,
-      'Rewrite only the selected text to satisfy the request.',
+      'Return only the revised selected passage that satisfies the request.',
+      'The revised passage may be shorter, longer, or structurally different than the original selection.',
       'Do not return the full document.',
       `User request:\n${request}`,
       `Selected text:\n${selectedText}`,

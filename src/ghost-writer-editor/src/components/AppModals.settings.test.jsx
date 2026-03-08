@@ -47,6 +47,7 @@ describe('AppModals settings', () => {
 
     expect(screen.queryByLabelText('Editor text zoom')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Auto save interval (seconds)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Default spell check in editor')).toBeInTheDocument()
     expect(screen.queryByLabelText('Auto save backup iterations')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Default theme'), { target: { value: 'light' } })
     expect(updateSetting).toHaveBeenCalledWith('defaultTheme', 'light')

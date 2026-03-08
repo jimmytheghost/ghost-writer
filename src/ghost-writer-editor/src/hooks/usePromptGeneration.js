@@ -24,8 +24,12 @@ export function usePromptGeneration({
   getActiveTab,
   getTabById,
   onStreamingRangeChange,
+  onSelectionTargetConsumed,
+  onSelectionTargetUndo,
+  onSelectionTargetRedo,
   selectedModel,
   selectionRange,
+  selectionTarget,
   setTabContentById,
   updateTabById,
   promptFormRef,
@@ -123,6 +127,7 @@ export function usePromptGeneration({
     }
 
     setTabContentById(activeTabId, tabHistory.undoSnapshot)
+    onSelectionTargetUndo?.(activeTabId)
     patchHistory(activeTabId, {
       ...tabHistory,
       redoSnapshot: tab.content,
@@ -131,7 +136,7 @@ export function usePromptGeneration({
       undoToggleState: 'redo',
     })
     setPromptError('', activeTabId)
-  }, [activeTabId, getTabById, historyByTab, patchHistory, setPromptError, setTabContentById])
+  }, [activeTabId, getTabById, historyByTab, onSelectionTargetUndo, patchHistory, setPromptError, setTabContentById])
 
   const handleRedoGeneration = useCallback(() => {
     if (!activeTabId) return
@@ -139,13 +144,14 @@ export function usePromptGeneration({
     if (!tabHistory.canRedoGeneration) return
 
     setTabContentById(activeTabId, tabHistory.redoSnapshot)
+    onSelectionTargetRedo?.(activeTabId)
     patchHistory(activeTabId, {
       ...tabHistory,
       canRedoGeneration: false,
       canUndoGeneration: true,
       undoToggleState: 'undo',
     })
-  }, [activeTabId, historyByTab, patchHistory, setTabContentById])
+  }, [activeTabId, historyByTab, onSelectionTargetRedo, patchHistory, setTabContentById])
 
   const handleUndoToggle = useCallback(() => {
     const tabHistory = historyForActiveTab
@@ -390,19 +396,33 @@ export function usePromptGeneration({
             currentContent = result.nextContent
           }
         } else {
-          const hasRangeSelection = (selectionRange.start ?? 0) !== (selectionRange.end ?? 0)
-          const selectedText = hasRangeSelection
-            ? tabContent.slice(selectionRange.start ?? 0, selectionRange.end ?? 0)
+          if (selectionTarget?.isInvalid) {
+            setPromptError('Selection changed. Reselect text and try again.', submittingTabId)
+            return
+          }
+
+          const hasSavedSelectionTarget = selectionTarget && !selectionTarget.isInvalid
+          const rangeStart = hasSavedSelectionTarget ? selectionTarget.start ?? 0 : selectionRange.start ?? 0
+          const rangeEnd = hasSavedSelectionTarget ? selectionTarget.end ?? rangeStart : selectionRange.end ?? 0
+          const hasRangeSelection = hasSavedSelectionTarget || rangeStart !== rangeEnd
+          const selectedText = hasSavedSelectionTarget
+            ? selectionTarget.text ?? ''
+            : hasRangeSelection
+              ? tabContent.slice(rangeStart, rangeEnd)
             : ''
-          const cursorPosition = Math.max(0, Math.min(selectionRange.start ?? 0, tabContent.length))
+          const cursorPosition = Math.max(0, Math.min(rangeStart, tabContent.length))
           const range = hasRangeSelection
-            ? { start: selectionRange.start ?? 0, end: selectionRange.end ?? 0 }
+            ? { start: rangeStart, end: rangeEnd }
             : { start: cursorPosition, end: cursorPosition }
           const refinedPrompt = buildGenerationPrompt({
             promptText: tab.promptText,
             documentText: tabContent,
             selectedText,
           })
+
+          if (hasSavedSelectionTarget) {
+            onSelectionTargetConsumed?.(submittingTabId, selectionTarget)
+          }
 
           await streamPromptIntoRange({
             tabId: submittingTabId,
@@ -455,10 +475,12 @@ export function usePromptGeneration({
     [
       getActiveTab,
       onStreamingRangeChange,
+      onSelectionTargetConsumed,
       patchHistory,
       selectedModel,
       selectionRange.end,
       selectionRange.start,
+      selectionTarget,
       setPromptError,
       streamPromptIntoRange,
     ],

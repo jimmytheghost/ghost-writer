@@ -350,7 +350,6 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     )?;
     let edit_spell_check =
         MenuItem::with_id(app, "edit_spell_check", "Spell Check", true, None::<&str>)?;
-
     let ghost_writer_menu = Submenu::with_items(app, "About", true, &[&about_show])?;
     let file_menu = Submenu::with_items(
         app,

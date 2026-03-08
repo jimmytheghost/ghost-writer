@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { extractInlinePromptOverlayRanges } from '../lib/contentTransforms'
-import { getMisspelledRanges, isSpellcheckReady, preloadSpellcheck } from '../lib/spellcheck'
 
 const INDENT_UNIT = '  '
 const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
@@ -229,8 +228,7 @@ function Editor({
   externalScrollTop,
   focusRequestId = 0,
   showSelectionOverlay,
-  spellCheckEnabled = false,
-  spellcheckRefreshKey = 0,
+  spellCheckEnabled = true,
   textZoomPercent = 100,
   streamingRange,
   streamingColorEnabled = true,
@@ -239,7 +237,6 @@ function Editor({
   const isComposingRef = useRef(false)
   const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
   const [contentHeight, setContentHeight] = useState(0)
-  const [spellcheckReadyAt, setSpellcheckReadyAt] = useState(() => (isSpellcheckReady() ? 1 : 0))
   const text = value ?? ''
   const lineCount = useMemo(() => {
     if (!text) return 1
@@ -249,63 +246,9 @@ function Editor({
     text.length > OVERLAY_HEAVY_TEXT_LIMIT || lineCount > OVERLAY_HEAVY_LINE_LIMIT
   const isWindows = isWindowsPlatform()
   const useSyntaxTextOverlay = !useLightweightOverlays && !isWindowsPlatform()
-  const shouldUseNativeSpellcheck = spellCheckEnabled && useLightweightOverlays
   const effectiveScrollTop = Number.isFinite(Number(externalScrollTop))
     ? Math.max(0, Number(externalScrollTop))
     : 0
-
-  useEffect(() => {
-    if (!spellCheckEnabled || isSpellcheckReady()) return
-    let isMounted = true
-    void preloadSpellcheck().then((loaded) => {
-      if (!loaded || !isMounted) return
-      setSpellcheckReadyAt(Date.now())
-    })
-    return () => {
-      isMounted = false
-    }
-  }, [spellCheckEnabled])
-
-  const misspelledRanges = useMemo(() => {
-    if (!spellCheckEnabled || !spellcheckReadyAt || useLightweightOverlays) return []
-    return getMisspelledRanges(text, spellcheckRefreshKey)
-  }, [spellCheckEnabled, spellcheckReadyAt, spellcheckRefreshKey, text, useLightweightOverlays])
-
-  const spellCheckOverlay = useMemo(() => {
-    if (!spellCheckEnabled) return null
-    if (!misspelledRanges.length) return null
-
-    const nodes = []
-    let cursor = 0
-
-    misspelledRanges.forEach((range, index) => {
-      const start = Math.max(0, Math.min(range.start, text.length))
-      const end = Math.max(start, Math.min(range.end, text.length))
-      if (start > cursor) {
-        nodes.push(
-          <span key={`spell-text-${index}-${cursor}`} className="editor__spell-overlay-text">
-            {text.slice(cursor, start)}
-          </span>,
-        )
-      }
-      nodes.push(
-        <span key={`spell-error-${index}-${start}`} className="editor__spell-overlay-error">
-          {text.slice(start, end)}
-        </span>,
-      )
-      cursor = end
-    })
-
-    if (cursor < text.length) {
-      nodes.push(
-        <span key={`spell-text-tail-${cursor}`} className="editor__spell-overlay-text">
-          {text.slice(cursor)}
-        </span>,
-      )
-    }
-
-    return nodes
-  }, [misspelledRanges, spellCheckEnabled, text])
 
   const inlinePromptOverlay = useMemo(() => {
     if (useLightweightOverlays || isWindows) return null
@@ -348,7 +291,7 @@ function Editor({
   }, [isWindows, text, useLightweightOverlays])
 
   const selectionOverlay = useMemo(() => {
-    if (!showSelectionOverlay || useLightweightOverlays) return null
+    if (!showSelectionOverlay || useLightweightOverlays || isWindows) return null
     const start = Math.min(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
     const end = Math.max(selectionRange?.start ?? 0, selectionRange?.end ?? 0)
     if (start === end) return null
@@ -360,9 +303,10 @@ function Editor({
       selection: selectionText.length ? selectionText : ' ',
       after: text.slice(safeEnd),
     }
-  }, [selectionRange?.end, selectionRange?.start, showSelectionOverlay, text, useLightweightOverlays])
+  }, [isWindows, selectionRange?.end, selectionRange?.start, showSelectionOverlay, text, useLightweightOverlays])
 
   const streamingOverlay = useMemo(() => {
+    if (isWindows) return null
     if (useLightweightOverlays) return null
     if (!streamingColorEnabled) return null
     if (!streamingRange?.isActive && !streamingRange?.isFading) return null
@@ -377,6 +321,7 @@ function Editor({
       after: text.slice(end),
     }
   }, [
+    isWindows,
     streamingColorEnabled,
     streamingRange?.end,
     streamingRange?.isFading,
@@ -968,19 +913,6 @@ function Editor({
             {syntaxOverlay}
           </div>
         )}
-        {spellCheckOverlay && (
-          <div
-            className="editor__spell-overlay"
-            style={{
-              transform: `translateY(${-effectiveScrollTop}px)`,
-              minHeight: contentHeight || '100%',
-              ...editorTextStyle,
-            }}
-            aria-hidden="true"
-          >
-            {spellCheckOverlay}
-          </div>
-        )}
         {inlinePromptOverlay && (
           <div
             className="editor__inline-prompt-overlay"
@@ -1075,7 +1007,7 @@ function Editor({
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
-          spellCheck={shouldUseNativeSpellcheck}
+          spellCheck={spellCheckEnabled}
           lang="en-US"
           data-gramm="false"
           data-lt-active="false"

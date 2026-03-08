@@ -70,8 +70,13 @@ const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
 
+function isWindowsPlatform() {
+  return /Win/i.test(navigator.platform)
+}
+
 function App() {
   const initialTab = useMemo(() => createNewTab(1), [])
+  const isWindows = useMemo(() => isWindowsPlatform(), [])
 
   const [theme, setTheme] = useState('dark')
   const [tabs, setTabs] = useState(() => [initialTab])
@@ -107,6 +112,8 @@ function App() {
   const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
+  const [windowsSelectionContext, setWindowsSelectionContext] = useState(null)
+  const [windowsSelectionContextHistoryByTab, setWindowsSelectionContextHistoryByTab] = useState({})
   const [hasLoadedDesktopSettings, setHasLoadedDesktopSettings] = useState(() => !isDesktopRuntime())
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false)
   const [findQuery, setFindQuery] = useState('')
@@ -286,6 +293,25 @@ function App() {
   )
   const activeSelectionStart = Math.min(selectionRange.start, selectionRange.end)
   const activeSelectionEnd = Math.max(selectionRange.start, selectionRange.end)
+  const activeWindowsSelectionContext = useMemo(() => {
+    if (!isWindows || !windowsSelectionContext || windowsSelectionContext.tabId !== activeTabId) {
+      return null
+    }
+
+    const safeStart = Math.max(0, Math.min(windowsSelectionContext.start ?? 0, activeContent.length))
+    const safeEnd = Math.max(safeStart, Math.min(windowsSelectionContext.end ?? safeStart, activeContent.length))
+    const currentSlice = activeContent.slice(safeStart, safeEnd)
+    const isInvalid =
+      windowsSelectionContext.contentSnapshot !== activeContent || windowsSelectionContext.text !== currentSlice
+
+    return {
+      ...windowsSelectionContext,
+      start: safeStart,
+      end: safeEnd,
+      isInvalid,
+      characterCount: windowsSelectionContext.text.length,
+    }
+  }, [activeContent, activeTabId, isWindows, windowsSelectionContext])
   const currentFindMatchIndex = useMemo(
     () =>
       findMatches.findIndex(
@@ -312,6 +338,59 @@ function App() {
     },
     [activeTabId],
   )
+
+  const clearWindowsSelectionContext = useCallback(() => {
+    setWindowsSelectionContext(null)
+  }, [])
+
+  const rememberWindowsSelectionContext = useCallback((tabId, context) => {
+    if (!tabId || !context) return
+    setWindowsSelectionContextHistoryByTab((current) => ({
+      ...current,
+      [tabId]: {
+        tabId,
+        start: context.start,
+        end: context.end,
+        text: context.text,
+        contentSnapshot: context.contentSnapshot,
+      },
+    }))
+    setWindowsSelectionContext(null)
+  }, [])
+
+  const restoreWindowsSelectionContext = useCallback(
+    (tabId) => {
+      if (!isWindows || !tabId) return
+      const rememberedContext = windowsSelectionContextHistoryByTab[tabId]
+      if (!rememberedContext) return
+      setWindowsSelectionContext(rememberedContext)
+    },
+    [isWindows, windowsSelectionContextHistoryByTab],
+  )
+
+  const hideWindowsSelectionContext = useCallback((tabId) => {
+    if (!isWindows || !tabId) return
+    setWindowsSelectionContext(null)
+  }, [isWindows])
+
+  const captureWindowsSelectionContext = useCallback(() => {
+    if (!isWindows || !activeTabId) return
+
+    const safeStart = Math.max(0, Math.min(activeSelectionStart, activeContent.length))
+    const safeEnd = Math.max(safeStart, Math.min(activeSelectionEnd, activeContent.length))
+    if (safeStart === safeEnd) {
+      setWindowsSelectionContext(null)
+      return
+    }
+
+    setWindowsSelectionContext({
+      tabId: activeTabId,
+      start: safeStart,
+      end: safeEnd,
+      text: activeContent.slice(safeStart, safeEnd),
+      contentSnapshot: activeContent,
+    })
+  }, [activeContent, activeSelectionEnd, activeSelectionStart, activeTabId, isWindows])
 
   const jumpToFindMatch = useCallback(
     (direction = 1) => {
@@ -507,12 +586,22 @@ function App() {
         }
       })
     },
+    onSelectionTargetConsumed: rememberWindowsSelectionContext,
+    onSelectionTargetUndo: restoreWindowsSelectionContext,
+    onSelectionTargetRedo: hideWindowsSelectionContext,
     selectedModel,
     selectionRange,
+    selectionTarget: activeWindowsSelectionContext,
     setTabContentById,
     updateTabById,
     promptFormRef,
   })
+
+  useEffect(() => {
+    if (!isWindows || !windowsSelectionContext) return
+    if (windowsSelectionContext.tabId === activeTabId) return
+    setWindowsSelectionContext(null)
+  }, [activeTabId, isWindows, windowsSelectionContext])
 
   const checkboxLineIndexes = useMemo(
     () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
@@ -821,6 +910,12 @@ function App() {
       ...currentPositions,
       [nextTab.id]: { editorTop: 0, previewTop: 0 },
     }))
+    setWindowsSelectionContext(null)
+    setWindowsSelectionContextHistoryByTab((current) => {
+      const next = { ...current }
+      delete next[nextTab.id]
+      return next
+    })
     setActiveTabId(nextTab.id)
     return nextTab
   }, [nextUntitledIndex])
@@ -859,6 +954,12 @@ function App() {
         previewTop: currentPositions[activeTab.id]?.previewTop ?? 0,
       },
     }))
+    setWindowsSelectionContext(null)
+    setWindowsSelectionContextHistoryByTab((current) => {
+      const next = { ...current }
+      delete next[duplicateTab.id]
+      return next
+    })
   }, [activeTab, nextUntitledIndex])
 
   const handleRename = useCallback(async () => {
@@ -899,6 +1000,7 @@ function App() {
   }, [activeTab, activeTabId])
 
   const handleTabSelect = useCallback((tabId) => {
+    setWindowsSelectionContext(null)
     setActiveTabId(tabId)
   }, [])
 
@@ -925,8 +1027,18 @@ function App() {
         })
         return nextPositions
       })
+      setWindowsSelectionContextHistoryByTab((current) => {
+        const nextHistory = { ...current }
+        tabIdsToClose.forEach((tabId) => {
+          delete nextHistory[tabId]
+        })
+        return nextHistory
+      })
 
       const activeTabWasClosed = activeTabId ? tabIdsToClose.has(activeTabId) : false
+      if (activeTabWasClosed) {
+        setWindowsSelectionContext(null)
+      }
       if (!nextTabs.length) {
         const replacementTab = createNewTab(nextUntitledIndex)
         setNextUntitledIndex((current) => current + 1)
@@ -937,6 +1049,8 @@ function App() {
         setScrollPositionsByTab({
           [replacementTab.id]: { editorTop: 0, previewTop: 0 },
         })
+        setWindowsSelectionContext(null)
+        setWindowsSelectionContextHistoryByTab({})
         setActiveTabId(replacementTab.id)
         setIsPreviewOpen(false)
         return
@@ -1612,7 +1726,6 @@ function App() {
   }, [])
 
   const handleShowAutoSave = useCallback(() => {
-    setIsWordListOpen(false)
     setIsTextZoomOpen(false)
     setIsSettingsOpen(true)
   }, [])
@@ -2050,9 +2163,8 @@ ${escapeLatex(exportMarkdownSource)}
               onSelectionChange={handleSelectionChange}
               onScrollPositionChange={handleEditorScrollPositionChange}
               selectionRange={selectionRange}
-              showSelectionOverlay={isPromptFocused}
+              showSelectionOverlay={isPromptFocused && !isWindows}
               spellCheckEnabled={isSpellCheckEnabled}
-              spellcheckRefreshKey={spellcheckRefreshKey}
               textZoomPercent={editorTextZoomPercent}
               externalSelectionRange={selectionRange}
               externalScrollTop={scrollPositionsByTab[activeTabId]?.editorTop ?? 0}
@@ -2177,6 +2289,7 @@ ${escapeLatex(exportMarkdownSource)}
             setPromptText={setPromptText}
             handlePromptKeyDown={handlePromptKeyDown}
             setIsPromptFocused={setIsPromptFocused}
+            onPromptFocus={captureWindowsSelectionContext}
             showStoppedToast={showStoppedToast}
             isLoadingPrompt={isLoadingPrompt}
             canSubmitPrompt={canSubmitPrompt}
@@ -2187,6 +2300,8 @@ ${escapeLatex(exportMarkdownSource)}
             undoToggleState={undoToggleState}
             handleClearPrompt={handleClearPrompt}
             promptError={promptError}
+            selectionContext={activeWindowsSelectionContext}
+            handleClearSelectionContext={clearWindowsSelectionContext}
           />
         )}
       </main>

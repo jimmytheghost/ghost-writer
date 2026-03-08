@@ -1,7 +1,7 @@
 {
   "name": "ghost-writer-editor",
   "private": true,
-  "version": "1.4.16",
+  "version": "1.4.17",
   "type": "module",
   "scripts": {
     "check:node-version": "node scripts/check-node-version.mjs",

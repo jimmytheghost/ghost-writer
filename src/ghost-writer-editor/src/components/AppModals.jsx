@@ -386,7 +386,7 @@ function AppModals({
             <label className="modal__checkbox">
               <input
                 type="checkbox"
-                checked={settings.defaultSpellCheck}
+                checked={Boolean(settings.defaultSpellCheck)}
                 onChange={(event) => updateSetting('defaultSpellCheck', event.target.checked)}
               />
               Default spell check in editor

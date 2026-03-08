@@ -18,6 +18,10 @@ function PromptPanel({
   undoToggleState,
   handleClearPrompt,
   promptError,
+  onPromptFocus,
+  onPromptBlur,
+  selectionContext = null,
+  handleClearSelectionContext,
 }) {
   const promptInputRef = useRef(null)
 
@@ -31,6 +35,38 @@ function PromptPanel({
   return (
     <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
       <form ref={promptFormRef} className="prompt-panel__form" onSubmit={handlePromptSubmit}>
+        {selectionContext && (
+          <div
+            className={`prompt-panel__selection${
+              selectionContext.isInvalid ? ' prompt-panel__selection--invalid' : ''
+            }`}
+            aria-live="polite"
+          >
+            <div className="prompt-panel__selection-header">
+              <div className="prompt-panel__selection-meta">
+                <span className="prompt-panel__selection-label">
+                  {selectionContext.isInvalid ? 'Selected text changed' : 'Selected text'}
+                </span>
+                {typeof selectionContext.characterCount === 'number' && (
+                  <span className="prompt-panel__selection-count">{selectionContext.characterCount} chars</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="prompt-panel__selection-clear"
+                onClick={handleClearSelectionContext}
+                aria-label="Clear selected text"
+                title="Clear selected text"
+              >
+                Clear
+              </button>
+            </div>
+            <p className="prompt-panel__selection-preview">{selectionContext.text}</p>
+            {selectionContext.isInvalid && (
+              <p className="prompt-panel__selection-note">Selection changed. Reselect text and try again.</p>
+            )}
+          </div>
+        )}
         <div className="prompt-panel__row">
           <input
             ref={promptInputRef}
@@ -41,8 +77,14 @@ function PromptPanel({
             value={promptText}
             onChange={(event) => setPromptText(event.target.value)}
             onKeyDown={handlePromptKeyDown}
-            onFocus={() => setIsPromptFocused(true)}
-            onBlur={() => setIsPromptFocused(false)}
+            onFocus={() => {
+              setIsPromptFocused(true)
+              onPromptFocus?.()
+            }}
+            onBlur={() => {
+              setIsPromptFocused(false)
+              onPromptBlur?.()
+            }}
             placeholder=""
             autoCapitalize="off"
             autoComplete="off"
