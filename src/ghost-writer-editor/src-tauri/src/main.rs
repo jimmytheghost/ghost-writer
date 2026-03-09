@@ -20,6 +20,7 @@ const DEFAULT_OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434";
 const OLLAMA_CONNECT_TIMEOUT_MS: u64 = 800;
 const OLLAMA_BOOT_WAIT_RETRIES: u8 = 20;
 const OLLAMA_BOOT_WAIT_INTERVAL_MS: u64 = 500;
+const OLLAMA_TAGS_REQUEST_TIMEOUT_MS: u64 = 5000;
 // Streaming generation can run for a long time and is cancelled explicitly by the user.
 const OLLAMA_STREAM_REQUEST_TIMEOUT_MS: u64 = 0;
 const MAX_OLLAMA_STREAM_BUFFER_BYTES: usize = 1024 * 1024;
@@ -191,6 +192,18 @@ struct DiagnosticsBundle {
     runtime_arch: String,
     log_file_count: usize,
     logs: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaTagsResponse {
+    #[serde(default)]
+    models: Vec<OllamaTagModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaTagModel {
+    #[serde(default)]
+    name: String,
 }
 
 fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
@@ -1887,6 +1900,60 @@ fn ollama_cancel_stream(cancel: tauri::State<'_, OllamaStreamCancel>) {
     cancel.0.store(true, Ordering::SeqCst);
 }
 
+#[tauri::command]
+async fn load_ollama_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    ensure_ollama_running_result(&app)?;
+
+    let ollama_base_url = read_ollama_base_url(&app);
+    let url = format!("{ollama_base_url}/api/tags");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(OLLAMA_TAGS_REQUEST_TIMEOUT_MS))
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if !response.status().is_success() {
+        let error = format!("Ollama models request failed: {}", response.status());
+        append_structured_log(
+            &app,
+            "error",
+            "ollama.models.http_error",
+            "Ollama models request returned non-success status",
+            serde_json::json!({ "baseUrl": &ollama_base_url, "status": response.status().as_u16() }),
+        );
+        return Err(error);
+    }
+
+    let payload = response
+        .json::<OllamaTagsResponse>()
+        .await
+        .map_err(|error| error.to_string())?;
+
+    let mut models: Vec<String> = Vec::new();
+    for model in payload.models {
+        let name = model.name.trim();
+        if name.is_empty() || models.iter().any(|existing| existing == name) {
+            continue;
+        }
+        models.push(name.to_string());
+    }
+
+    append_structured_log(
+        &app,
+        "info",
+        "ollama.models.loaded",
+        "Loaded Ollama models",
+        serde_json::json!({ "baseUrl": &ollama_base_url, "count": models.len() }),
+    );
+
+    Ok(models)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2023,6 +2090,7 @@ fn main() {
             export_diagnostics_bundle,
             log_frontend_warning,
             ensure_ollama_running_command,
+            load_ollama_models,
             ollama_generate_stream,
             ollama_cancel_stream
         ])

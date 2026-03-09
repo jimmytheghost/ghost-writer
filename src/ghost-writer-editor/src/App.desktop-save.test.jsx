@@ -11,6 +11,7 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   saveTextFileWithNativeDialog: vi.fn(async () => null),
   openMarkdownWithNativeDialog: vi.fn(async () => null),
   loadMarkdownFilesByPaths: vi.fn(async () => []),
+  loadDesktopOllamaModels: vi.fn(async () => ({ ok: true, models: ['devstral-small-2:24b'] })),
   markRendererInteractive: vi.fn(),
   openExternalUrl: vi.fn(async () => true),
   exitApp: vi.fn(async () => true),
@@ -39,6 +40,7 @@ vi.mock('./lib/desktopRuntime', async () => ({
   saveTextFileWithNativeDialog: desktopRuntimeMocks.saveTextFileWithNativeDialog,
   openMarkdownWithNativeDialog: desktopRuntimeMocks.openMarkdownWithNativeDialog,
   loadMarkdownFilesByPaths: desktopRuntimeMocks.loadMarkdownFilesByPaths,
+  loadDesktopOllamaModels: desktopRuntimeMocks.loadDesktopOllamaModels,
   markRendererInteractive: desktopRuntimeMocks.markRendererInteractive,
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
   exitApp: desktopRuntimeMocks.exitApp,
@@ -333,6 +335,26 @@ describe('App desktop save flow', () => {
         expect.objectContaining({ defaultTheme: 'light' }),
       )
     })
+  })
+
+  it('shows an error in the model control instead of cached models when Ollama is unavailable', async () => {
+    desktopRuntimeMocks.loadDesktopOllamaModels.mockResolvedValueOnce({
+      ok: false,
+      error: 'Could not connect to Ollama.',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Model load failed: Could not connect to Ollama.')).toBeInTheDocument()
+    })
+
+    const modelSelect = screen.getByLabelText('Ollama model')
+    expect(modelSelect).toHaveValue('')
+    expect(screen.getByRole('option', { name: 'No models available' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'devstral-small-2:24b' })).not.toBeInTheDocument()
   })
 
   it('auto-saves dirty saved tabs to their existing path when enabled', async () => {

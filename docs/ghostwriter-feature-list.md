@@ -23,7 +23,8 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.16`):
 - Undo/Redo specifically for last AI generation output per tab.
 - Prompt clear action and generation error surfacing.
 - Model picker in footer with selected-model persistence behavior.
-- Snapshot-based model loading (`public/ollama-models.json` + `src/generated/ollama-models.json`) with graceful fallback messaging.
+- Desktop model picker loads the user's installed Ollama models live at app startup on macOS and Windows.
+- If Ollama is unavailable on desktop, the picker stays empty and shows a clear error instead of listing stale models.
 
 3. **Markdown Preview and Interaction**
 - Full preview mode toggle (editor <-> rendered preview).
@@ -164,6 +165,7 @@ Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.16`):
 - Quality gate command: lint + tests + build.
 - Node version preflight enforcement (`>=20.19` or `>=22.12`).
 - Automated model snapshot sync script (`ollama list` -> JSON snapshots).
+- Desktop runtime model loading through Tauri/Ollama for machine-local model discovery.
 - Renderer/package/Tauri size measurement scripts.
 - Cross-platform launch scripts that check/start Ollama and validate prerequisites.
 - Automated test coverage across app behavior, tabs, shortcuts, inline prompts, markdown safety, spellcheck, and error paths.

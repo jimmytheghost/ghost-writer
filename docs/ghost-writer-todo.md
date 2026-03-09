@@ -58,6 +58,9 @@ This is the single source of truth for active Ghost Writer work. Historical task
   - MD prompts visibility preference now persists in settings and stays synchronized with the Tauri menu state.
   - Word export relabeled to `Word-Compatible HTML` to match the actual output format.
   - Windows editor cursor/input handling was hardened, but not fully resolved.
+- Current desktop Ollama behavior:
+  - On macOS and Windows, the app loads the user's installed Ollama models live at launch.
+  - If Ollama is unavailable, the model picker stays empty and shows an error instead of stale models.
 
 ## Most Recent Verification
 
