@@ -30,6 +30,14 @@ npm run test:run         # Run Vitest once (single run)
 npm run check            # Full check: lint + test:run + build
 ```
 
+Required Node.js versions:
+- `>=20.19.0 <21`
+- `>=22.12.0`
+
+Workspace note:
+- `src/ghost-writer-editor/package.json` is the app workspace manifest.
+- The repo-root `package.json` is repository-level support only.
+
 ### Running a Single Test
 
 Use Vitest's `-t` flag to run tests matching a pattern:
@@ -69,7 +77,7 @@ npm run test:run -- src/lib/spellcheck.test.js
 - **Hooks**: camelCase with `use` prefix (e.g., `usePromptGeneration`)
 - **Utility functions**: camelCase (e.g., `buildGenerationPrompt`)
 - **Constants**: SCREAMING_SNAKE_CASE (e.g., `OVERLAY_HEAVY_TEXT_LIMIT`)
-- **Test files**: `filename.test.jsx` or `filename.feature.test.jsx`
+- **Test files**: `filename.test.js`, `filename.test.jsx`, or `filename.feature.test.jsx`
 
 ### Component Structure
 
@@ -128,7 +136,7 @@ export default ComponentName
 - Use `@testing-library/react` for component tests
 - Use `vi.fn()` for mocks, `vi.hoisted()` for module mocks
 - Mock Tauri APIs with `vi.mock()`
-- Test file naming: `ComponentName.feature.test.jsx`
+- Test file naming: `ComponentName.test.jsx`, `someLib.test.js`, or `ComponentName.feature.test.jsx`
 
 Example test structure:
 ```javascript
@@ -166,6 +174,7 @@ describe('ComponentName', () => {
 - `src/hooks/usePromptGeneration.js` - AI prompt generation logic
 - `src/lib/ollama.js` - Ollama API client
 - `src/lib/desktopRuntime.js` - Tauri desktop runtime bindings
+- `src-tauri/src/main.rs` - Native desktop backend, menus, file I/O, print, diagnostics, and Ollama bridge
 
 ## Common Development Tasks
 
@@ -188,7 +197,14 @@ npm run test:run -- --reporter=verbose --filter "test name"
 
 - `VITE_OLLAMA_BASE_URL` - Ollama server URL (default: `http://127.0.0.1:11434`)
 
+## Current Repo Notes
+
+- Desktop model loading is live at runtime through the Tauri backend. Snapshot model JSON is support/build plumbing, not the desktop source of truth.
+- The active source-of-truth docs are `docs/docs-index.md`, `docs/ghost-writer-todo.md`, and `docs/reference/repo-backup-and-workspace-policy.md`.
+- Check `docs/dev-logs/2026/2026-03-07.md` before changing Windows selection/caret behavior; that is the current product direction for the open Windows editor issue.
+
 ## Additional Resources
 
-- See `docs/agent-workflows/` for detailed runbooks on specific tasks
-- See `README.md` for desktop build instructions
+- Start with `docs/docs-index.md` for current canonical docs
+- See `docs/agent-workflows/` for focused runbooks on local models, print/PDF, release steps, and QA
+- Use `readme.md` as secondary background, not the source of truth for active work

@@ -50,6 +50,14 @@ Use this checklist after producing a macOS app bundle, DMG, or installer build f
 - [ ] Confirm `Cmd+P` works.
 - [ ] Confirm `Cmd+T` works.
 
+## Core Release Checks:
+- [ ] Windows text selection -> prompt -> replace flow
+- [ ] Ollama available vs unavailable startup behavior
+- [ ] open/save/save-as/reopen/recent-files tab behavior
+- [ ] print/PDF/export flows
+- [ ] preview checkbox syncing and markdown rendering edge cases
+- [ ] installer launch, relaunch, and first-run feel on both macOS and Windows
+
 ## Core Editing Flow
 
 - [ ] Create a new tab.

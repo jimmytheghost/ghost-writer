@@ -4,14 +4,21 @@ This folder contains the Vite + React web app for Ghost Writer.
 
 ## Current behavior highlights
 
-- Desktop window launches at `1100x700` and starts centered.
+- Desktop window launches at `600x900` and starts centered.
 - Desktop minimum window size is `430x560`, aligned to responsive breakpoints.
 - Universal shortcuts use `Cmd` on macOS and `Ctrl` on Windows/Linux.
 - Footer includes always-on-top toggle (`Cmd/Ctrl + T`) in Tauri builds.
 - Narrow-width footer mode (`<=430px`) uses compact square controls, including a model selector icon button.
-- Model list is snapshot-based and refreshed by `npm run sync:models` (no in-app reload button).
+- Desktop model loading is live at runtime through the Tauri backend.
+- `npm run sync:models` still writes support/build snapshots, but those files are not the desktop source of truth.
 - Inline prompt highlighting starts as soon as `{{` is typed and closes when `}}` is typed.
 - Markdown load/open flows enforce a 10MB max file-size guardrail with an explicit error message.
+
+## Canonical docs
+
+- `../../docs/docs-index.md` is the entry point for current source-of-truth docs.
+- `../../docs/ghost-writer-todo.md` tracks active work, blockers, and release direction.
+- `README.md` in this folder is a contributor overview, not the authoritative task tracker.
 
 ## Commands
 
@@ -74,10 +81,10 @@ ollama pull llama3.1:8b
 ollama list
 ```
 
-3. Refresh Ghost Writer model snapshots:
+3. Start Ollama on that machine if it is not already running:
 
 ```bash
-npm run sync:models
+ollama serve
 ```
 
 4. Launch/relaunch Tauri:
@@ -87,9 +94,7 @@ npm run dev:tauri
 ```
 
 After launch, the footer model dropdown should show your local model list.
-
-Important:
-- If models changed, run `npm run sync:models` before expecting dropdown changes.
+If Ollama is unavailable, the desktop dropdown should stay empty and show an error state rather than stale model data.
 
 Canonical runbook for developers and agents:
 - `../../docs/agent-workflows/local-models-runbook.md`

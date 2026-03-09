@@ -2,10 +2,12 @@
 
 Ghost Writer is a local-first, distraction-free Markdown editor that embeds AI assistance directly into the writing workflow using on-device LLMs via Ollama.
 
+For current active work, canonical docs, and release status, start with `docs/docs-index.md`.
+
 ## Highlights
 
 - Focused markdown editor with matching markdown preview mode
-- Local model integration via Ollama (`http://localhost:11434`)
+- Local model integration via Ollama (`http://127.0.0.1:11434`)
 - Selection-aware AI insertion/replacement
 - Inline placeholder workflow with `{{...}}` tokens
 - Streaming generation with Stop/Undo/Redo
@@ -110,8 +112,8 @@ TAURI_MAC_TARGET=x86_64-apple-darwin npm run build:tauri:mac
 
 Default desktop window sizing:
 
-- Launch size: `400x500`
-- Minimum size: `400x500`
+- Launch size: `600x900`
+- Minimum size: `430x560`
 
 Model dropdown behavior:
 
@@ -191,7 +193,7 @@ CI release path:
 
 Ghost Writer expects Ollama at:
 
-- `POST http://localhost:11434/api/generate` (stream responses)
+- `POST http://127.0.0.1:11434/api/generate` (stream responses)
 
 You can override the default endpoint with `VITE_OLLAMA_BASE_URL`.
 

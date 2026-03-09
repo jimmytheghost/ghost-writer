@@ -93,7 +93,7 @@ If Ollama is intentionally unavailable:
    - Run `which ollama` (macOS/Linux) or `where ollama` (Windows).
    - If not found, fix PATH and restart terminal.
 3. Check Ollama API reachability:
-   - Run `curl http://localhost:11434/api/tags`.
+   - Run `curl http://127.0.0.1:11434/api/tags`.
    - Confirm the endpoint responds with the current model list.
 4. Fully restart app:
    - Stop Tauri/Vite process.
@@ -102,20 +102,20 @@ If Ollama is intentionally unavailable:
    - Verify Ollama API directly:
 
 ```bash
-curl http://localhost:11434/api/tags
+curl http://127.0.0.1:11434/api/tags
 ```
 
 and:
 
 ```bash
-curl http://localhost:11434/api/generate \
+curl http://127.0.0.1:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{"model":"llama3.1:8b","prompt":"ping","stream":false}'
 ```
 
 6. If API works in browser app but not Tauri:
    - Confirm `VITE_OLLAMA_BASE_URL` is correct for that machine.
-   - Default is `http://localhost:11434`.
+   - Default is `http://127.0.0.1:11434`.
 7. If Ollama is unavailable:
    - The expected desktop behavior is an empty dropdown plus a clear error.
    - The app should not show stale or cached models in the picker.

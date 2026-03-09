@@ -1,5 +1,9 @@
 # Ghost Writer Agent Instruction: Process Issues Checklist
 
+Archived on 2026-03-09.
+
+This file is preserved for history only. Use `docs/docs-index.md` and `docs/ghost-writer-todo.md` for current workflow guidance and active work.
+
 ## Read Before Starting
 
 1. **DO NOT DELETE ANY DOC FILES**. All documentation must be preserved in git.

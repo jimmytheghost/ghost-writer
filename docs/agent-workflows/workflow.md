@@ -3,14 +3,15 @@
 This document outlines the workflow for developing the `ghost-writer` project.
 
 **Project Files:**
-*   **Project Overview:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/readme.md`
-*   **Dev-Log:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/dev-logs/2026` (latest version)
-*   **Active TODO:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/ghost-writer-todo.md`
-*   **Local Model Runbook:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/agent-workflows/local-models-runbook.md`
-*   **Print/PDF Runbook:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/agent-workflows/print-and-pdf-runbook.md`
-*   **Dash Input Stability Runbook:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/agent-workflows/dash-input-stability-runbook.md`
-*   **Backups:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/_backups`
-*   **Backup + Workspace Policy:** `/Users/jimmytheghost/AI-Local-Stack/ghost-writer/docs/reference/repo-backup-and-workspace-policy.md`
+*   **Canonical Docs Index:** `docs/docs-index.md`
+*   **Project Overview:** `readme.md` (secondary background, not the task source of truth)
+*   **Dev Log:** `docs/dev-logs/2026/` (latest relevant entry)
+*   **Active TODO:** `docs/ghost-writer-todo.md`
+*   **Local Model Runbook:** `docs/agent-workflows/local-models-runbook.md`
+*   **Print/PDF Runbook:** `docs/agent-workflows/print-and-pdf-runbook.md`
+*   **Dash Input Stability Runbook:** `docs/agent-workflows/dash-input-stability-runbook.md`
+*   **Backups:** `_backups/`
+*   **Backup + Workspace Policy:** `docs/reference/repo-backup-and-workspace-policy.md`
 
 **Familiarization:** Before beginning work, please read the files above to understand the current state.
 

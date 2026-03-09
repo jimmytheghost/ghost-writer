@@ -14,3 +14,12 @@ Use the platform-specific checklists below when validating packaged Ghost Writer
 - Use the Windows checklist for artifacts produced by `npm run build:tauri:win`.
 - Use the macOS checklist for artifacts produced by `npm run build:tauri:mac`.
 - Both checklists include `[ ]` task boxes so you can mark progress during testing.
+
+## Core Release Checks
+
+- [ ] Windows text selection -> prompt -> replace flow
+- [ ] Ollama available vs unavailable startup behavior
+- [ ] open/save/save-as/reopen/recent-files tab behavior
+- [ ] print/PDF/export flows
+- [ ] preview checkbox syncing and markdown rendering edge cases
+- [ ] installer launch, relaunch, and first-run feel on both macOS and Windows
