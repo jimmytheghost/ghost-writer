@@ -1,4 +1,4 @@
-Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.16`):
+Comprehensive feature list for **Ghost Writer** (current repo state, v`1.4.18`):
 
 1. **Core Editor Experience**
 - Distraction-focused single-document editing pane with tabbed multi-document workflow.

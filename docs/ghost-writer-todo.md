@@ -6,8 +6,8 @@ This is the single source of truth for active Ghost Writer work. Historical task
 
 ## Release Track
 
-- Current shipped baseline: `1.4.16`
-- Next working version: `1.4.17+`
+- Current shipped baseline: `1.4.18`
+- Next working version: `1.4.18+`
 - Production release target: `1.5.0`
 
 ## Active Work
@@ -15,7 +15,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 ### Release Blockers
 
 - [ ] Fix the Windows cursor/input desync that still reproduces in longer documents.
-  - Current status: cursor handling was hardened for `1.4.16`, but further testing confirmed the bug still remains.
+  - Current status: cursor handling was hardened in the current `1.4.18` track, but further testing confirmed the bug still remains.
   - Observed behavior:
     ```text
     Cursor issues remain    |
@@ -43,13 +43,13 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - [ ] Create custom installer artwork/branding assets.
   - Scope: installer-specific graphics only, not general in-app branding copy.
 
-- [ ] Bump the app version along the working track (`1.4.17+`) while remaining fixes are in progress.
+- [x] Bump the app version along the working track (`1.4.18+`) while remaining fixes are in progress.
   - `1.5.0` is reserved for the production release once blockers and smoke tests are complete.
 
 ## Current Baseline
 
-- `1.4.16` is the current repo/app version.
-- Completed before shipping `1.4.16`:
+- `1.4.18` is the current repo/app version.
+- Completed before shipping `1.4.18`:
   - Default desktop window size updated to `600 x 900`.
   - Branding copy updated to `Vibe Coded by JimmyTheGhost (www.JimmyWeber.com)`.
   - Markdown preview/editor scroll sync behavior adjusted to remove visible shake/blur looping.
@@ -67,7 +67,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - `npm run lint` passed.
 - `npm run build` passed.
 - `cargo check` passed.
-- `npm run build:tauri:win` passed and produced Windows installer/exe artifacts for `1.4.16`.
+- `npm run build:tauri:mac` is the current packaging target for `1.4.18`.
 - `npm run test:run` could not be completed in the sandbox because Vite/esbuild failed with `spawn EPERM`.
 
 ## Current UX Direction
