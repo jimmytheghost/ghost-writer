@@ -68,6 +68,78 @@ describe('App UI behaviors', () => {
     expect(previewContent?.textContent ?? '').toContain('{{hidden inline prompt}}')
   })
 
+  it('keeps preview task toggles as stable custom buttons across scroll', async () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: ['# Checklist', '', '- [ ] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+
+    let previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+    expect(previewButtons).toHaveLength(2)
+    expect(previewButtons[0].tagName).toBe('BUTTON')
+    expect(previewButtons[0]).toHaveAttribute('aria-pressed', 'false')
+    expect(previewButtons[1]).toHaveAttribute('aria-pressed', 'true')
+
+    previewContent.scrollTop = 32
+    fireEvent.scroll(previewContent)
+
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(32)
+    })
+
+    previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+    expect(previewButtons).toHaveLength(2)
+    expect(previewButtons[0].tagName).toBe('BUTTON')
+    expect(previewButtons[0]).toHaveAttribute('aria-pressed', 'false')
+    expect(previewButtons[1]).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('toggles markdown task items when clicking preview task buttons', async () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: ['# Checklist', '', '- [ ] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+
+    await waitFor(() => {
+      const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+      expect(previewButtons).toHaveLength(2)
+      expect(previewButtons[0]).toHaveAttribute('data-source-line', '2')
+    })
+
+    const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+    fireEvent.click(previewButtons[0])
+
+    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+    await waitFor(() => {
+      expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+        ['# Checklist', '', '- [x] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
+      )
+    })
+  })
+
   it('find and replace updates editor content', () => {
     render(<App />)
 

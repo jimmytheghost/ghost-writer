@@ -1548,17 +1548,22 @@ function App() {
         window.open(href, '_blank', 'noopener,noreferrer')
         return
       }
+    },
+    [],
+  )
 
-      const checkbox = event.target
-      if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return
+  const handlePreviewCheckboxToggle = useCallback(
+    (checkbox) => {
+      if (!(checkbox instanceof HTMLElement) || !activeTabId) return
       const sourceLine = Number(checkbox.dataset.sourceLine)
-      if (!Number.isInteger(sourceLine) || !activeTabId) return
+      if (!Number.isInteger(sourceLine)) return
+      const nextChecked = checkbox.getAttribute('aria-pressed') !== 'true'
 
       setTabs((currentTabs) => {
         const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
         if (!targetTab) return currentTabs
 
-        const nextContent = toggleCheckboxOnLine(targetTab.content, sourceLine, checkbox.checked)
+        const nextContent = toggleCheckboxOnLine(targetTab.content, sourceLine, nextChecked)
         return updateTabContent(currentTabs, activeTabId, nextContent)
       })
     },
@@ -2027,15 +2032,34 @@ ${escapeLatex(exportMarkdownSource)}
   useEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
 
-    const checkboxNodes = previewContentRef.current.querySelectorAll('input[type="checkbox"]')
+    const checkboxNodes = previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')
     checkboxNodes.forEach((node, index) => {
       const sourceLine = checkboxLineIndexes[index]
       if (typeof sourceLine !== 'number') return
-      node.removeAttribute('disabled')
       node.dataset.sourceLine = String(sourceLine)
-      node.classList.add('preview__checkbox')
     })
   }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewContentRef.current) return undefined
+
+    const checkboxNodes = [...previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')]
+    const handleCheckboxClick = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      handlePreviewCheckboxToggle(event.currentTarget)
+    }
+
+    checkboxNodes.forEach((node) => {
+      node.addEventListener('click', handleCheckboxClick)
+    })
+
+    return () => {
+      checkboxNodes.forEach((node) => {
+        node.removeEventListener('click', handleCheckboxClick)
+      })
+    }
+  }, [handlePreviewCheckboxToggle, isPreviewOpen, renderedMarkdown])
 
   useEffect(() => {
     if (!isPreviewOpen) return

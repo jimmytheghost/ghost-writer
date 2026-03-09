@@ -22,6 +22,7 @@ const IMAGE_EXTENSIONS = new Set(['.gif', '.png', '.jpg', '.jpeg', '.webp', '.bm
 const ALLOWED_TAGS = new Set([
   'a',
   'b',
+  'button',
   'blockquote',
   'br',
   'code',
@@ -63,6 +64,7 @@ const ALLOWED_TAGS = new Set([
 const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['class', 'title', 'aria-label', 'id'])
 const ELEMENT_ALLOWED_ATTRIBUTES = {
   a: new Set(['href', 'target', 'rel']),
+  button: new Set(['type', 'data-preview-checkbox', 'aria-pressed', 'data-source-line']),
   img: new Set(['src', 'alt']),
   input: new Set(['type', 'checked', 'disabled', 'data-source-line']),
 }
@@ -372,14 +374,28 @@ function sanitizeHtml(html) {
       const inputType = (element.getAttribute('type') || '').toLowerCase()
       if (inputType !== 'checkbox') {
         element.remove()
+        continue
       }
+
+      const checkboxButton = doc.createElement('button')
+      const isChecked = element.hasAttribute('checked')
+      checkboxButton.type = 'button'
+      checkboxButton.className = 'task-list-item-checkbox preview__checkbox'
+      checkboxButton.setAttribute('data-preview-checkbox', 'true')
+      checkboxButton.setAttribute('aria-label', 'Toggle task checkbox')
+      checkboxButton.setAttribute('aria-pressed', isChecked ? 'true' : 'false')
+      element.replaceWith(checkboxButton)
     }
   }
 
   const taskListItems = [...doc.body.querySelectorAll('li.task-list-item')]
   for (const item of taskListItems) {
     const directCheckbox = [...item.children].find((child) => {
-      return child.tagName.toLowerCase() === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
+      const tagName = child.tagName.toLowerCase()
+      if (tagName === 'button') {
+        return child.getAttribute('data-preview-checkbox') === 'true'
+      }
+      return tagName === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
     })
 
     if (!directCheckbox) continue

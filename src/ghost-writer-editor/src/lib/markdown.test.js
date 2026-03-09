@@ -113,9 +113,19 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).not.toContain('src="file:///images/logo.png"')
   })
 
-  it('allows markdown task-list checkboxes', () => {
+  it('renders markdown task-list toggles as preview buttons', () => {
     const output = renderMarkdownToSafeHtml('- [x] done')
-    expect(output).toContain('type="checkbox"')
+    expect(output).toContain('type="button"')
+    expect(output).toContain('data-preview-checkbox="true"')
+    expect(output).toContain('aria-pressed="true"')
+  })
+
+  it('renders task-list checkboxes with their final preview button class in the initial html', () => {
+    const output = renderMarkdownToSafeHtml('- [ ] task')
+    expect(output).toContain('class="task-list-item-checkbox preview__checkbox"')
+    expect(output).toContain('type="button"')
+    expect(output).toContain('aria-pressed="false"')
+    expect(output).not.toContain('type="checkbox"')
   })
 
   it('wraps task-list item content in a stable container next to the checkbox', () => {
