@@ -159,7 +159,8 @@ Run this section only if the release includes prompt-generation functionality.
 
 - [ ] Select text in the editor before opening the prompt input.
 - [ ] Confirm the persistent in-editor selection highlight still clearly shows the intended edit target.
-- [ ] Confirm the model list loads.
+- [ ] Confirm the model list loads automatically at app launch.
+- [ ] Confirm the dropdown reflects the models currently installed on that Mac.
 - [ ] Submit a short prompt.
 - [ ] Confirm the generation rewrites the previously selected text, not the wrong range.
 - [ ] Confirm streaming output appears in the active tab.
@@ -172,6 +173,7 @@ Run this section only if the release includes prompt-generation functionality.
 - [ ] Launch the app while Ollama is stopped.
 - [ ] Confirm the app does not crash.
 - [ ] Confirm the user sees a clear error state.
+- [ ] Confirm the model dropdown shows no stale or cached models.
 - [ ] Confirm non-AI editing features still work normally.
 
 ## Diagnostics / Logging
