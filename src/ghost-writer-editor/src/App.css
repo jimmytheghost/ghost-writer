@@ -383,6 +383,7 @@
 }
 
 .preview__content li.task-list-item > .preview__task-content {
+  display: block;
   grid-column: 2;
   min-width: 0;
 }
