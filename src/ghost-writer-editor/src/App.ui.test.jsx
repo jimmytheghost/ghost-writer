@@ -140,6 +140,80 @@ describe('App UI behaviors', () => {
     })
   })
 
+  it('toggles numbered markdown task items when clicking preview task buttons', async () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: ['# Ordered checklist', '', '1. [ ] Use a clean workspace', '2. [x] Prefer a manual smoke test'].join(
+          '\n',
+        ),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+
+    await waitFor(() => {
+      const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+      expect(previewButtons).toHaveLength(2)
+      expect(previewButtons[0]).toHaveAttribute('data-source-line', '2')
+    })
+
+    const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+    fireEvent.click(previewButtons[0])
+
+    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+    await waitFor(() => {
+      expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+        ['# Ordered checklist', '', '1. [x] Use a clean workspace', '2. [x] Prefer a manual smoke test'].join('\n'),
+      )
+    })
+  })
+
+  it('toggles preview task buttons even when the checkbox node is replaced after render', async () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: ['# Checklist', '', '- [ ] Use a clean workspace', '- [ ] Prefer a manual smoke test'].join('\n'),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    const previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+
+    await waitFor(() => {
+      const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
+      expect(previewButtons).toHaveLength(2)
+      expect(previewButtons[0]).toHaveAttribute('data-source-line', '2')
+    })
+
+    const originalButton = previewContent.querySelectorAll('[data-preview-checkbox="true"]')[0]
+    const replacementButton = originalButton.cloneNode(true)
+    originalButton.replaceWith(replacementButton)
+
+    fireEvent.click(replacementButton)
+    fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+    await waitFor(() => {
+      expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+        ['# Checklist', '', '- [x] Use a clean workspace', '- [ ] Prefer a manual smoke test'].join('\n'),
+      )
+    })
+  })
+
   it('find and replace updates editor content', () => {
     render(<App />)
 

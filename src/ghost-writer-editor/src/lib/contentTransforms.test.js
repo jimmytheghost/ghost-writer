@@ -29,6 +29,14 @@ describe('content transforms', () => {
     expect(toggleCheckboxOnLine(markdown, 0, false)).toBe('  - [ ] task')
   })
 
+  it('collects and toggles numbered task list items', () => {
+    const markdown = '1. [ ] first task\n2. [x] second task'
+
+    expect(collectCheckboxLineIndexes(markdown)).toEqual([0, 1])
+    expect(toggleCheckboxOnLine(markdown, 0, true)).toBe('1. [x] first task\n2. [x] second task')
+    expect(toggleCheckboxOnLine(markdown, 1, false)).toBe('1. [ ] first task\n2. [ ] second task')
+  })
+
   it('strips common assistant lead-ins repeatedly until content starts', () => {
     const input = 'Sure:\nHere is the output:\nResponse:\n## Final text'
     expect(stripAssistantLeadIn(input)).toBe('## Final text')

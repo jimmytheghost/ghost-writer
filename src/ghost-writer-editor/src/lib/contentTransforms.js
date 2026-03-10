@@ -1,4 +1,4 @@
-const CHECKBOX_LINE_PATTERN = /^(\s*)(?:([-*+])\s+)?\[( |x|X)\](.*)$/
+const CHECKBOX_LINE_PATTERN = /^(\s*)(?:((?:[-*+])|(?:\d+[.)]))(\s+))?\[( |x|X)\](.*)$/
 
 export function extractInlinePromptTokens(markdown = '') {
   const tokens = []
@@ -113,10 +113,10 @@ export function toggleCheckboxOnLine(markdown = '', lineIndex, isChecked) {
   const match = targetLine.match(CHECKBOX_LINE_PATTERN)
   if (!match) return markdown
 
-  const [, indentation, bullet = '', , rest] = match
+  const [, indentation, markerPrefix = '', markerSpacing = '', , rest] = match
   const marker = isChecked ? 'x' : ' '
-  const bulletPrefix = bullet ? `${bullet} ` : ''
-  lines[lineIndex] = `${indentation}${bulletPrefix}[${marker}]${rest}`
+  const checkboxPrefix = markerPrefix ? `${markerPrefix}${markerSpacing}` : ''
+  lines[lineIndex] = `${indentation}${checkboxPrefix}[${marker}]${rest}`
   return lines.join('\n')
 }
 
