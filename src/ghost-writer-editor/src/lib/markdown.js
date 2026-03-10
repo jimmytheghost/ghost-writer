@@ -390,22 +390,52 @@ function sanitizeHtml(html) {
 
   const taskListItems = [...doc.body.querySelectorAll('li.task-list-item')]
   for (const item of taskListItems) {
-    const directCheckbox = [...item.children].find((child) => {
+    let directCheckbox = [...item.children].find((child) => {
       const tagName = child.tagName.toLowerCase()
       if (tagName === 'button') {
         return child.getAttribute('data-preview-checkbox') === 'true'
       }
       return tagName === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
     })
+    let sourceContainer = null
+
+    if (!directCheckbox) {
+      const firstParagraph = [...item.children].find((child) => child.tagName.toLowerCase() === 'p')
+      const paragraphCheckbox = [...(firstParagraph?.children ?? [])].find((child) => {
+        const tagName = child.tagName.toLowerCase()
+        if (tagName === 'button') {
+          return child.getAttribute('data-preview-checkbox') === 'true'
+        }
+        return tagName === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
+      })
+
+      if (paragraphCheckbox) {
+        directCheckbox = paragraphCheckbox
+        sourceContainer = firstParagraph
+      }
+    }
 
     if (!directCheckbox) continue
 
     const nestedLists = []
-    const contentWrapper = doc.createElement('span')
+    const contentWrapper = doc.createElement('div')
     contentWrapper.className = 'preview__task-content'
+
+    if (sourceContainer) {
+      directCheckbox.remove()
+      item.insertBefore(directCheckbox, sourceContainer)
+
+      for (const node of [...sourceContainer.childNodes]) {
+        if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue
+        contentWrapper.append(node)
+      }
+
+      sourceContainer.remove()
+    }
 
     for (const node of [...item.childNodes]) {
       if (node === directCheckbox) continue
+      if (node === sourceContainer) continue
 
       if (node.nodeType === Node.ELEMENT_NODE) {
         const element = /** @type {HTMLElement} */ (node)

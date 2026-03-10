@@ -132,10 +132,48 @@ describe('renderMarkdownToSafeHtml', () => {
     const output = renderMarkdownToSafeHtml(
       '- [ ] Run installer: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`',
     )
-    expect(output).toContain('<span class="preview__task-content">')
+    expect(output).toContain('<div class="preview__task-content">')
     expect(output).toContain('<wbr>')
     expect(output).toContain('<code class="preview__path">src/')
     expect(output).toContain('setup.exe</code>')
+  })
+
+  it('keeps nested task-list markdown content in block layout without invalid inline wrappers', () => {
+    const output = renderMarkdownToSafeHtml(`## Active Work
+
+### Release Blockers
+
+- [ ] Fix the Windows cursor/input desync that still reproduces in longer documents.
+  - Current status: cursor handling was hardened in the current \`1.4.18\` track, but further testing confirmed the bug still remains.
+  - Observed behavior:
+    \`\`\`text
+    Cursor issues remain    |
+    \`\`\`
+    \`\`\`text
+    At the end of a | line.
+    \`\`\`
+  - Impact: the visible caret can drift away from the real insertion point, which makes editing and deletion unreliable.
+  - Current implementation decision:
+    - On Windows, Ghost Writer will stop relying on persistent blurred editor-text overlays to show saved selections.
+    - The Windows editor should keep native text/caret behavior stable and preserve selection intent in app state instead.
+    - When focus moves from the editor to the prompt input, Windows should show prompt-adjacent selected-text context rather than a duplicated in-editor selection overlay.
+    - macOS keeps the current persistent in-editor selection-highlight behavior unless later testing shows the same instability there.
+
+- [ ] Make native Save/Open dialogs stay above the app window when \`Pin to Top\` is enabled.
+  - Goal: dialog windows must not hide behind the always-on-top Ghost Writer window.
+
+- [ ] Run manual install smoke tests on both Windows and macOS before calling \`1.5.0\` production-ready.
+  - Windows checklist: \`docs/manual-install-smoke-test-windows.md\`
+  - macOS checklist: \`docs/manual-install-smoke-test-macos.md\`
+  - Signoff intent: manual verification will be performed on a real PC and a real Mac.`)
+
+    expect(output).toContain('<div class="preview__task-content">')
+    expect(output).not.toContain('<span class="preview__task-content">')
+    expect(output).toContain('<pre><code class="language-text">Cursor issues remain    |')
+    expect(output).toContain('<pre><code class="language-text">At the end of a | line.')
+    expect(output).toContain('<li>Current status: cursor handling was hardened')
+    expect(output).toContain('<li>Goal: dialog windows must not hide behind the always-on-top Ghost Writer window.</li>')
+    expect(output).toContain('<li>Windows checklist: <code class="preview__path">docs/')
   })
 
   it('marks inline filesystem paths for path-specific preview styling', () => {
