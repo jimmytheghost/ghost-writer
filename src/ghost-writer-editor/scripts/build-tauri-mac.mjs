@@ -106,13 +106,16 @@ console.log(`[build-tauri-mac] Building DMG with target: ${target ?? 'default to
 const preferredNode = resolvePreferredNodeBinDir()
 const env = { ...process.env }
 if (typeof env.CI === 'undefined') {
-  env.CI = 'false'
+  env.CI = process.stdout.isTTY ? 'false' : 'true'
 }
 if (preferredNode) {
   env.PATH = `${preferredNode.dir}:${process.env.PATH ?? ''}`
   console.log(
     `[build-tauri-mac] Using Node ${preferredNode.version} from ${preferredNode.dir} for Tauri build subprocesses.`,
   )
+}
+if (env.CI === 'true') {
+  console.log('[build-tauri-mac] Headless environment detected; enabling CI mode for DMG bundling.')
 }
 
 const result = spawnSync('npx', args, {

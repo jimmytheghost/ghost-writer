@@ -1594,6 +1594,21 @@ fn is_ollama_running(base_url: &str) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(OLLAMA_CONNECT_TIMEOUT_MS)).is_ok()
 }
 
+#[cfg(target_os = "macos")]
+fn ollama_exe_fallback() -> Option<PathBuf> {
+    let candidates = [
+        "/opt/homebrew/bin/ollama",
+        "/usr/local/bin/ollama",
+        "/Applications/Ollama.app/Contents/Resources/ollama",
+        "/Applications/Ollama.app/Contents/MacOS/Ollama",
+    ];
+
+    candidates
+        .iter()
+        .map(PathBuf::from)
+        .find(|candidate| candidate.is_file())
+}
+
 #[cfg(target_os = "windows")]
 fn ollama_exe_fallback() -> Option<PathBuf> {
     env::var_os("LOCALAPPDATA").and_then(|local_app_data| {
@@ -1610,42 +1625,34 @@ fn ollama_exe_fallback() -> Option<PathBuf> {
 }
 
 fn launch_ollama_server() -> Result<(), String> {
-    let exe = "ollama";
-    let mut command = Command::new(exe);
-    command
-        .arg("serve")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    fn spawn_ollama_command(executable: &Path) -> io::Result<()> {
+        let mut command = Command::new(executable);
+        command
+            .arg("serve")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x0000_0008;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
+        }
+
+        command.spawn().map(|_| ())
     }
 
-    match command.spawn() {
+    match spawn_ollama_command(Path::new("ollama")) {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            #[cfg(target_os = "windows")]
             if let Some(fallback) = ollama_exe_fallback() {
-                let mut cmd = Command::new(&fallback);
-                cmd.arg("serve")
-                    .stdin(Stdio::null())
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null());
-                use std::os::windows::process::CommandExt;
-                const DETACHED_PROCESS: u32 = 0x0000_0008;
-                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-                cmd.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
-                return cmd
-                    .spawn()
-                    .map(|_| ())
-                    .map_err(|e| format!("Failed to start Ollama: {e}"));
+                return spawn_ollama_command(&fallback)
+                    .map_err(|e| format!("Failed to start Ollama from {}: {e}", fallback.display()));
             }
-            Err("Ollama not found. Install from https://ollama.com and ensure it is on your PATH (or in %LOCALAPPDATA%\\Programs\\Ollama on Windows).".to_string())
+
+            Err("Ollama not found. Install from https://ollama.com and ensure it is on your PATH. On macOS, standard app locations are checked automatically; on Windows, %LOCALAPPDATA%\\Programs\\Ollama is also checked.".to_string())
         }
         Err(e) => Err(format!("Failed to launch Ollama: {e}")),
     }

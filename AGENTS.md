@@ -197,6 +197,14 @@ npm run test:run -- --reporter=verbose --filter "test name"
 
 - `VITE_OLLAMA_BASE_URL` - Ollama server URL (default: `http://127.0.0.1:11434`)
 
+## macOS Build Notes
+
+- `npm run build:tauri:mac` goes through `scripts/build-tauri-mac.mjs`, not a raw `tauri build` call.
+- When running mac DMG builds from a headless agent or non-Finder session, preserve `CI=true` so the generated `bundle_dmg.sh` skips Finder/AppleScript customization. Forcing `CI=false` can make the build fail after `Running bundle_dmg.sh` even when the app bundle itself succeeded.
+- If a DMG build fails late in packaging, inspect `src-tauri/target/<target-triple>/release/bundle/dmg/bundle_dmg.sh` and the surrounding bundle directory first. The common failure mode is the Finder layout step, not Rust compilation.
+- macOS GUI apps often do not inherit the shell `PATH`. If Ghost Writer reports `Ollama not found` on macOS, check the Tauri-side fallback paths in `src-tauri/src/main.rs` before assuming Ollama is actually missing.
+- Current macOS Ollama fallback locations include `/opt/homebrew/bin/ollama`, `/usr/local/bin/ollama`, `/Applications/Ollama.app/Contents/Resources/ollama`, and `/Applications/Ollama.app/Contents/MacOS/Ollama`.
+
 ## Current Repo Notes
 
 - Desktop model loading is live at runtime through the Tauri backend. Snapshot model JSON is support/build plumbing, not the desktop source of truth.
