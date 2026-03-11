@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { extractInlinePromptOverlayRanges } from '../lib/contentTransforms'
+import { isMacDesktopRuntime, prepareMacosEditorInput, recordEditorDiagnostic } from '../lib/desktopRuntime'
 
 const INDENT_UNIT = '  '
 const OVERLAY_HEAVY_TEXT_LIMIT = 120_000
@@ -12,6 +13,7 @@ const EM_DASH = '\u2014'
 const EN_DASH = '\u2013'
 const LEGACY_EM_DASH = 'â€”'
 const LEGACY_EN_DASH = 'â€“'
+const DIAGNOSTIC_CONTEXT_RADIUS = 24
 
 function isMacPlatform() {
   return /Mac/.test(navigator.platform)
@@ -23,6 +25,23 @@ function isWindowsPlatform() {
 
 function isModShortcut(event) {
   return isMacPlatform() ? event.metaKey : event.ctrlKey
+}
+
+function buildEditorDiagnosticSnapshot(target, fallbackValue = '') {
+  const value = target?.value ?? fallbackValue ?? ''
+  const selectionStart = target?.selectionStart ?? 0
+  const selectionEnd = target?.selectionEnd ?? selectionStart
+  const contextStart = Math.max(0, selectionStart - DIAGNOSTIC_CONTEXT_RADIUS)
+  const contextEnd = Math.min(value.length, selectionEnd + DIAGNOSTIC_CONTEXT_RADIUS)
+
+  return {
+    selectionStart,
+    selectionEnd,
+    valueLength: value.length,
+    contextBefore: value.slice(contextStart, selectionStart),
+    selectedText: value.slice(selectionStart, selectionEnd),
+    contextAfter: value.slice(selectionEnd, contextEnd),
+  }
 }
 
 function pushPlain(nodes, text, keyPrefix) {
@@ -235,6 +254,12 @@ function Editor({
 }) {
   const textareaRef = useRef(null)
   const isComposingRef = useRef(false)
+  const pendingDashRestoreFrameRef = useRef(0)
+  const lastKnownSelectionRef = useRef({
+    selectionStart: 0,
+    selectionEnd: 0,
+    valueLength: 0,
+  })
   const lastAppliedExternalSelectionFocusRequestIdRef = useRef(0)
   const [contentHeight, setContentHeight] = useState(0)
   const text = value ?? ''
@@ -424,6 +449,32 @@ function Editor({
     textarea.focus()
   }, [focusRequestId])
 
+  const handleTextareaFocus = useCallback(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      lastKnownSelectionRef.current = {
+        selectionStart: textarea.selectionStart ?? 0,
+        selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
+        valueLength: (value ?? '').length,
+      }
+    }
+    recordEditorDiagnostic('editor.focus', buildEditorDiagnosticSnapshot(textarea, value ?? ''))
+    if (!isMacDesktopRuntime()) return
+    void prepareMacosEditorInput()
+  }, [value])
+
+  const handleTextareaBeforeInput = useCallback(
+    (event) => {
+      const target = event.target
+      recordEditorDiagnostic('editor.beforeinput', {
+        inputType: event.nativeEvent?.inputType ?? event.inputType ?? '',
+        data: event.nativeEvent?.data ?? event.data ?? '',
+        ...buildEditorDiagnosticSnapshot(target, value ?? ''),
+      })
+    },
+    [value],
+  )
+
   const getSelectionRange = () => {
     const textarea = textareaRef.current
     if (!textarea) {
@@ -511,6 +562,11 @@ function Editor({
     const handleSelectionUpdate = () => {
       const textarea = textareaRef.current
       if (!textarea) return
+      lastKnownSelectionRef.current = {
+        selectionStart: textarea.selectionStart ?? 0,
+        selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
+        valueLength: textarea.value.length,
+      }
       onSelectionChange?.({
         selectionStart: textarea.selectionStart ?? 0,
         selectionEnd: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
@@ -799,10 +855,78 @@ function Editor({
     }
   }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
 
+  useEffect(
+    () => () => {
+      if (pendingDashRestoreFrameRef.current) {
+        cancelAnimationFrame(pendingDashRestoreFrameRef.current)
+      }
+    },
+    [],
+  )
+
+  const scheduleDashSelectionRestore = useCallback(
+    (target, nextPosition, expectedValue) => {
+      if (pendingDashRestoreFrameRef.current) {
+        cancelAnimationFrame(pendingDashRestoreFrameRef.current)
+      }
+
+      const frameId = requestAnimationFrame(() => {
+        if (pendingDashRestoreFrameRef.current !== frameId) return
+        pendingDashRestoreFrameRef.current = 0
+        if (target.value !== expectedValue) {
+          recordEditorDiagnostic('editor.dash_restore.skipped', {
+            reason: 'value_mismatch',
+            expectedValueLength: expectedValue.length,
+            ...buildEditorDiagnosticSnapshot(target, expectedValue),
+          })
+          return
+        }
+
+        target.focus()
+        target.setSelectionRange(nextPosition, nextPosition)
+        recordEditorDiagnostic('editor.dash_restore.applied', {
+          nextPosition,
+          ...buildEditorDiagnosticSnapshot(target, expectedValue),
+        })
+        onSelectionChange?.({
+          selectionStart: nextPosition,
+          selectionEnd: nextPosition,
+        })
+      })
+
+      pendingDashRestoreFrameRef.current = frameId
+      recordEditorDiagnostic('editor.dash_restore.scheduled', {
+        nextPosition,
+        expectedValueLength: expectedValue.length,
+        ...buildEditorDiagnosticSnapshot(target, expectedValue),
+      })
+    },
+    [onSelectionChange],
+  )
+
   const handleTextareaChange = (event) => {
     const target = event.target
     const inputValue = target.value
     const previousValue = value ?? ''
+    const nativeInputType = event.nativeEvent?.inputType
+    const nativeInputData = event.nativeEvent?.data
+    const lastKnownSelection = lastKnownSelectionRef.current
+
+    recordEditorDiagnostic('editor.change', {
+      inputType: nativeInputType ?? '',
+      data: nativeInputData ?? '',
+      previousValueLength: previousValue.length,
+      ...buildEditorDiagnosticSnapshot(target, inputValue),
+    })
+
+    if (pendingDashRestoreFrameRef.current) {
+      cancelAnimationFrame(pendingDashRestoreFrameRef.current)
+      pendingDashRestoreFrameRef.current = 0
+      recordEditorDiagnostic('editor.dash_restore.canceled', {
+        reason: 'new_input',
+        ...buildEditorDiagnosticSnapshot(target, inputValue),
+      })
+    }
 
     if (inputValue.includes(EM_DASH) || inputValue.includes(EN_DASH)) {
       let didRestoreUnicodeDash = false
@@ -827,67 +951,44 @@ function Editor({
 
       if (didRestoreUnicodeDash) {
         const selectionStart = target.selectionStart ?? inputValue.length
-        const caretDelta = restoredUnicodeValue.length - inputValue.length
-        const nextPosition = Math.max(0, Math.min(selectionStart + caretDelta, restoredUnicodeValue.length))
+        const didConsumeTriggerSpace =
+          isMacPlatform() &&
+          nativeInputType === 'insertReplacementText' &&
+          (nativeInputData === EM_DASH ||
+            nativeInputData === EN_DASH ||
+            inputValue === EM_DASH ||
+            inputValue === EN_DASH) &&
+          !/\s$/.test(inputValue) &&
+          selectionStart >= inputValue.length
+        const nextValue = didConsumeTriggerSpace ? `${restoredUnicodeValue} ` : restoredUnicodeValue
+        const caretDelta = nextValue.length - inputValue.length
+        const logicalSelectionStart =
+          isMacPlatform() &&
+          nativeInputType === 'insertReplacementText' &&
+          lastKnownSelection.valueLength === previousValue.length
+            ? lastKnownSelection.selectionStart
+            : selectionStart
+        const nextPosition = Math.max(0, Math.min(logicalSelectionStart + caretDelta, nextValue.length))
 
-        onChange(restoredUnicodeValue)
+        lastKnownSelectionRef.current = {
+          selectionStart: nextPosition,
+          selectionEnd: nextPosition,
+          valueLength: nextValue.length,
+        }
 
-        requestAnimationFrame(() => {
-          target.focus()
-          target.setSelectionRange(nextPosition, nextPosition)
-          onSelectionChange?.({
-            selectionStart: nextPosition,
-            selectionEnd: nextPosition,
-          })
-        })
+        onChange(nextValue)
+
+        scheduleDashSelectionRestore(target, nextPosition, nextValue)
         return
       }
     }
 
-    if (!inputValue.includes('—') && !inputValue.includes('–')) {
-      onChange(inputValue)
-      return
+    lastKnownSelectionRef.current = {
+      selectionStart: target.selectionStart ?? inputValue.length,
+      selectionEnd: target.selectionEnd ?? target.selectionStart ?? inputValue.length,
+      valueLength: inputValue.length,
     }
-
-    let didRestore = false
-    const restoredValue = Array.from(inputValue)
-      .map((char, index) => {
-        if (char !== '—' && char !== '–') return char
-
-        let runStart = index
-        while (runStart > 0 && previousValue[runStart - 1] === '-') {
-          runStart -= 1
-        }
-        let runEnd = index
-        while (runEnd < previousValue.length && previousValue[runEnd] === '-') {
-          runEnd += 1
-        }
-        const runLength = runEnd - runStart
-        if (runLength < 2) return char
-        didRestore = true
-        return '-'.repeat(runLength)
-      })
-      .join('')
-
-    if (!didRestore) {
-      onChange(inputValue)
-      return
-    }
-
-    const selectionStart = target.selectionStart ?? inputValue.length
-    const caretDelta = restoredValue.length - inputValue.length
-    const nextPosition = Math.max(0, Math.min(selectionStart + caretDelta, restoredValue.length))
-
-    onChange(restoredValue)
-
-    requestAnimationFrame(() => {
-      target.focus()
-      target.setSelectionRange(nextPosition, nextPosition)
-      onSelectionChange?.({
-        selectionStart: nextPosition,
-        selectionEnd: nextPosition,
-      })
-    })
+    onChange(inputValue)
   }
 
   const editorTextStyle = useMemo(() => {
@@ -966,27 +1067,13 @@ function Editor({
           value={value ?? ''}
           style={editorTextStyle}
           onChange={handleTextareaChange}
+          onBeforeInput={handleTextareaBeforeInput}
+          onFocus={handleTextareaFocus}
           onCompositionStart={() => {
             isComposingRef.current = true
           }}
           onCompositionEnd={() => {
             isComposingRef.current = false
-          }}
-          onBeforeInput={(event) => {
-            if (isComposingRef.current) return
-            const nativeEvent = event.nativeEvent
-            const inputType = nativeEvent?.inputType
-            const inputData = nativeEvent?.data
-            if (inputType === 'insertReplacementText') {
-              event.preventDefault()
-              return
-            }
-            if (inputData === EM_DASH || inputData === EN_DASH) {
-              event.preventDefault()
-              return
-            }
-            if (inputData !== '—' && inputData !== '–') return
-            event.preventDefault()
           }}
           onScroll={(event) => {
             const target = event.target
