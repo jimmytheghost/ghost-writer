@@ -1,5 +1,9 @@
 const CHECKBOX_LINE_PATTERN = /^(\s*)(?:((?:[-*+])|(?:\d+[.)]))(\s+))?\[( |x|X)\](.*)$/
 
+function splitMarkdownLines(markdown = '') {
+  return String(markdown).split(/\r?\n/)
+}
+
 export function extractInlinePromptTokens(markdown = '') {
   const tokens = []
   let searchIndex = 0
@@ -81,8 +85,7 @@ export function stripInlinePromptTokensForPresentation(markdown = '') {
 }
 
 export function normalizeCustomCheckboxLines(markdown = '') {
-  return markdown
-    .split('\n')
+  return splitMarkdownLines(markdown)
     .map((line) => {
       const match = line.match(/^(\s*)\[( |x|X)\](.*)$/)
       if (!match) return line
@@ -93,7 +96,7 @@ export function normalizeCustomCheckboxLines(markdown = '') {
 }
 
 export function collectCheckboxLineIndexes(markdown = '') {
-  const lines = markdown.split('\n')
+  const lines = splitMarkdownLines(markdown)
   const indexes = []
 
   lines.forEach((line, index) => {
@@ -106,7 +109,7 @@ export function collectCheckboxLineIndexes(markdown = '') {
 }
 
 export function toggleCheckboxOnLine(markdown = '', lineIndex, isChecked) {
-  const lines = markdown.split('\n')
+  const lines = splitMarkdownLines(markdown)
   const targetLine = lines[lineIndex]
   if (typeof targetLine !== 'string') return markdown
 

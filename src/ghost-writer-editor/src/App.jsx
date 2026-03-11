@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import bundledModelSnapshot from './generated/ollama-models.json'
 import AppModals from './components/AppModals'
@@ -72,6 +72,81 @@ const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
 
 function isWindowsPlatform() {
   return /Win/i.test(navigator.platform)
+}
+
+function getPreviewEventTargetElement(target) {
+  if (target instanceof HTMLElement) return target
+  if (target instanceof Text) return target.parentElement
+  return null
+}
+
+function buildReactPropsFromHtmlElement(element, key) {
+  const props = { key }
+
+  for (const attribute of [...element.attributes]) {
+    const name = attribute.name
+    const normalizedName = name.toLowerCase()
+    const value = attribute.value
+
+    if (normalizedName === 'class') {
+      props.className = value
+      continue
+    }
+
+    if (normalizedName === 'tabindex') {
+      props.tabIndex = Number(value)
+      continue
+    }
+
+    props[name] = value
+  }
+
+  return props
+}
+
+function renderWindowsPreviewReactNode(node, handlers, key) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return null
+
+  const element = /** @type {HTMLElement} */ (node)
+  const tagName = element.tagName.toLowerCase()
+  const props = buildReactPropsFromHtmlElement(element, key)
+
+  if (tagName === 'button' && element.getAttribute('data-preview-checkbox') === 'true') {
+    const sourceLine = Number(element.getAttribute('data-source-line'))
+    const nextChecked = element.getAttribute('aria-pressed') !== 'true'
+    props['data-preview-checkbox-control'] = 'true'
+    props.onClick = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      handlers.onCheckboxToggle(sourceLine, nextChecked)
+    }
+  }
+
+  if (tagName === 'a' && element.hasAttribute('href')) {
+    props.onClick = (event) => {
+      handlers.onLinkClick(event, element.getAttribute('href') || '')
+    }
+  }
+
+  const children = [...element.childNodes]
+    .map((child, index) => renderWindowsPreviewReactNode(child, handlers, `${key}-${index}`))
+    .filter((child) => child !== null)
+
+  return createElement(tagName, props, ...children)
+}
+
+function renderWindowsPreviewReactContent(html, handlers) {
+  if (!html || typeof window === 'undefined') return null
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  return [...doc.body.childNodes]
+    .map((node, index) => renderWindowsPreviewReactNode(node, handlers, `preview-${index}`))
+    .filter((node) => node !== null)
 }
 
 function App() {
@@ -614,8 +689,12 @@ function App() {
     [rawMdForPreview],
   )
   const renderedMarkdown = useMemo(
-    () => renderMarkdownToSafeHtml(normalizedPreviewMarkdown),
-    [normalizedPreviewMarkdown],
+    () =>
+      renderMarkdownToSafeHtml(normalizedPreviewMarkdown, {
+        checkboxLineIndexes,
+        previewCheckboxMode: 'button',
+      }),
+    [checkboxLineIndexes, normalizedPreviewMarkdown],
   )
 
   useFooterHeightSync(appRef, footerRef, isFooterCollapsed ? 'collapsed' : 'expanded')
@@ -1529,20 +1608,9 @@ function App() {
     [activeTabId],
   )
 
-  const handlePreviewCheckboxToggle = useCallback(
-    (checkbox) => {
-      if (!(checkbox instanceof HTMLElement) || !activeTabId) return
-      let sourceLine = Number(checkbox.dataset.sourceLine)
-      if (!Number.isInteger(sourceLine) && previewContentRef.current) {
-        const checkboxNodes = [...previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')]
-        const checkboxIndex = checkboxNodes.indexOf(checkbox)
-        if (checkboxIndex >= 0) {
-          sourceLine = checkboxLineIndexes[checkboxIndex]
-        }
-      }
-
-      if (!Number.isInteger(sourceLine)) return
-      const nextChecked = checkbox.getAttribute('aria-pressed') !== 'true'
+  const handlePreviewCheckboxToggleByLine = useCallback(
+    (sourceLine, nextChecked) => {
+      if (!Number.isInteger(sourceLine) || !activeTabId) return
 
       setTabs((currentTabs) => {
         const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
@@ -1552,39 +1620,91 @@ function App() {
         return updateTabContent(currentTabs, activeTabId, nextContent)
       })
     },
-    [activeTabId, checkboxLineIndexes],
+    [activeTabId],
   )
+
+  const handlePreviewCheckboxToggle = useCallback(
+    (checkbox, explicitChecked = null) => {
+      if (!(checkbox instanceof HTMLElement) || !activeTabId) return
+      let sourceLine = Number(checkbox.dataset.sourceLine)
+      if (!Number.isInteger(sourceLine) && previewContentRef.current) {
+        const checkboxNodes = [
+          ...previewContentRef.current.querySelectorAll(
+            '[data-preview-checkbox="true"], [data-preview-checkbox-anchor="true"]',
+          ),
+        ]
+        const checkboxIndex = checkboxNodes.indexOf(checkbox)
+        if (checkboxIndex >= 0) {
+          sourceLine = checkboxLineIndexes[checkboxIndex]
+        }
+      }
+
+      if (!Number.isInteger(sourceLine)) return
+      const nextChecked =
+        typeof explicitChecked === 'boolean'
+          ? explicitChecked
+          : checkbox.getAttribute('aria-pressed') !== 'true'
+      const taskItem = checkbox.closest?.('[data-preview-task-item="true"]')
+
+      if (checkbox.getAttribute('data-preview-checkbox-anchor') === 'true') {
+        checkbox.dataset.checked = nextChecked ? 'true' : 'false'
+      }
+      if (taskItem instanceof HTMLElement) {
+        taskItem.dataset.checked = nextChecked ? 'true' : 'false'
+      }
+
+      handlePreviewCheckboxToggleByLine(sourceLine, nextChecked)
+    },
+    [activeTabId, checkboxLineIndexes, handlePreviewCheckboxToggleByLine],
+  )
+
+  const handlePreviewLinkClick = useCallback((event, href) => {
+    if (!isSafeMarkdownUrl(href)) {
+      event.preventDefault()
+      return
+    }
+
+    event.preventDefault()
+    if (isDesktopRuntime()) {
+      void openExternalUrl(href)
+      return
+    }
+
+    window.open(href, '_blank', 'noopener,noreferrer')
+  }, [])
 
   const handlePreviewContentClick = useCallback(
     (event) => {
-      const checkbox = event.target?.closest?.('[data-preview-checkbox="true"]')
-      if (checkbox instanceof HTMLElement) {
-        event.preventDefault()
-        event.stopPropagation()
-        handlePreviewCheckboxToggle(checkbox)
-        return
+      const targetElement = getPreviewEventTargetElement(event.target)
+
+      if (!isWindows) {
+        const checkbox = targetElement?.closest?.('[data-preview-checkbox="true"]')
+        if (checkbox instanceof HTMLButtonElement) {
+          event.preventDefault()
+          event.stopPropagation()
+          handlePreviewCheckboxToggle(checkbox)
+          return
+        }
       }
 
-      const anchor = event.target?.closest?.('a[href]')
+      const anchor = targetElement?.closest?.('a[href]')
       if (anchor instanceof HTMLAnchorElement) {
-        const href = anchor.getAttribute('href') || ''
-        if (!isSafeMarkdownUrl(href)) {
-          event.preventDefault()
-          return
-        }
-
-        event.preventDefault()
-        if (isDesktopRuntime()) {
-          void openExternalUrl(href)
-          return
-        }
-
-        window.open(href, '_blank', 'noopener,noreferrer')
+        handlePreviewLinkClick(event, anchor.getAttribute('href') || '')
         return
       }
     },
-    [handlePreviewCheckboxToggle],
+    [handlePreviewCheckboxToggle, handlePreviewLinkClick, isWindows],
   )
+
+  const renderedWindowsPreviewContent = useMemo(() => {
+    if (!isWindows) return null
+    return renderWindowsPreviewReactContent(renderedMarkdown, {
+      onCheckboxToggle: (sourceLine, nextChecked) => {
+        handlePreviewCheckboxToggleByLine(sourceLine, nextChecked)
+      },
+      onLinkClick: handlePreviewLinkClick,
+    })
+  }, [handlePreviewCheckboxToggleByLine, handlePreviewLinkClick, isWindows, renderedMarkdown])
 
   const handleAlwaysOnTopToggle = useCallback(() => {
     setIsAlwaysOnTop((previous) => {
@@ -1665,21 +1785,63 @@ function App() {
     })
   }, [activeTabId])
 
+  const syncPreviewCheckboxesToMarkdown = useCallback(() => {
+    if (!activeTabId) return
+    const previewElement = previewContentRef.current
+    if (!previewElement) return
+
+    const checkboxNodes = [
+      ...previewElement.querySelectorAll('[data-preview-checkbox="true"], [data-preview-checkbox-anchor="true"]'),
+    ]
+    if (!checkboxNodes.length) return
+
+    setTabs((currentTabs) => {
+      const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
+      if (!targetTab) return currentTabs
+
+      let nextContent = targetTab.content
+      let changedCount = 0
+
+      checkboxNodes.forEach((node) => {
+        if (!(node instanceof HTMLElement)) return
+        const sourceLine = Number(node.dataset.sourceLine)
+        if (!Number.isInteger(sourceLine)) return
+
+        const isChecked =
+          node instanceof HTMLInputElement
+            ? node.checked
+            : node.getAttribute('data-preview-checkbox-anchor') === 'true'
+              ? node.dataset.checked === 'true'
+              : node.getAttribute('aria-pressed') === 'true'
+        const updatedContent = toggleCheckboxOnLine(nextContent, sourceLine, isChecked)
+        if (updatedContent !== nextContent) {
+          changedCount += 1
+          nextContent = updatedContent
+        }
+      })
+
+      if (nextContent === targetTab.content) return currentTabs
+      return updateTabContent(currentTabs, activeTabId, nextContent)
+    })
+  }, [activeTabId])
+
   const handleShowPreview = useCallback(() => {
     setIsPreviewOpen(true)
   }, [])
 
   const handleShowTextEdit = useCallback(() => {
+    syncPreviewCheckboxesToMarkdown()
     syncPreviewScrollBackToEditor()
     setIsPreviewOpen(false)
-  }, [syncPreviewScrollBackToEditor])
+  }, [syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleTogglePreview = useCallback(() => {
     if (isPreviewOpen) {
+      syncPreviewCheckboxesToMarkdown()
       syncPreviewScrollBackToEditor()
     }
     setIsPreviewOpen((previous) => !previous)
-  }, [isPreviewOpen, syncPreviewScrollBackToEditor])
+  }, [isPreviewOpen, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleToggleFooter = useCallback(() => {
     setIsFooterCollapsed((previous) => !previous)
@@ -2045,16 +2207,23 @@ ${escapeLatex(exportMarkdownSource)}
     }
   }, [handleCloseFindReplace, isFindReplaceOpen])
 
-  useLayoutEffect(() => {
-    if (!isPreviewOpen || !previewContentRef.current) return
+  useEffect(() => {
+    if (!isPreviewOpen || isWindows) return undefined
+    const previewElement = previewContentRef.current
+    if (!previewElement) return undefined
 
-    const checkboxNodes = previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')
-    checkboxNodes.forEach((node, index) => {
-      const sourceLine = checkboxLineIndexes[index]
-      if (typeof sourceLine !== 'number') return
-      node.dataset.sourceLine = String(sourceLine)
-    })
-  }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
+    // Use native event delegation for injected preview HTML so desktop webviews
+    // do not depend on React's synthetic event bridge for checkbox/link clicks.
+    const handlePreviewClick = (event) => {
+      handlePreviewContentClick(event)
+    }
+
+    previewElement.addEventListener('click', handlePreviewClick)
+    return () => {
+      previewElement.removeEventListener('click', handlePreviewClick)
+    }
+  }, [handlePreviewContentClick, isPreviewOpen, isWindows])
+
 
   useEffect(() => {
     if (!isPreviewOpen) return
@@ -2164,12 +2333,17 @@ ${escapeLatex(exportMarkdownSource)}
         <div className={`editor-pane${isPreviewOpen || isPromptPanelHidden ? ' editor-pane--preview' : ''}`}>
           {isPreviewOpen ? (
             <section className={`preview preview--full${isDark ? ' preview--dark' : ''}`} aria-label="Markdown preview">
-              <div
-                ref={previewContentRef}
-                className="preview__content"
-                onClick={handlePreviewContentClick}
-                dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
-              />
+              {isWindows ? (
+                <div ref={previewContentRef} className="preview__content">
+                  {renderedWindowsPreviewContent}
+                </div>
+              ) : (
+                <div
+                  ref={previewContentRef}
+                  className="preview__content"
+                  dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
+                />
+              )}
             </section>
           ) : (
             <Editor

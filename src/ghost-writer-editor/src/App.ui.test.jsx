@@ -2,6 +2,27 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+function stubNavigatorPlatform(platform) {
+  const navigatorObject = window.navigator
+  const originalDescriptor =
+    Object.getOwnPropertyDescriptor(navigatorObject, 'platform') ??
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigatorObject), 'platform')
+
+  Object.defineProperty(navigatorObject, 'platform', {
+    configurable: true,
+    value: platform,
+  })
+
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(navigatorObject, 'platform', originalDescriptor)
+      return
+    }
+
+    delete navigatorObject.platform
+  }
+}
+
 describe('App UI behaviors', () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -138,6 +159,102 @@ describe('App UI behaviors', () => {
         ['# Checklist', '', '- [x] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
       )
     })
+  })
+
+  it('toggles markdown task items from preview on Windows platforms', async () => {
+    const restorePlatform = stubNavigatorPlatform('Win32')
+
+    try {
+      render(<App />)
+
+      const editor = document.querySelector('textarea.editor__textarea')
+      expect(editor).not.toBeNull()
+      fireEvent.change(editor, {
+        target: {
+          value: ['# Checklist', '', '- [ ] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
+        },
+      })
+
+      fireEvent.click(screen.getByLabelText('Expand footer controls'))
+      fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+      const previewContent = document.querySelector('.preview__content')
+      expect(previewContent).not.toBeNull()
+
+      await waitFor(() => {
+        const previewControls = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+        expect(previewControls).toHaveLength(2)
+        expect(previewControls[0].tagName).toBe('BUTTON')
+        expect(previewControls[0]).toHaveAttribute('data-source-line', '2')
+        expect(previewControls[0]).toHaveAttribute('aria-pressed', 'false')
+      })
+
+      previewContent.scrollTop = 32
+      fireEvent.scroll(previewContent)
+
+      await waitFor(() => {
+        const scrolledPreviewControls = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+        expect(scrolledPreviewControls).toHaveLength(2)
+      })
+
+      const previewControls = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+      fireEvent.click(previewControls[0])
+
+      await waitFor(() => {
+        const refreshedPreviewControls = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+        expect(refreshedPreviewControls[0]).toHaveAttribute('aria-pressed', 'true')
+      })
+
+      fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+      await waitFor(() => {
+        expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+          ['# Checklist', '', '- [x] Use a clean workspace', '- [x] Prefer a manual smoke test'].join('\n'),
+        )
+      })
+    } finally {
+      restorePlatform()
+    }
+  })
+
+  it('syncs Windows preview checkbox DOM state back into markdown when leaving preview', async () => {
+    const restorePlatform = stubNavigatorPlatform('Win32')
+
+    try {
+      render(<App />)
+
+      const editor = document.querySelector('textarea.editor__textarea')
+      expect(editor).not.toBeNull()
+      fireEvent.change(editor, {
+        target: {
+          value: ['# Checklist', '', '- [ ] Use a clean workspace', '- [ ] Prefer a manual smoke test'].join('\n'),
+        },
+      })
+
+      fireEvent.click(screen.getByLabelText('Expand footer controls'))
+      fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+      const previewContent = document.querySelector('.preview__content')
+      expect(previewContent).not.toBeNull()
+
+      await waitFor(() => {
+        const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+        expect(previewButtons).toHaveLength(2)
+      })
+
+      const previewButtons = previewContent.querySelectorAll('[data-preview-checkbox-control="true"]')
+      previewButtons[0].setAttribute('aria-pressed', 'true')
+
+      fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+      await waitFor(() => {
+        expect(document.querySelector('textarea.editor__textarea')).toHaveValue(
+          ['# Checklist', '', '- [x] Use a clean workspace', '- [ ] Prefer a manual smoke test'].join('\n'),
+        )
+      })
+    } finally {
+      restorePlatform()
+    }
   })
 
   it('toggles numbered markdown task items when clicking preview task buttons', async () => {

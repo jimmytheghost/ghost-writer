@@ -128,6 +128,33 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).not.toContain('type="checkbox"')
   })
 
+  it('embeds source-line metadata directly into preview checkbox html when provided', () => {
+    const output = renderMarkdownToSafeHtml('- [ ] task', { checkboxLineIndexes: [4] })
+    expect(output).toContain('data-source-line="4"')
+  })
+
+  it('renders native preview checkbox inputs when requested', () => {
+    const output = renderMarkdownToSafeHtml('- [x] done', {
+      previewCheckboxMode: 'input',
+      checkboxLineIndexes: [2],
+    })
+    expect(output).toContain('type="checkbox"')
+    expect(output).toContain('data-preview-checkbox="true"')
+    expect(output).toContain('data-source-line="2"')
+    expect(output).not.toContain('type="button"')
+  })
+
+  it('adds task row metadata for anchor-mode preview checkboxes', () => {
+    const output = renderMarkdownToSafeHtml('- [x] done', {
+      previewCheckboxMode: 'anchor',
+      checkboxLineIndexes: [2],
+    })
+    expect(output).toContain('data-preview-checkbox-anchor="true"')
+    expect(output).toContain('data-preview-task-item="true"')
+    expect(output).toContain('data-source-line="2"')
+    expect(output).toContain('data-checked="true"')
+  })
+
   it('wraps task-list item content in a stable container next to the checkbox', () => {
     const output = renderMarkdownToSafeHtml(
       '- [ ] Run installer: `src/ghost-writer-editor/src-tauri/target/release/bundle/nsis/Ghost Writer_1.4.7_x64-setup.exe`',
