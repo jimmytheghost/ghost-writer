@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
-function stubNavigatorPlatform(platform) {
+function mockNavigatorPlatform(platform) {
   const navigatorObject = window.navigator
   const originalDescriptor =
     Object.getOwnPropertyDescriptor(navigatorObject, 'platform') ??
@@ -22,6 +22,8 @@ function stubNavigatorPlatform(platform) {
     delete navigatorObject.platform
   }
 }
+
+const stubNavigatorPlatform = mockNavigatorPlatform
 
 describe('App UI behaviors', () => {
   beforeEach(() => {
@@ -431,5 +433,49 @@ describe('App UI behaviors', () => {
     await waitFor(() => {
       expect(editor.scrollTop).toBe(75)
     })
+  })
+
+  it('avoids live preview scroll RAF syncing on Windows while preserving the exit scroll position', async () => {
+    const restorePlatform = mockNavigatorPlatform('Win32')
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 1
+    })
+
+    try {
+      render(<App />)
+
+      let editor = document.querySelector('textarea.editor__textarea')
+      expect(editor).not.toBeNull()
+      editor.scrollTop = 220
+      fireEvent.scroll(editor)
+
+      fireEvent.click(screen.getByLabelText('Expand footer controls'))
+      fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+      const previewContent = document.querySelector('.preview__content')
+      expect(previewContent).not.toBeNull()
+      await waitFor(() => {
+        expect(previewContent.scrollTop).toBe(220)
+      })
+
+      requestAnimationFrameSpy.mockClear()
+
+      previewContent.scrollTop = 75
+      fireEvent.scroll(previewContent)
+
+      expect(requestAnimationFrameSpy).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByLabelText('Exit markdown preview'))
+
+      editor = document.querySelector('textarea.editor__textarea')
+      expect(editor).not.toBeNull()
+      await waitFor(() => {
+        expect(editor.scrollTop).toBe(75)
+      })
+    } finally {
+      requestAnimationFrameSpy.mockRestore()
+      restorePlatform()
+    }
   })
 })

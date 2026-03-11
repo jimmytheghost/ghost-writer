@@ -2,8 +2,85 @@ import { invoke, isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { report } from './errorReporting'
 
+const FRONTEND_DIAGNOSTIC_TRACE_LIMIT = 120
+const FRONTEND_DIAGNOSTIC_STRING_LIMIT = 240
+
 function hasWindow() {
   return typeof window !== 'undefined'
+}
+
+function createFrontendDiagnosticsState() {
+  return {
+    createdAtUnixMs: Date.now(),
+    runtime: {
+      isDesktop: false,
+      isMacDesktop: false,
+      platform: typeof navigator === 'undefined' ? '' : navigator.platform ?? '',
+      userAgent: typeof navigator === 'undefined' ? '' : (navigator.userAgent ?? '').slice(0, 240),
+    },
+    macosEditorInputPreparation: {
+      attemptCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      lastAttemptUnixMs: 0,
+      lastSuccessUnixMs: 0,
+      lastFailureUnixMs: 0,
+      lastError: '',
+    },
+    editorEventTrace: [],
+  }
+}
+
+let frontendDiagnosticsState = createFrontendDiagnosticsState()
+
+function truncateDiagnosticString(value) {
+  const normalized = typeof value === 'string' ? value : String(value ?? '')
+  if (normalized.length <= FRONTEND_DIAGNOSTIC_STRING_LIMIT) return normalized
+  return `${normalized.slice(0, FRONTEND_DIAGNOSTIC_STRING_LIMIT - 1)}…`
+}
+
+function sanitizeDiagnosticValue(value, depth = 0) {
+  if (value == null) return value ?? null
+  if (typeof value === 'string') return truncateDiagnosticString(value)
+  if (typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) {
+    if (depth >= 2) return value.length
+    return value.slice(0, 12).map((entry) => sanitizeDiagnosticValue(entry, depth + 1))
+  }
+  if (typeof value === 'object') {
+    if (depth >= 2) return '[object]'
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 24)
+        .map(([key, entry]) => [key, sanitizeDiagnosticValue(entry, depth + 1)]),
+    )
+  }
+  return truncateDiagnosticString(value)
+}
+
+function pushEditorDiagnostic(event, payload = {}) {
+  const entry = {
+    ts: Date.now(),
+    event,
+    ...sanitizeDiagnosticValue(payload),
+  }
+  frontendDiagnosticsState.editorEventTrace.push(entry)
+  if (frontendDiagnosticsState.editorEventTrace.length > FRONTEND_DIAGNOSTIC_TRACE_LIMIT) {
+    frontendDiagnosticsState.editorEventTrace.splice(
+      0,
+      frontendDiagnosticsState.editorEventTrace.length - FRONTEND_DIAGNOSTIC_TRACE_LIMIT,
+    )
+  }
+}
+
+function syncFrontendDiagnosticsRuntimeFlags() {
+  frontendDiagnosticsState.runtime = {
+    ...frontendDiagnosticsState.runtime,
+    isDesktop: isDesktopRuntime(),
+    isMacDesktop: isMacDesktopRuntime(),
+    platform: typeof navigator === 'undefined' ? '' : navigator.platform ?? '',
+    userAgent: typeof navigator === 'undefined' ? '' : (navigator.userAgent ?? '').slice(0, 240),
+  }
 }
 
 export function isTauriRuntime() {
@@ -18,6 +95,21 @@ export function isDesktopRuntime() {
 export function isMacDesktopRuntime() {
   if (!isDesktopRuntime() || typeof navigator === 'undefined') return false
   return /Mac/i.test(navigator.platform)
+}
+
+export function recordEditorDiagnostic(event, payload = {}) {
+  if (!event) return
+  syncFrontendDiagnosticsRuntimeFlags()
+  pushEditorDiagnostic(event, payload)
+}
+
+export function getFrontendDiagnosticsSnapshot() {
+  syncFrontendDiagnosticsRuntimeFlags()
+  return JSON.parse(JSON.stringify(frontendDiagnosticsState))
+}
+
+export function resetFrontendDiagnosticsForTests() {
+  frontendDiagnosticsState = createFrontendDiagnosticsState()
 }
 
 export function markRendererInteractive(payload = {}) {
@@ -181,6 +273,37 @@ export async function printCurrentWebview() {
   }
 }
 
+export async function prepareMacosEditorInput() {
+  if (!isMacDesktopRuntime()) return false
+
+  syncFrontendDiagnosticsRuntimeFlags()
+  frontendDiagnosticsState.macosEditorInputPreparation.attemptCount += 1
+  frontendDiagnosticsState.macosEditorInputPreparation.lastAttemptUnixMs = Date.now()
+  frontendDiagnosticsState.macosEditorInputPreparation.lastError = ''
+  pushEditorDiagnostic('desktop.editor.macos_input.prepare.start')
+
+  try {
+    await invoke('prepare_macos_editor_input')
+    frontendDiagnosticsState.macosEditorInputPreparation.successCount += 1
+    frontendDiagnosticsState.macosEditorInputPreparation.lastSuccessUnixMs = Date.now()
+    pushEditorDiagnostic('desktop.editor.macos_input.prepare.success')
+    return true
+  } catch (error) {
+    frontendDiagnosticsState.macosEditorInputPreparation.failureCount += 1
+    frontendDiagnosticsState.macosEditorInputPreparation.lastFailureUnixMs = Date.now()
+    frontendDiagnosticsState.macosEditorInputPreparation.lastError = getErrorDetail(error)
+    pushEditorDiagnostic('desktop.editor.macos_input.prepare.failure', {
+      detail: frontendDiagnosticsState.macosEditorInputPreparation.lastError,
+    })
+    warnDesktopRuntime(
+      'desktop.editor.macos_input.prepare_failed',
+      'Failed to prepare macOS editor input behavior.',
+      error,
+    )
+    return false
+  }
+}
+
 export async function loadSettings() {
   if (!isDesktopRuntime()) return null
 
@@ -248,7 +371,9 @@ export async function exportDiagnosticsBundle() {
   if (!isDesktopRuntime()) return null
 
   try {
-    return await invoke('export_diagnostics_bundle')
+    return await invoke('export_diagnostics_bundle', {
+      frontendDiagnostics: getFrontendDiagnosticsSnapshot(),
+    })
   } catch (error) {
     warnDesktopRuntime(
       'desktop.diagnostics.export_bundle.failed',

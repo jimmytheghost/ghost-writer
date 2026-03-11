@@ -2240,12 +2240,21 @@ ${escapeLatex(exportMarkdownSource)}
   }, [activeTabId, isPreviewOpen])
 
   useEffect(() => {
+    if (!isWindows || !isPreviewOpen) return undefined
+
+    return () => {
+      syncPreviewScrollBackToEditor()
+    }
+  }, [isPreviewOpen, isWindows, syncPreviewScrollBackToEditor])
+
+  useEffect(() => {
     if (!isPreviewOpen || !activeTabId) return undefined
     const previewElement = previewContentRef.current
     if (!previewElement) return undefined
 
     const handlePreviewScroll = () => {
       previewScrollTopRef.current = Math.max(0, Number(previewElement.scrollTop) || 0)
+      if (isWindows) return
       if (isPreviewScrollTickingRef.current) return
 
       isPreviewScrollTickingRef.current = true
@@ -2273,7 +2282,7 @@ ${escapeLatex(exportMarkdownSource)}
     return () => {
       previewElement.removeEventListener('scroll', handlePreviewScroll)
     }
-  }, [activeTabId, isPreviewOpen])
+  }, [activeTabId, isPreviewOpen, isWindows])
 
   useEffect(() => {
     if (!isPreviewOpen) return undefined
