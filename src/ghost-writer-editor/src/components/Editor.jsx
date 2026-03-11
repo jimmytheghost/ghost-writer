@@ -172,7 +172,7 @@ function renderSyntaxLine(line, lineIndex) {
     return nodes
   }
 
-  const checkbox = /^(\s*)([-+*])(\s+)\[([ xX])\](\s+)(.*)$/.exec(line)
+  const checkbox = /^(\s*)([-+*]|\d+[.)])(\s+)\[([ xX])\](\s+)(.*)$/.exec(line)
   if (checkbox) {
     pushPlain(nodes, checkbox[1], keyPrefix)
     nodes.push(
@@ -200,7 +200,7 @@ function renderSyntaxLine(line, lineIndex) {
     return nodes
   }
 
-  const list = /^(\s*)([-+*])(\s+)(.*)$/.exec(line)
+  const list = /^(\s*)([-+*]|\d+[.)])(\s+)(.*)$/.exec(line)
   if (list) {
     pushPlain(nodes, list[1], keyPrefix)
     nodes.push(

@@ -1529,8 +1529,42 @@ function App() {
     [activeTabId],
   )
 
+  const handlePreviewCheckboxToggle = useCallback(
+    (checkbox) => {
+      if (!(checkbox instanceof HTMLElement) || !activeTabId) return
+      let sourceLine = Number(checkbox.dataset.sourceLine)
+      if (!Number.isInteger(sourceLine) && previewContentRef.current) {
+        const checkboxNodes = [...previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')]
+        const checkboxIndex = checkboxNodes.indexOf(checkbox)
+        if (checkboxIndex >= 0) {
+          sourceLine = checkboxLineIndexes[checkboxIndex]
+        }
+      }
+
+      if (!Number.isInteger(sourceLine)) return
+      const nextChecked = checkbox.getAttribute('aria-pressed') !== 'true'
+
+      setTabs((currentTabs) => {
+        const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
+        if (!targetTab) return currentTabs
+
+        const nextContent = toggleCheckboxOnLine(targetTab.content, sourceLine, nextChecked)
+        return updateTabContent(currentTabs, activeTabId, nextContent)
+      })
+    },
+    [activeTabId, checkboxLineIndexes],
+  )
+
   const handlePreviewContentClick = useCallback(
     (event) => {
+      const checkbox = event.target?.closest?.('[data-preview-checkbox="true"]')
+      if (checkbox instanceof HTMLElement) {
+        event.preventDefault()
+        event.stopPropagation()
+        handlePreviewCheckboxToggle(checkbox)
+        return
+      }
+
       const anchor = event.target?.closest?.('a[href]')
       if (anchor instanceof HTMLAnchorElement) {
         const href = anchor.getAttribute('href') || ''
@@ -1549,25 +1583,7 @@ function App() {
         return
       }
     },
-    [],
-  )
-
-  const handlePreviewCheckboxToggle = useCallback(
-    (checkbox) => {
-      if (!(checkbox instanceof HTMLElement) || !activeTabId) return
-      const sourceLine = Number(checkbox.dataset.sourceLine)
-      if (!Number.isInteger(sourceLine)) return
-      const nextChecked = checkbox.getAttribute('aria-pressed') !== 'true'
-
-      setTabs((currentTabs) => {
-        const targetTab = currentTabs.find((tab) => tab.id === activeTabId)
-        if (!targetTab) return currentTabs
-
-        const nextContent = toggleCheckboxOnLine(targetTab.content, sourceLine, nextChecked)
-        return updateTabContent(currentTabs, activeTabId, nextContent)
-      })
-    },
-    [activeTabId],
+    [handlePreviewCheckboxToggle],
   )
 
   const handleAlwaysOnTopToggle = useCallback(() => {
@@ -2029,7 +2045,7 @@ ${escapeLatex(exportMarkdownSource)}
     }
   }, [handleCloseFindReplace, isFindReplaceOpen])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isPreviewOpen || !previewContentRef.current) return
 
     const checkboxNodes = previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')
@@ -2039,27 +2055,6 @@ ${escapeLatex(exportMarkdownSource)}
       node.dataset.sourceLine = String(sourceLine)
     })
   }, [checkboxLineIndexes, isPreviewOpen, renderedMarkdown])
-
-  useEffect(() => {
-    if (!isPreviewOpen || !previewContentRef.current) return undefined
-
-    const checkboxNodes = [...previewContentRef.current.querySelectorAll('[data-preview-checkbox="true"]')]
-    const handleCheckboxClick = (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      handlePreviewCheckboxToggle(event.currentTarget)
-    }
-
-    checkboxNodes.forEach((node) => {
-      node.addEventListener('click', handleCheckboxClick)
-    })
-
-    return () => {
-      checkboxNodes.forEach((node) => {
-        node.removeEventListener('click', handleCheckboxClick)
-      })
-    }
-  }, [handlePreviewCheckboxToggle, isPreviewOpen, renderedMarkdown])
 
   useEffect(() => {
     if (!isPreviewOpen) return
