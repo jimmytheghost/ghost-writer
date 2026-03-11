@@ -9,7 +9,7 @@ use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 // removed duplicate Arc import
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -191,6 +191,8 @@ struct DiagnosticsBundle {
     runtime_platform: String,
     runtime_arch: String,
     log_file_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    frontend_diagnostics: Option<serde_json::Value>,
     logs: Vec<String>,
 }
 
@@ -822,6 +824,49 @@ fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         window.print().map_err(|error| error.to_string())
+    }
+}
+
+#[tauri::command]
+fn prepare_macos_editor_input(window: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let command_result = Arc::new(Mutex::new(Ok(())));
+        let command_result_handle = Arc::clone(&command_result);
+        window
+            .with_webview(move |webview| unsafe {
+                let next_result = (|| {
+                    let ns_window: &NSWindow = &*webview.ns_window().cast();
+                    let responder = ns_window
+                        .firstResponder()
+                        .ok_or_else(|| "ERR_MACOS_EDITOR_INPUT_NO_RESPONDER".to_string())?;
+                    let text_view = responder
+                        .downcast::<NSTextView>()
+                        .map_err(|_| "ERR_MACOS_EDITOR_INPUT_NO_TEXT_VIEW".to_string())?;
+
+                    text_view.setAutomaticDashSubstitutionEnabled(false);
+                    text_view.setAutomaticTextReplacementEnabled(false);
+                    text_view.setAutomaticSpellingCorrectionEnabled(false);
+                    Ok::<(), String>(())
+                })();
+
+                if let Ok(mut guard) = command_result_handle.lock() {
+                    *guard = next_result;
+                }
+            })
+            .map_err(|error| error.to_string())?;
+
+        let result = command_result
+            .lock()
+            .map_err(|_| "ERR_MACOS_EDITOR_INPUT_RESULT_LOCK".to_string())?
+            .clone();
+        result
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window;
+        Ok(())
     }
 }
 
@@ -1468,7 +1513,10 @@ fn load_settings(app: tauri::AppHandle) -> Result<SettingsResponse, String> {
 }
 
 #[tauri::command]
-fn export_diagnostics_bundle(app: tauri::AppHandle) -> Result<String, String> {
+fn export_diagnostics_bundle(
+    app: tauri::AppHandle,
+    frontend_diagnostics: Option<serde_json::Value>,
+) -> Result<String, String> {
     let logs = collect_recent_log_lines(&app, DIAGNOSTICS_LOG_LINES_LIMIT);
     let bundle = DiagnosticsBundle {
         generated_at_unix_ms: SystemTime::now()
@@ -1480,6 +1528,7 @@ fn export_diagnostics_bundle(app: tauri::AppHandle) -> Result<String, String> {
         runtime_platform: env::consts::OS.to_string(),
         runtime_arch: env::consts::ARCH.to_string(),
         log_file_count: LOG_MAX_FILES + 1,
+        frontend_diagnostics,
         logs,
     };
     append_structured_log(
@@ -1487,7 +1536,10 @@ fn export_diagnostics_bundle(app: tauri::AppHandle) -> Result<String, String> {
         "info",
         "diagnostics.export.bundle",
         "Built diagnostics bundle",
-        serde_json::json!({ "lineCount": bundle.logs.len() }),
+        serde_json::json!({
+            "lineCount": bundle.logs.len(),
+            "hasFrontendDiagnostics": bundle.frontend_diagnostics.is_some()
+        }),
     );
     serde_json::to_string_pretty(&bundle).map_err(|error| error.to_string())
 }
@@ -2092,6 +2144,7 @@ fn main() {
             load_markdown_files_by_paths,
             open_external_url,
             print_current_webview,
+            prepare_macos_editor_input,
             load_settings,
             save_settings,
             export_diagnostics_bundle,
@@ -2268,6 +2321,6 @@ fn main() {
         .expect("error while running tauri application");
 }
 #[cfg(target_os = "macos")]
-use objc2_app_kit::{NSPrintInfo, NSWindow};
+use objc2_app_kit::{NSPrintInfo, NSTextView, NSWindow};
 #[cfg(target_os = "macos")]
 use objc2_web_kit::WKWebView;
