@@ -9,7 +9,7 @@ use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 // removed duplicate Arc import
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -489,6 +489,58 @@ fn allow_asset_scope_for_path(app: &tauri::AppHandle, path: &Path) {
     }
 }
 
+fn with_windows_dialog_z_order_guard<T, FGet, FSet, FDialog>(
+    is_windows: bool,
+    get_always_on_top: FGet,
+    set_always_on_top: FSet,
+    dialog_action: FDialog,
+) -> Result<T, String>
+where
+    FGet: FnOnce() -> Result<bool, String>,
+    FSet: FnMut(bool) -> Result<(), String>,
+    FDialog: FnOnce() -> T,
+{
+    let mut set_always_on_top = set_always_on_top;
+    let should_restore = is_windows && get_always_on_top()?;
+
+    if should_restore {
+        set_always_on_top(false)?;
+    }
+
+    let dialog_result = dialog_action();
+
+    if should_restore {
+        set_always_on_top(true)?;
+    }
+
+    Ok(dialog_result)
+}
+
+fn with_native_dialog_window_state<T, F>(app: &tauri::AppHandle, dialog_action: F) -> Result<T, String>
+where
+    F: FnOnce() -> T,
+{
+    #[cfg(target_os = "windows")]
+    {
+        let Some(window) = app.get_webview_window("main") else {
+            return Ok(dialog_action());
+        };
+
+        return with_windows_dialog_z_order_guard(
+            true,
+            || window.is_always_on_top().map_err(|error| error.to_string()),
+            |enabled| window.set_always_on_top(enabled).map_err(|error| error.to_string()),
+            dialog_action,
+        );
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Ok(dialog_action())
+    }
+}
+
 // MD Prompts visibility control removed in this patch cycle to keep frontend/backend in sync with simpler wiring
 
 #[tauri::command]
@@ -508,10 +560,12 @@ fn save_markdown_file(
         format!("{suggested_name}.md")
     };
 
-    let selected_path: Option<PathBuf> = rfd::FileDialog::new()
-        .set_file_name(&safe_name)
-        .add_filter("Markdown", &["md"])
-        .save_file();
+    let selected_path: Option<PathBuf> = with_native_dialog_window_state(&app, || {
+        rfd::FileDialog::new()
+            .set_file_name(&safe_name)
+            .add_filter("Markdown", &["md"])
+            .save_file()
+    })?;
 
     let Some(path) = selected_path else {
         append_structured_log(
@@ -592,7 +646,7 @@ fn save_text_file_with_dialog(
         dialog = dialog.add_filter(&filter_name, &extension_refs);
     }
 
-    let selected_path: Option<PathBuf> = dialog.save_file();
+    let selected_path: Option<PathBuf> = with_native_dialog_window_state(&app, || dialog.save_file())?;
     let Some(path) = selected_path else {
         append_structured_log(
             &app,
@@ -645,7 +699,7 @@ fn rename_markdown_file_with_dialog(
         dialog = dialog.set_directory(parent);
     }
 
-    let selected_path: Option<PathBuf> = dialog.save_file();
+    let selected_path: Option<PathBuf> = with_native_dialog_window_state(&app, || dialog.save_file())?;
     let Some(destination_path) = selected_path else {
         append_structured_log(
             &app,
@@ -693,9 +747,11 @@ fn rename_markdown_file_with_dialog(
 
 #[tauri::command]
 fn open_markdown_file(app: tauri::AppHandle) -> Result<Option<OpenRecentPayload>, String> {
-    let selected_path: Option<PathBuf> = rfd::FileDialog::new()
-        .add_filter("Markdown", &["md"])
-        .pick_file();
+    let selected_path: Option<PathBuf> = with_native_dialog_window_state(&app, || {
+        rfd::FileDialog::new()
+            .add_filter("Markdown", &["md"])
+            .pick_file()
+    })?;
 
     let Some(path) = selected_path else {
         append_structured_log(
@@ -2016,6 +2072,7 @@ async fn load_ollama_models(app: tauri::AppHandle) -> Result<Vec<String>, String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
     #[test]
     fn rejects_invalid_theme_in_settings() {
@@ -2114,6 +2171,113 @@ mod tests {
         assert!(result.cancelled);
         assert!(result.responses.is_empty());
         assert_eq!(buf, b"pending".to_vec());
+    }
+
+    #[test]
+    fn windows_dialog_guard_temporarily_disables_always_on_top() {
+        let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let calls_handle = Arc::clone(&calls);
+
+        let result = with_windows_dialog_z_order_guard(
+            true,
+            || Ok(true),
+            move |enabled| {
+                calls_handle.lock().expect("calls should lock").push(enabled);
+                Ok(())
+            },
+            || "dialog-result",
+        )
+        .expect("dialog guard should succeed");
+
+        assert_eq!(result, "dialog-result");
+        assert_eq!(*calls.lock().expect("calls should lock"), vec![false, true]);
+    }
+
+    #[test]
+    fn windows_dialog_guard_leaves_non_pinned_window_unchanged() {
+        let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let calls_handle = Arc::clone(&calls);
+
+        let result = with_windows_dialog_z_order_guard(
+            true,
+            || Ok(false),
+            move |enabled| {
+                calls_handle.lock().expect("calls should lock").push(enabled);
+                Ok(())
+            },
+            || "dialog-result",
+        )
+        .expect("dialog guard should succeed");
+
+        assert_eq!(result, "dialog-result");
+        assert!(calls.lock().expect("calls should lock").is_empty());
+    }
+
+    #[test]
+    fn windows_dialog_guard_is_noop_outside_windows() {
+        let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let calls_handle = Arc::clone(&calls);
+
+        let result = with_windows_dialog_z_order_guard(
+            false,
+            || Ok(true),
+            move |enabled| {
+                calls_handle.lock().expect("calls should lock").push(enabled);
+                Ok(())
+            },
+            || "dialog-result",
+        )
+        .expect("dialog guard should succeed");
+
+        assert_eq!(result, "dialog-result");
+        assert!(calls.lock().expect("calls should lock").is_empty());
+    }
+
+    #[test]
+    fn windows_dialog_guard_stops_before_dialog_when_unpin_fails() {
+        let dialog_ran = Arc::new(AtomicBool::new(false));
+        let dialog_ran_handle = Arc::clone(&dialog_ran);
+
+        let error = with_windows_dialog_z_order_guard(
+            true,
+            || Ok(true),
+            |_| Err("unpin failed".to_string()),
+            move || {
+                dialog_ran_handle.store(true, Ordering::SeqCst);
+            },
+        )
+        .expect_err("unpin failure should be returned");
+
+        assert_eq!(error, "unpin failed");
+        assert!(!dialog_ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn windows_dialog_guard_returns_restore_error_after_dialog_runs() {
+        let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let calls_handle = Arc::clone(&calls);
+        let dialog_ran = Arc::new(AtomicBool::new(false));
+        let dialog_ran_handle = Arc::clone(&dialog_ran);
+
+        let error = with_windows_dialog_z_order_guard(
+            true,
+            || Ok(true),
+            move |enabled| {
+                calls_handle.lock().expect("calls should lock").push(enabled);
+                if enabled {
+                    return Err("restore failed".to_string());
+                }
+                Ok(())
+            },
+            move || {
+                dialog_ran_handle.store(true, Ordering::SeqCst);
+            },
+        )
+        .expect_err("restore failure should be returned");
+
+        assert_eq!(error, "restore failed");
+        assert!(dialog_ran.load(Ordering::SeqCst));
+        assert_eq!(*calls.lock().expect("calls should lock"), vec![false, true]);
     }
 }
 
