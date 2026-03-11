@@ -193,6 +193,43 @@ npm run test
 npm run test:run -- --reporter=verbose --filter "test name"
 ```
 
+### Opening a Pull Request with GitHub CLI
+
+If the user wants the agent to open a PR, `gh` is the fastest route. Run these commands from the repo root, not `src/ghost-writer-editor/`:
+
+```bash
+# Confirm gh is installed
+gh --version
+
+# Check auth status
+gh auth status
+```
+
+If `gh auth status` says the token is invalid, re-authenticate with the web flow:
+
+```bash
+gh auth login -h github.com --git-protocol https --web
+```
+
+Then verify the branch and PR state:
+
+```bash
+git branch --show-current
+gh pr status
+```
+
+Create the PR directly from the current branch to `main`:
+
+```bash
+gh pr create --base main --head <branch-name> --title "<pr title>" --body "<pr body>"
+```
+
+Notes:
+- Prefer checking `gh pr status` before creating a PR so you do not duplicate an existing one.
+- If the feature branch is already pushed and tracked on `origin`, `gh pr create` works cleanly.
+- A local merge into `main` does not mean `origin/main` has the change. Verify with `git log origin/main..<branch-name>` if there is any doubt.
+- For this repo, the successful pattern on March 11, 2026 was: fix `gh auth`, confirm no existing PR with `gh pr status`, then run `gh pr create --base main --head <branch-name> ...`.
+
 ## Environment Variables
 
 - `VITE_OLLAMA_BASE_URL` - Ollama server URL (default: `http://127.0.0.1:11434`)
