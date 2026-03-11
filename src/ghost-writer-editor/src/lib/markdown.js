@@ -66,7 +66,9 @@ const ELEMENT_ALLOWED_ATTRIBUTES = {
   a: new Set(['href', 'target', 'rel']),
   button: new Set(['type', 'data-preview-checkbox', 'aria-pressed', 'data-source-line']),
   img: new Set(['src', 'alt']),
-  input: new Set(['type', 'checked', 'disabled', 'data-source-line']),
+  input: new Set(['type', 'checked', 'disabled', 'data-source-line', 'data-preview-checkbox']),
+  li: new Set(['data-preview-task-item', 'data-source-line', 'data-checked']),
+  span: new Set(['data-preview-checkbox-anchor', 'data-source-line', 'data-checked']),
 }
 
 const markdownRenderer = new MarkdownIt({
@@ -303,12 +305,14 @@ export function isSafeMarkdownUrl(rawUrl, options = {}) {
   }
 }
 
-function sanitizeHtml(html) {
+function sanitizeHtml(html, options = {}) {
+  const { previewCheckboxMode = 'button', checkboxLineIndexes = [] } = options
   if (!html || typeof window === 'undefined') return html ?? ''
 
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
   const elements = [...doc.body.querySelectorAll('*')]
+  let previewCheckboxIndex = 0
 
   for (const element of elements) {
     const tagName = element.tagName.toLowerCase()
@@ -377,13 +381,45 @@ function sanitizeHtml(html) {
         continue
       }
 
-      const checkboxButton = doc.createElement('button')
       const isChecked = element.hasAttribute('checked')
+      if (previewCheckboxMode === 'anchor') {
+        const checkboxAnchor = doc.createElement('span')
+        checkboxAnchor.className = 'task-list-item-checkbox preview__checkbox-anchor'
+        checkboxAnchor.setAttribute('data-preview-checkbox-anchor', 'true')
+        checkboxAnchor.setAttribute('data-checked', isChecked ? 'true' : 'false')
+        const sourceLine = checkboxLineIndexes[previewCheckboxIndex]
+        if (typeof sourceLine === 'number') {
+          checkboxAnchor.setAttribute('data-source-line', String(sourceLine))
+        }
+        previewCheckboxIndex += 1
+        element.replaceWith(checkboxAnchor)
+        continue
+      }
+
+      if (previewCheckboxMode === 'input') {
+        element.className = 'task-list-item-checkbox preview__checkbox'
+        element.setAttribute('data-preview-checkbox', 'true')
+        element.setAttribute('aria-label', 'Toggle task checkbox')
+        element.removeAttribute('disabled')
+        const sourceLine = checkboxLineIndexes[previewCheckboxIndex]
+        if (typeof sourceLine === 'number') {
+          element.setAttribute('data-source-line', String(sourceLine))
+        }
+        previewCheckboxIndex += 1
+        continue
+      }
+
+      const checkboxButton = doc.createElement('button')
       checkboxButton.type = 'button'
       checkboxButton.className = 'task-list-item-checkbox preview__checkbox'
       checkboxButton.setAttribute('data-preview-checkbox', 'true')
       checkboxButton.setAttribute('aria-label', 'Toggle task checkbox')
       checkboxButton.setAttribute('aria-pressed', isChecked ? 'true' : 'false')
+      const sourceLine = checkboxLineIndexes[previewCheckboxIndex]
+      if (typeof sourceLine === 'number') {
+        checkboxButton.setAttribute('data-source-line', String(sourceLine))
+      }
+      previewCheckboxIndex += 1
       element.replaceWith(checkboxButton)
     }
   }
@@ -394,6 +430,9 @@ function sanitizeHtml(html) {
       const tagName = child.tagName.toLowerCase()
       if (tagName === 'button') {
         return child.getAttribute('data-preview-checkbox') === 'true'
+      }
+      if (tagName === 'span') {
+        return child.getAttribute('data-preview-checkbox-anchor') === 'true'
       }
       return tagName === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
     })
@@ -406,6 +445,9 @@ function sanitizeHtml(html) {
         if (tagName === 'button') {
           return child.getAttribute('data-preview-checkbox') === 'true'
         }
+        if (tagName === 'span') {
+          return child.getAttribute('data-preview-checkbox-anchor') === 'true'
+        }
         return tagName === 'input' && (child.getAttribute('type') || '').toLowerCase() === 'checkbox'
       })
 
@@ -416,6 +458,20 @@ function sanitizeHtml(html) {
     }
 
     if (!directCheckbox) continue
+
+    const sourceLine = directCheckbox.getAttribute('data-source-line')
+    if (sourceLine) {
+      const directCheckboxTagName = directCheckbox.tagName.toLowerCase()
+      const isChecked =
+        directCheckboxTagName === 'button'
+          ? directCheckbox.getAttribute('aria-pressed') === 'true'
+          : directCheckboxTagName === 'span'
+            ? directCheckbox.getAttribute('data-checked') === 'true'
+            : directCheckbox.hasAttribute('checked')
+      item.setAttribute('data-preview-task-item', 'true')
+      item.setAttribute('data-source-line', sourceLine)
+      item.setAttribute('data-checked', isChecked ? 'true' : 'false')
+    }
 
     const nestedLists = []
     const contentWrapper = doc.createElement('div')
@@ -462,9 +518,9 @@ function sanitizeHtml(html) {
   return doc.body.innerHTML
 }
 
-export function renderMarkdownToSafeHtml(markdown) {
+export function renderMarkdownToSafeHtml(markdown, options = {}) {
   const normalizedMarkdown = normalizeMarkdownImagePaths(
     normalizeStandaloneFilesystemPathLines(normalizeDirectionalArrows(markdown ?? '')),
   )
-  return sanitizeHtml(markdownRenderer.render(normalizedMarkdown))
+  return sanitizeHtml(markdownRenderer.render(normalizedMarkdown), options)
 }
