@@ -37,6 +37,13 @@ describe('content transforms', () => {
     expect(toggleCheckboxOnLine(markdown, 1, false)).toBe('1. [ ] first task\n2. [ ] second task')
   })
 
+  it('collects and toggles checkbox lines from CRLF markdown', () => {
+    const markdown = '# Title\r\n\r\n- [ ] Windows task\r\n- [x] Existing task\r\n'
+
+    expect(collectCheckboxLineIndexes(markdown)).toEqual([2, 3])
+    expect(toggleCheckboxOnLine(markdown, 2, true)).toBe('# Title\n\n- [x] Windows task\n- [x] Existing task\n')
+  })
+
   it('strips common assistant lead-ins repeatedly until content starts', () => {
     const input = 'Sure:\nHere is the output:\nResponse:\n## Final text'
     expect(stripAssistantLeadIn(input)).toBe('## Final text')
