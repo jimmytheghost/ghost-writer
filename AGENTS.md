@@ -211,6 +211,24 @@ If `gh auth status` says the token is invalid, re-authenticate with the web flow
 gh auth login -h github.com --git-protocol https --web
 ```
 
+### GitHub Auth on This Windows Machine
+
+This repo uses an HTTPS GitHub remote and Windows Git Credential Manager (`credential.helper=manager`). On this machine, the reliable recovery path is:
+
+```bash
+# Check whether GitHub CLI auth is still valid
+gh auth status
+
+# If the token is invalid, re-authenticate in the browser
+gh auth login -h github.com --git-protocol https --web
+```
+
+Notes:
+- If `git pull` or another authenticated `git` command fails inside the agent sandbox with `couldn't create signal pipe, Win32 error 5` or `failed to execute prompt script`, rerun that `git` command outside the sandbox/escalated. That allows Git Credential Manager to complete normally.
+- `gh auth status` can be fixed while `git pull` still fails in-sandbox. Treat those as separate issues: first repair `gh` auth, then rerun `git pull` with escalation if the prompt/helper path is still blocked.
+- There is no working fallback token in `GITHUB_TOKEN` or `GH_TOKEN` by default on this machine, so do not assume environment-based GitHub auth exists.
+- The successful recovery pattern on March 11, 2026 was: `gh auth status` -> `gh auth login -h github.com --git-protocol https --web` -> rerun `git pull` outside the sandbox.
+
 Then verify the branch and PR state:
 
 ```bash
