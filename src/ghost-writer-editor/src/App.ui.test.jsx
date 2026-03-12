@@ -478,4 +478,58 @@ describe('App UI behaviors', () => {
       restorePlatform()
     }
   })
+
+  it('restores markdown preview scroll position independently per tab', async () => {
+    render(<App />)
+
+    let editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: Array.from({ length: 300 }, (_, index) => `First tab line ${index + 1}`).join('\n'),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    let previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    previewContent.scrollTop = 210
+    fireEvent.scroll(previewContent)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, {
+      target: {
+        value: Array.from({ length: 300 }, (_, index) => `Second tab line ${index + 1}`).join('\n'),
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(0)
+    })
+
+    previewContent.scrollTop = 70
+    fireEvent.scroll(previewContent)
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Switch to Untitled\*?$/ }))
+    previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(210)
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Switch to Untitled 2\*?$/ }))
+    previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(70)
+    })
+  })
 })
