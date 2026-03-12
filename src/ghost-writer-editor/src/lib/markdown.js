@@ -230,22 +230,68 @@ function toFileUrl(pathValue = '') {
   return `file://${encodeURI(normalizedPath)}`
 }
 
-function normalizeMarkdownImagePaths(markdown = '') {
+function getFilesystemDirectoryPath(pathValue = '') {
+  if (!pathValue) return ''
+
+  const normalizedPath = normalizeUriEncoding(pathValue)
+  if (normalizedPath.startsWith('file://')) {
+    const filePath = fileUrlToPath(normalizedPath)
+    return getFilesystemDirectoryPath(filePath)
+  }
+
+  const normalizedSeparators = normalizedPath.replaceAll('\\', '/')
+  const lastSeparatorIndex = normalizedSeparators.lastIndexOf('/')
+  if (lastSeparatorIndex < 0) return ''
+  return normalizedSeparators.slice(0, lastSeparatorIndex)
+}
+
+function isResolvableRelativeImagePath(pathValue = '') {
+  const trimmed = String(pathValue ?? '').trim()
+  if (!trimmed || !isLocalImagePath(trimmed)) return false
+  if (trimmed.startsWith('#')) return false
+  if (trimmed.startsWith('/')) return false
+  if (trimmed.startsWith('\\')) return false
+  if (trimmed.startsWith('file://')) return false
+  if (trimmed.includes('://')) return false
+  return true
+}
+
+function resolveRelativeImagePath(pathValue = '', baseFilePath = '') {
+  if (!isResolvableRelativeImagePath(pathValue) || !baseFilePath) return ''
+
+  const baseDirectoryPath = getFilesystemDirectoryPath(baseFilePath)
+  if (!baseDirectoryPath) return ''
+
+  try {
+    return new URL(pathValue.replaceAll('\\', '/'), `${toFileUrl(baseDirectoryPath)}/`).toString()
+  } catch {
+    return ''
+  }
+}
+
+function normalizeMarkdownImagePaths(markdown = '', options = {}) {
+  const { baseFilePath = '' } = options
   const withImageLinksNormalized = String(markdown).replaceAll(
     /\[([^\]]*)\]\(([^)\n]+)\)/g,
     (fullMatch, altText, rawDestination, index, sourceText) => {
       if (sourceText[index - 1] === '!') return fullMatch
       const cleanDestination = extractMarkdownImageDestination(rawDestination)
-      if (!looksLikeFilesystemPath(cleanDestination)) return fullMatch
-      if (!isLocalImagePath(cleanDestination)) return fullMatch
+      const resolvedRelativeDestination = resolveRelativeImagePath(cleanDestination, baseFilePath)
+      if (!looksLikeFilesystemPath(cleanDestination) && !resolvedRelativeDestination) return fullMatch
+      if (!isLocalImagePath(cleanDestination) && !resolvedRelativeDestination) return fullMatch
       return `![${altText}](${rawDestination})`
     },
   )
 
   return withImageLinksNormalized.replaceAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g, (fullMatch, altText, rawDestination) => {
     const cleanDestination = extractMarkdownImageDestination(rawDestination)
-    if (!looksLikeFilesystemPath(cleanDestination)) return fullMatch
-    return `![${altText}](${toFileUrl(cleanDestination)})`
+    if (looksLikeFilesystemPath(cleanDestination)) {
+      return `![${altText}](${toFileUrl(cleanDestination)})`
+    }
+
+    const resolvedRelativeDestination = resolveRelativeImagePath(cleanDestination, baseFilePath)
+    if (!resolvedRelativeDestination) return fullMatch
+    return `![${altText}](${resolvedRelativeDestination})`
   })
 }
 
@@ -521,6 +567,7 @@ function sanitizeHtml(html, options = {}) {
 export function renderMarkdownToSafeHtml(markdown, options = {}) {
   const normalizedMarkdown = normalizeMarkdownImagePaths(
     normalizeStandaloneFilesystemPathLines(normalizeDirectionalArrows(markdown ?? '')),
+    options,
   )
   return sanitizeHtml(markdownRenderer.render(normalizedMarkdown), options)
 }

@@ -691,10 +691,11 @@ function App() {
   const renderedMarkdown = useMemo(
     () =>
       renderMarkdownToSafeHtml(normalizedPreviewMarkdown, {
+        baseFilePath: activeTab?.filePath || '',
         checkboxLineIndexes,
         previewCheckboxMode: 'button',
       }),
-    [checkboxLineIndexes, normalizedPreviewMarkdown],
+    [activeTab?.filePath, checkboxLineIndexes, normalizedPreviewMarkdown],
   )
 
   useFooterHeightSync(appRef, footerRef, isFooterCollapsed ? 'collapsed' : 'expanded')
@@ -1946,7 +1947,9 @@ function App() {
   }, [activeContent, isMdPromptsVisible])
 
   const exportHtmlDocument = useMemo(() => {
-    const body = renderMarkdownToSafeHtml(exportMarkdownSource)
+    const body = renderMarkdownToSafeHtml(exportMarkdownSource, {
+      baseFilePath: activeTab?.filePath || '',
+    })
     return `<!doctype html>
 <html>
 <head>
@@ -1959,7 +1962,7 @@ ${body}
 </body>
 </html>
 `
-  }, [activeTab?.title, exportMarkdownSource])
+  }, [activeTab?.filePath, activeTab?.title, exportMarkdownSource])
 
   const getExportBaseName = useCallback(() => {
     const base = stripExtension(activeTab?.title || 'untitled').trim()
