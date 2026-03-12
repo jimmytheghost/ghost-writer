@@ -88,4 +88,25 @@ describe('App tabs', () => {
 
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('restores markdown preview state per tab when switching between tabs', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+    expect(screen.getByLabelText('Exit markdown preview')).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelector('textarea.editor__textarea')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    expect(screen.getByLabelText('Toggle markdown preview')).toHaveAttribute('aria-pressed', 'false')
+    expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to Untitled' }))
+    expect(screen.getByLabelText('Exit markdown preview')).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelector('textarea.editor__textarea')).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to Untitled 2' }))
+    expect(screen.getByLabelText('Toggle markdown preview')).toHaveAttribute('aria-pressed', 'false')
+    expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
+  })
 })

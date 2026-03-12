@@ -163,6 +163,9 @@ function App() {
   const [scrollPositionsByTab, setScrollPositionsByTab] = useState(() => ({
     [initialTab.id]: { editorTop: 0, previewTop: 0 },
   }))
+  const [previewOpenByTab, setPreviewOpenByTab] = useState(() => ({
+    [initialTab.id]: false,
+  }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -177,7 +180,6 @@ function App() {
   const [appVersion, setAppVersion] = useState(DEFAULT_APP_VERSION)
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
   // New: whether inline MD prompts ({{...}}) are visible in the Markdown preview
   const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(DEFAULT_SETTINGS.defaultShowMdPrompts)
@@ -222,6 +224,7 @@ function App() {
   const isPreviewScrollTickingRef = useRef(false)
   const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
   const dirtyCloseConfirmResolverRef = useRef(null)
+  const activeTabIdRef = useRef(activeTabId)
 
   const escapeFindQueryForRegex = useCallback((query) => {
     return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -230,6 +233,10 @@ function App() {
   useEffect(() => {
     scrollPositionsByTabRef.current = scrollPositionsByTab
   }, [scrollPositionsByTab])
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId
+  }, [activeTabId])
 
   useEffect(() => {
     return () => {
@@ -241,6 +248,7 @@ function App() {
   }, [])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
+  const isPreviewOpen = Boolean(previewOpenByTab[activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null
   const activeContent = activeTab?.content ?? ''
@@ -265,6 +273,24 @@ function App() {
     setTabs((currentTabs) => updateTabContent(currentTabs, tabId, content))
   }, [])
 
+  const setPreviewOpenForTab = useCallback((tabId, value) => {
+    if (!tabId) return
+
+    setPreviewOpenByTab((currentStates) => {
+      const previousValue = Boolean(currentStates[tabId])
+      const nextValue = typeof value === 'function' ? Boolean(value(previousValue)) : Boolean(value)
+      const hasStoredValue = Object.prototype.hasOwnProperty.call(currentStates, tabId)
+      if (hasStoredValue && previousValue === nextValue) {
+        return currentStates
+      }
+
+      return {
+        ...currentStates,
+        [tabId]: nextValue,
+      }
+    })
+  }, [])
+
   const getSessionSnapshotTabs = useCallback(
     (tabsToSnapshot) =>
       tabsToSnapshot.map((tab) => ({
@@ -274,8 +300,9 @@ function App() {
         filePath: String(tab.filePath || ''),
         lastSavedContent: String(tab.lastSavedContent || ''),
         isDirty: Boolean(tab.isDirty),
+        isPreviewOpen: Boolean(previewOpenByTab[tab.id]),
       })),
-    [],
+    [previewOpenByTab],
   )
 
   const resolveDirtyCloseConfirm = useCallback((shouldSave) => {
@@ -725,7 +752,7 @@ function App() {
     setEditorTextZoomPercent(normalizeTextZoom(nextSettings.defaultTextZoom))
     setIsAlwaysOnTop(Boolean(nextSettings.defaultAlwaysOnTop))
     setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
-    setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
+    setPreviewOpenForTab(activeTabIdRef.current, Boolean(nextSettings.defaultStartupPreview))
     setIsSpellCheckEnabled(Boolean(nextSettings.defaultSpellCheck))
     const customWordList = Array.isArray(nextSettings.customWordList)
       ? nextSettings.customWordList
@@ -740,7 +767,7 @@ function App() {
     if (typeof nextSettings.defaultShowMdPrompts !== 'undefined') {
       setIsMdPromptsVisible(Boolean(nextSettings.defaultShowMdPrompts))
     }
-  }, [setSelectedModel])
+  }, [setPreviewOpenForTab, setSelectedModel])
 
   // Toggle for showing/hiding MD prompts in preview/exports
   const handleToggleMdPrompts = useCallback(() => {
@@ -820,6 +847,12 @@ function App() {
             return acc
           }, {}),
         )
+        setPreviewOpenByTab(
+          restoredTabs.reduce((acc, tab, index) => {
+            acc[tab.id] = Boolean(sessionTabs[index]?.isPreviewOpen)
+            return acc
+          }, {}),
+        )
         setScrollPositionsByTab(
           restoredTabs.reduce((acc, tab) => {
             acc[tab.id] = { editorTop: 0, previewTop: 0 }
@@ -877,8 +910,14 @@ function App() {
               return acc
             }, {}),
           )
-
           const restoredActivePath = (nextSettings.sessionActiveTabPath || '').trim()
+          setPreviewOpenByTab(
+            restoredTabs.reduce((acc, tab) => {
+              acc[tab.id] = tab.filePath === restoredActivePath ? Boolean(nextSettings.defaultStartupPreview) : false
+              return acc
+            }, {}),
+          )
+
           const restoredActiveTab =
             restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
           setActiveTabId(restoredActiveTab.id)
@@ -989,6 +1028,10 @@ function App() {
       ...currentPositions,
       [nextTab.id]: { editorTop: 0, previewTop: 0 },
     }))
+    setPreviewOpenByTab((currentStates) => ({
+      ...currentStates,
+      [nextTab.id]: false,
+    }))
     setWindowsSelectionContext(null)
     setWindowsSelectionContextHistoryByTab((current) => {
       const next = { ...current }
@@ -1033,13 +1076,17 @@ function App() {
         previewTop: currentPositions[activeTab.id]?.previewTop ?? 0,
       },
     }))
+    setPreviewOpenByTab((currentStates) => ({
+      ...currentStates,
+      [duplicateTab.id]: isPreviewOpen,
+    }))
     setWindowsSelectionContext(null)
     setWindowsSelectionContextHistoryByTab((current) => {
       const next = { ...current }
       delete next[duplicateTab.id]
       return next
     })
-  }, [activeTab, nextUntitledIndex])
+  }, [activeTab, isPreviewOpen, nextUntitledIndex])
 
   const handleRename = useCallback(async () => {
     if (!activeTabId) return
@@ -1113,6 +1160,13 @@ function App() {
         })
         return nextHistory
       })
+      setPreviewOpenByTab((currentStates) => {
+        const nextStates = { ...currentStates }
+        tabIdsToClose.forEach((tabId) => {
+          delete nextStates[tabId]
+        })
+        return nextStates
+      })
 
       const activeTabWasClosed = activeTabId ? tabIdsToClose.has(activeTabId) : false
       if (activeTabWasClosed) {
@@ -1128,10 +1182,12 @@ function App() {
         setScrollPositionsByTab({
           [replacementTab.id]: { editorTop: 0, previewTop: 0 },
         })
+        setPreviewOpenByTab({
+          [replacementTab.id]: false,
+        })
         setWindowsSelectionContext(null)
         setWindowsSelectionContextHistoryByTab({})
         setActiveTabId(replacementTab.id)
-        setIsPreviewOpen(false)
         return
       }
 
@@ -1362,6 +1418,12 @@ function App() {
         ...currentPositions,
         [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
+      if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+        setPreviewOpenByTab((currentStates) => ({
+          ...currentStates,
+          [targetTabId]: false,
+        }))
+      }
       resetGenerationState({ tabId: targetTabId })
       setPromptError('')
       return
@@ -1446,6 +1508,12 @@ function App() {
           ...currentPositions,
           [targetTabId]: { editorTop: 0, previewTop: 0 },
         }))
+        if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+          setPreviewOpenByTab((currentStates) => ({
+            ...currentStates,
+            [targetTabId]: false,
+          }))
+        }
         resetGenerationState({ tabId: targetTabId })
       }
       reader.onerror = () => {
@@ -1512,6 +1580,12 @@ function App() {
         ...currentPositions,
         [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
+      if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+        setPreviewOpenByTab((currentStates) => ({
+          ...currentStates,
+          [targetTabId]: false,
+        }))
+      }
       resetGenerationState({ tabId: targetTabId })
       setPromptError('')
     },
@@ -1745,7 +1819,7 @@ function App() {
       }
 
       if (key === 'defaultStartupPreview') {
-        setIsPreviewOpen(Boolean(value))
+        setPreviewOpenForTab(activeTabId, Boolean(value))
       }
 
       if (key === 'defaultSpellCheck') {
@@ -1759,7 +1833,7 @@ function App() {
         setIsMdPromptsVisible(Boolean(value))
       }
     },
-    [setSelectedModel],
+    [activeTabId, setPreviewOpenForTab, setSelectedModel],
   )
 
   const syncPreviewScrollBackToEditor = useCallback(() => {
@@ -1826,22 +1900,22 @@ function App() {
   }, [activeTabId])
 
   const handleShowPreview = useCallback(() => {
-    setIsPreviewOpen(true)
-  }, [])
+    setPreviewOpenForTab(activeTabId, true)
+  }, [activeTabId, setPreviewOpenForTab])
 
   const handleShowTextEdit = useCallback(() => {
     syncPreviewCheckboxesToMarkdown()
     syncPreviewScrollBackToEditor()
-    setIsPreviewOpen(false)
-  }, [syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
+    setPreviewOpenForTab(activeTabId, false)
+  }, [activeTabId, setPreviewOpenForTab, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleTogglePreview = useCallback(() => {
     if (isPreviewOpen) {
       syncPreviewCheckboxesToMarkdown()
       syncPreviewScrollBackToEditor()
     }
-    setIsPreviewOpen((previous) => !previous)
-  }, [isPreviewOpen, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
+    setPreviewOpenForTab(activeTabId, (previous) => !previous)
+  }, [activeTabId, isPreviewOpen, setPreviewOpenForTab, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleToggleFooter = useCallback(() => {
     setIsFooterCollapsed((previous) => !previous)

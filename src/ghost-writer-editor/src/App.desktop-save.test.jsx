@@ -420,4 +420,63 @@ describe('App desktop save flow', () => {
     setIntervalSpy.mockRestore()
     clearIntervalSpy.mockRestore()
   })
+
+  it('does not reload desktop settings when switching between open tabs', async () => {
+    desktopRuntimeMocks.loadSettings.mockResolvedValueOnce({
+      hasFile: true,
+      settings: {
+        defaultModel: '',
+        defaultTheme: 'dark',
+        defaultTextZoom: '100%',
+        defaultAlwaysOnTop: false,
+        defaultFooterCollapsed: true,
+        defaultStartupPreview: false,
+        defaultSpellCheck: false,
+        defaultShowMdPrompts: true,
+        autoSaveEnabled: false,
+        autoSaveIntervalSeconds: 60,
+        ollamaBaseUrl: 'http://127.0.0.1:11434',
+        customWordList: [],
+        customWordListDisabled: [],
+        sessionTabs: [],
+        sessionActiveTabId: '',
+        sessionNextUntitledIndex: 2,
+        sessionSavedTabPaths: [],
+        sessionActiveTabPath: '',
+      },
+    })
+    desktopRuntimeMocks.openMarkdownWithNativeDialog
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-six.md',
+        content: 'First file',
+      })
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-seven.md',
+        content: 'Second file',
+      })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-six' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-seven' })).toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.loadSettings).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-six' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-seven' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-six' }))
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.loadSettings).toHaveBeenCalledTimes(1)
+    })
+  })
 })
