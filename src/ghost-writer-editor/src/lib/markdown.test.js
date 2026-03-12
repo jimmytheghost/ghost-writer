@@ -242,6 +242,16 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).toContain('<mark>important</mark>')
   })
 
+  it('renders pipe table markdown as semantic html tables', () => {
+    const markdown = '| Syntax | Description |\n| --- | --- |\n| Header | Title |\n| Paragraph | Text |'
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<table>')
+    expect(output).toContain('<thead>')
+    expect(output).toContain('<tbody>')
+    expect(output).toContain('<th>Syntax</th>')
+    expect(output).toContain('<td>Paragraph</td>')
+  })
+
   it('renders emoji shortcode and sub/sup syntax', () => {
     const markdown = ':joy: H~2~O X^2^'
     const output = renderMarkdownToSafeHtml(markdown)
