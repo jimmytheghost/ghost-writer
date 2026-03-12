@@ -315,8 +315,10 @@ function App() {
       return { didContinue: true, skippedSave: true }
     }
 
-    const suggestedName = ensureMarkdownFileName(tab?.title || 'untitled')
-    const savedPath = await saveMarkdownWithNativeDialog(String(tab?.content || ''), suggestedName)
+    const tabContent = String(tab?.content || '')
+    const savedPath = tab?.filePath
+      ? await saveMarkdownToPath(tabContent, tab.filePath)
+      : await saveMarkdownWithNativeDialog(tabContent, ensureMarkdownFileName(tab?.title || 'untitled'))
     if (!savedPath) {
       return { didContinue: false }
     }
