@@ -4,7 +4,6 @@ import { renderMarkdownToSafeHtml } from './markdown'
 
 const PRINT_ROOT_ID = 'ghost-writer-print-root'
 const PRINT_STYLE_ID = 'ghost-writer-print-style'
-const NATIVE_PRINT_CLASS = 'ghost-writer-native-printing'
 let desktopPrintInFlight = false
 
 function buildPrintContentHtml({ bodyHtml }) {
@@ -25,24 +24,6 @@ function ensurePrintStyle() {
 
     #${PRINT_ROOT_ID} {
       display: none;
-    }
-
-    body.${NATIVE_PRINT_CLASS} {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #fff !important;
-      color: #111827 !important;
-    }
-
-    body.${NATIVE_PRINT_CLASS} > *:not(#${PRINT_ROOT_ID}):not(#${PRINT_STYLE_ID}) {
-      display: none !important;
-    }
-
-    body.${NATIVE_PRINT_CLASS} #${PRINT_ROOT_ID} {
-      display: block !important;
-      margin: 0 !important;
-      padding: 0.08in 0 0.18in !important;
-      box-sizing: border-box;
     }
 
     .ghost-writer-print-main {
@@ -139,7 +120,6 @@ export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
   document.body.appendChild(rootNode)
 
   const cleanup = () => {
-    document.body.classList.remove(NATIVE_PRINT_CLASS)
     cleanupPrintNodes(rootNode, styleNode)
   }
 
@@ -148,7 +128,6 @@ export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
 
   if (isDesktopRuntime()) {
     desktopPrintInFlight = true
-    document.body.classList.add(NATIVE_PRINT_CLASS)
     const cleanupOnce = createDeferredCleanup(() => {
       cleanup()
       desktopPrintInFlight = false
