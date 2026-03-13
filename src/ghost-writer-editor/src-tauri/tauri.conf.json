@@ -24,7 +24,9 @@
       "csp": "default-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; connect-src 'self' ipc: http://ipc.localhost http: https:; img-src 'self' asset: file: data: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self'",
       "assetProtocol": {
         "enable": true,
-        "scope": []
+        "scope": [
+          "$HOME/**"
+        ]
       }
     }
   },

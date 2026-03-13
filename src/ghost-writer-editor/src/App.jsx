@@ -185,7 +185,6 @@ function App() {
   const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(DEFAULT_SETTINGS.defaultShowMdPrompts)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
-  const [spellcheckRefreshKey, setSpellcheckRefreshKey] = useState(0)
   const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
@@ -342,8 +341,10 @@ function App() {
       return { didContinue: true, skippedSave: true }
     }
 
-    const suggestedName = ensureMarkdownFileName(tab?.title || 'untitled')
-    const savedPath = await saveMarkdownWithNativeDialog(String(tab?.content || ''), suggestedName)
+    const tabContent = String(tab?.content || '')
+    const savedPath = tab?.filePath
+      ? await saveMarkdownToPath(tabContent, tab.filePath)
+      : await saveMarkdownWithNativeDialog(tabContent, ensureMarkdownFileName(tab?.title || 'untitled'))
     if (!savedPath) {
       return { didContinue: false }
     }
@@ -443,6 +444,11 @@ function App() {
 
   const clearWindowsSelectionContext = useCallback(() => {
     setWindowsSelectionContext(null)
+  }, [])
+
+  const activateTab = useCallback((tabId) => {
+    setWindowsSelectionContext(null)
+    setActiveTabId(tabId)
   }, [])
 
   const rememberWindowsSelectionContext = useCallback((tabId, context) => {
@@ -699,12 +705,6 @@ function App() {
     promptFormRef,
   })
 
-  useEffect(() => {
-    if (!isWindows || !windowsSelectionContext) return
-    if (windowsSelectionContext.tabId === activeTabId) return
-    setWindowsSelectionContext(null)
-  }, [activeTabId, isWindows, windowsSelectionContext])
-
   const checkboxLineIndexes = useMemo(
     () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
     [activeContent, isPreviewOpen],
@@ -718,10 +718,11 @@ function App() {
   const renderedMarkdown = useMemo(
     () =>
       renderMarkdownToSafeHtml(normalizedPreviewMarkdown, {
+        baseFilePath: activeTab?.filePath || '',
         checkboxLineIndexes,
         previewCheckboxMode: 'button',
       }),
-    [checkboxLineIndexes, normalizedPreviewMarkdown],
+    [activeTab?.filePath, checkboxLineIndexes, normalizedPreviewMarkdown],
   )
 
   useFooterHeightSync(appRef, footerRef, isFooterCollapsed ? 'collapsed' : 'expanded')
@@ -862,7 +863,7 @@ function App() {
 
         const restoredActiveTab =
           restoredTabs.find((tab) => tab.id === String(nextSettings.sessionActiveTabId || '')) ?? restoredTabs[0]
-        setActiveTabId(restoredActiveTab.id)
+        activateTab(restoredActiveTab.id)
         setNextUntitledIndex(
           Math.max(
             2,
@@ -920,7 +921,7 @@ function App() {
 
           const restoredActiveTab =
             restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
-          setActiveTabId(restoredActiveTab.id)
+          activateTab(restoredActiveTab.id)
           setNextUntitledIndex(highestUntitledIndex + 1)
         }
       }
@@ -929,7 +930,7 @@ function App() {
     }
 
     void loadDesktopSettings()
-  }, [applySettings])
+  }, [activateTab, applySettings])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return
@@ -1197,9 +1198,9 @@ function App() {
           ? Math.min(...closedIndexes)
           : tabsSnapshot.findIndex((tab) => tab.id === activeTabId)
       const nextActiveTab = nextTabs[fallbackIndex] ?? nextTabs[fallbackIndex - 1] ?? nextTabs[nextTabs.length - 1]
-      setActiveTabId(nextActiveTab.id)
+      activateTab(nextActiveTab.id)
     },
-    [activeTabId, nextUntitledIndex, tabs],
+    [activeTabId, activateTab, nextUntitledIndex, tabs],
   )
 
   const handleCloseTab = useCallback(
@@ -1427,6 +1428,7 @@ function App() {
     fileInputRef.current?.click()
   }, [
     activeTabId,
+    activateTab,
     nextUntitledIndex,
     resetGenerationState,
     setPromptError,
@@ -1520,6 +1522,7 @@ function App() {
     },
     [
       activeTabId,
+      activateTab,
       nextUntitledIndex,
       resetGenerationState,
       setPromptError,
@@ -1588,6 +1591,7 @@ function App() {
     },
     [
       activeTabId,
+      activateTab,
       nextUntitledIndex,
       resetGenerationState,
       setPromptError,
@@ -1920,7 +1924,6 @@ function App() {
       if (!targetTab) return currentTabs
 
       let nextContent = targetTab.content
-      let changedCount = 0
 
       checkboxNodes.forEach((node) => {
         if (!(node instanceof HTMLElement)) return
@@ -1935,7 +1938,6 @@ function App() {
               : node.getAttribute('aria-pressed') === 'true'
         const updatedContent = toggleCheckboxOnLine(nextContent, sourceLine, isChecked)
         if (updatedContent !== nextContent) {
-          changedCount += 1
           nextContent = updatedContent
         }
       })
@@ -2066,7 +2068,9 @@ function App() {
   }, [activeContent, isMdPromptsVisible])
 
   const exportHtmlDocument = useMemo(() => {
-    const body = renderMarkdownToSafeHtml(exportMarkdownSource)
+    const body = renderMarkdownToSafeHtml(exportMarkdownSource, {
+      baseFilePath: activeTab?.filePath || '',
+    })
     return `<!doctype html>
 <html>
 <head>
@@ -2079,7 +2083,7 @@ ${body}
 </body>
 </html>
 `
-  }, [activeTab?.title, exportMarkdownSource])
+  }, [activeTab?.filePath, activeTab?.title, exportMarkdownSource])
 
   const getExportBaseName = useCallback(() => {
     const base = stripExtension(activeTab?.title || 'untitled').trim()
@@ -2207,7 +2211,6 @@ ${escapeLatex(exportMarkdownSource)}
 
       setSettings(nextSettings)
       setCustomSpellcheckWords(resolveEnabledCustomWords(normalizedWordList, normalizedDisabled))
-      setSpellcheckRefreshKey((current) => current + 1)
 
       if (isDesktopRuntime()) {
         void saveSettings(nextSettings)

@@ -113,6 +113,15 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).not.toContain('src="file:///images/logo.png"')
   })
 
+  it('resolves relative image paths against the current markdown file path on Windows', () => {
+    const markdown = '![Preview](./images/hero.png)'
+    const output = renderMarkdownToSafeHtml(markdown, {
+      baseFilePath: 'C:\\Users\\jimmy\\Documents\\Notes\\chapter-one.md',
+    })
+    expect(output).toContain('<img')
+    expect(output).toContain('src="file:///C:/Users/jimmy/Documents/Notes/images/hero.png"')
+  })
+
   it('renders markdown task-list toggles as preview buttons', () => {
     const output = renderMarkdownToSafeHtml('- [x] done')
     expect(output).toContain('type="button"')
@@ -240,6 +249,16 @@ describe('renderMarkdownToSafeHtml', () => {
     const output = renderMarkdownToSafeHtml(markdown)
     expect(output).toContain('<dl>')
     expect(output).toContain('<mark>important</mark>')
+  })
+
+  it('renders pipe table markdown as semantic html tables', () => {
+    const markdown = '| Syntax | Description |\n| --- | --- |\n| Header | Title |\n| Paragraph | Text |'
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<table>')
+    expect(output).toContain('<thead>')
+    expect(output).toContain('<tbody>')
+    expect(output).toContain('<th>Syntax</th>')
+    expect(output).toContain('<td>Paragraph</td>')
   })
 
   it('renders emoji shortcode and sub/sup syntax', () => {
