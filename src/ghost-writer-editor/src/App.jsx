@@ -183,7 +183,6 @@ function App() {
   const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(DEFAULT_SETTINGS.defaultShowMdPrompts)
   const [isTabBarVisible, setIsTabBarVisible] = useState(true)
   const [isSpellCheckEnabled, setIsSpellCheckEnabled] = useState(DEFAULT_SETTINGS.defaultSpellCheck)
-  const [spellcheckRefreshKey, setSpellcheckRefreshKey] = useState(0)
   const [editorTextZoomPercent, setEditorTextZoomPercent] = useState(() =>
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
@@ -418,6 +417,11 @@ function App() {
 
   const clearWindowsSelectionContext = useCallback(() => {
     setWindowsSelectionContext(null)
+  }, [])
+
+  const activateTab = useCallback((tabId) => {
+    setWindowsSelectionContext(null)
+    setActiveTabId(tabId)
   }, [])
 
   const rememberWindowsSelectionContext = useCallback((tabId, context) => {
@@ -674,12 +678,6 @@ function App() {
     promptFormRef,
   })
 
-  useEffect(() => {
-    if (!isWindows || !windowsSelectionContext) return
-    if (windowsSelectionContext.tabId === activeTabId) return
-    setWindowsSelectionContext(null)
-  }, [activeTabId, isWindows, windowsSelectionContext])
-
   const checkboxLineIndexes = useMemo(
     () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
     [activeContent, isPreviewOpen],
@@ -832,7 +830,7 @@ function App() {
 
         const restoredActiveTab =
           restoredTabs.find((tab) => tab.id === String(nextSettings.sessionActiveTabId || '')) ?? restoredTabs[0]
-        setActiveTabId(restoredActiveTab.id)
+        activateTab(restoredActiveTab.id)
         setNextUntitledIndex(
           Math.max(
             2,
@@ -884,7 +882,7 @@ function App() {
           const restoredActivePath = (nextSettings.sessionActiveTabPath || '').trim()
           const restoredActiveTab =
             restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
-          setActiveTabId(restoredActiveTab.id)
+          activateTab(restoredActiveTab.id)
           setNextUntitledIndex(highestUntitledIndex + 1)
         }
       }
@@ -893,7 +891,7 @@ function App() {
     }
 
     void loadDesktopSettings()
-  }, [applySettings])
+  }, [activateTab, applySettings])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return
@@ -998,9 +996,9 @@ function App() {
       delete next[nextTab.id]
       return next
     })
-    setActiveTabId(nextTab.id)
+    activateTab(nextTab.id)
     return nextTab
-  }, [nextUntitledIndex])
+  }, [activateTab, nextUntitledIndex])
 
   const handleNew = useCallback(() => {
     createAndActivateTab()
@@ -1024,7 +1022,7 @@ function App() {
 
     setTabs((currentTabs) => [...currentTabs, duplicateTab])
     setNextUntitledIndex((current) => current + 1)
-    setActiveTabId(duplicateTab.id)
+    activateTab(duplicateTab.id)
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
       [duplicateTab.id]: { start: 0, end: 0 },
@@ -1042,7 +1040,7 @@ function App() {
       delete next[duplicateTab.id]
       return next
     })
-  }, [activeTab, nextUntitledIndex])
+  }, [activeTab, activateTab, nextUntitledIndex])
 
   const handleRename = useCallback(async () => {
     if (!activeTabId) return
@@ -1082,9 +1080,8 @@ function App() {
   }, [activeTab, activeTabId])
 
   const handleTabSelect = useCallback((tabId) => {
-    setWindowsSelectionContext(null)
-    setActiveTabId(tabId)
-  }, [])
+    activateTab(tabId)
+  }, [activateTab])
 
   const closeTabsInState = useCallback(
     (tabsToClose = [], tabsSnapshot = tabs) => {
@@ -1133,7 +1130,7 @@ function App() {
         })
         setWindowsSelectionContext(null)
         setWindowsSelectionContextHistoryByTab({})
-        setActiveTabId(replacementTab.id)
+        activateTab(replacementTab.id)
         setIsPreviewOpen(false)
         return
       }
@@ -1149,9 +1146,9 @@ function App() {
           ? Math.min(...closedIndexes)
           : tabsSnapshot.findIndex((tab) => tab.id === activeTabId)
       const nextActiveTab = nextTabs[fallbackIndex] ?? nextTabs[fallbackIndex - 1] ?? nextTabs[nextTabs.length - 1]
-      setActiveTabId(nextActiveTab.id)
+      activateTab(nextActiveTab.id)
     },
-    [activeTabId, nextUntitledIndex, tabs],
+    [activeTabId, activateTab, nextUntitledIndex, tabs],
   )
 
   const handleCloseTab = useCallback(
@@ -1353,7 +1350,7 @@ function App() {
       } else {
         setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        setActiveTabId(nextTab.id)
+        activateTab(nextTab.id)
       }
 
       const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
@@ -1373,6 +1370,7 @@ function App() {
     fileInputRef.current?.click()
   }, [
     activeTabId,
+    activateTab,
     nextUntitledIndex,
     resetGenerationState,
     setPromptError,
@@ -1438,7 +1436,7 @@ function App() {
         } else {
           setNextUntitledIndex((current) => current + 1)
           setTabs((currentTabs) => [...currentTabs, nextTab])
-          setActiveTabId(nextTab.id)
+          activateTab(nextTab.id)
         }
 
         setSelectionRangesByTab((currentRanges) => ({
@@ -1459,6 +1457,7 @@ function App() {
     },
     [
       activeTabId,
+      activateTab,
       nextUntitledIndex,
       resetGenerationState,
       setPromptError,
@@ -1504,7 +1503,7 @@ function App() {
       } else {
         setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        setActiveTabId(nextTab.id)
+        activateTab(nextTab.id)
       }
 
       setSelectionRangesByTab((currentRanges) => ({
@@ -1520,6 +1519,7 @@ function App() {
     },
     [
       activeTabId,
+      activateTab,
       nextUntitledIndex,
       resetGenerationState,
       setPromptError,
@@ -1803,7 +1803,6 @@ function App() {
       if (!targetTab) return currentTabs
 
       let nextContent = targetTab.content
-      let changedCount = 0
 
       checkboxNodes.forEach((node) => {
         if (!(node instanceof HTMLElement)) return
@@ -1818,7 +1817,6 @@ function App() {
               : node.getAttribute('aria-pressed') === 'true'
         const updatedContent = toggleCheckboxOnLine(nextContent, sourceLine, isChecked)
         if (updatedContent !== nextContent) {
-          changedCount += 1
           nextContent = updatedContent
         }
       })
@@ -2092,7 +2090,6 @@ ${escapeLatex(exportMarkdownSource)}
 
       setSettings(nextSettings)
       setCustomSpellcheckWords(resolveEnabledCustomWords(normalizedWordList, normalizedDisabled))
-      setSpellcheckRefreshKey((current) => current + 1)
 
       if (isDesktopRuntime()) {
         void saveSettings(nextSettings)
