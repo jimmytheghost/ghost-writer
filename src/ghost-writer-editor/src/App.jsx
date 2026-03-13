@@ -163,6 +163,9 @@ function App() {
   const [scrollPositionsByTab, setScrollPositionsByTab] = useState(() => ({
     [initialTab.id]: { editorTop: 0, previewTop: 0 },
   }))
+  const [previewOpenByTab, setPreviewOpenByTab] = useState(() => ({
+    [initialTab.id]: false,
+  }))
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(true)
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -177,7 +180,6 @@ function App() {
   const [appVersion, setAppVersion] = useState(DEFAULT_APP_VERSION)
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
   // New: whether inline MD prompts ({{...}}) are visible in the Markdown preview
   const [isMdPromptsVisible, setIsMdPromptsVisible] = useState(DEFAULT_SETTINGS.defaultShowMdPrompts)
@@ -221,6 +223,7 @@ function App() {
   const isPreviewScrollTickingRef = useRef(false)
   const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
   const dirtyCloseConfirmResolverRef = useRef(null)
+  const activeTabIdRef = useRef(activeTabId)
 
   const escapeFindQueryForRegex = useCallback((query) => {
     return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -229,6 +232,10 @@ function App() {
   useEffect(() => {
     scrollPositionsByTabRef.current = scrollPositionsByTab
   }, [scrollPositionsByTab])
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId
+  }, [activeTabId])
 
   useEffect(() => {
     return () => {
@@ -240,6 +247,7 @@ function App() {
   }, [])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
+  const isPreviewOpen = Boolean(previewOpenByTab[activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null
   const activeContent = activeTab?.content ?? ''
@@ -264,6 +272,24 @@ function App() {
     setTabs((currentTabs) => updateTabContent(currentTabs, tabId, content))
   }, [])
 
+  const setPreviewOpenForTab = useCallback((tabId, value) => {
+    if (!tabId) return
+
+    setPreviewOpenByTab((currentStates) => {
+      const previousValue = Boolean(currentStates[tabId])
+      const nextValue = typeof value === 'function' ? Boolean(value(previousValue)) : Boolean(value)
+      const hasStoredValue = Object.prototype.hasOwnProperty.call(currentStates, tabId)
+      if (hasStoredValue && previousValue === nextValue) {
+        return currentStates
+      }
+
+      return {
+        ...currentStates,
+        [tabId]: nextValue,
+      }
+    })
+  }, [])
+
   const getSessionSnapshotTabs = useCallback(
     (tabsToSnapshot) =>
       tabsToSnapshot.map((tab) => ({
@@ -273,8 +299,9 @@ function App() {
         filePath: String(tab.filePath || ''),
         lastSavedContent: String(tab.lastSavedContent || ''),
         isDirty: Boolean(tab.isDirty),
+        isPreviewOpen: Boolean(previewOpenByTab[tab.id]),
       })),
-    [],
+    [previewOpenByTab],
   )
 
   const resolveDirtyCloseConfirm = useCallback((shouldSave) => {
@@ -726,7 +753,7 @@ function App() {
     setEditorTextZoomPercent(normalizeTextZoom(nextSettings.defaultTextZoom))
     setIsAlwaysOnTop(Boolean(nextSettings.defaultAlwaysOnTop))
     setIsFooterCollapsed(Boolean(nextSettings.defaultFooterCollapsed))
-    setIsPreviewOpen(Boolean(nextSettings.defaultStartupPreview))
+    setPreviewOpenForTab(activeTabIdRef.current, Boolean(nextSettings.defaultStartupPreview))
     setIsSpellCheckEnabled(Boolean(nextSettings.defaultSpellCheck))
     const customWordList = Array.isArray(nextSettings.customWordList)
       ? nextSettings.customWordList
@@ -741,7 +768,7 @@ function App() {
     if (typeof nextSettings.defaultShowMdPrompts !== 'undefined') {
       setIsMdPromptsVisible(Boolean(nextSettings.defaultShowMdPrompts))
     }
-  }, [setSelectedModel])
+  }, [setPreviewOpenForTab, setSelectedModel])
 
   // Toggle for showing/hiding MD prompts in preview/exports
   const handleToggleMdPrompts = useCallback(() => {
@@ -821,6 +848,12 @@ function App() {
             return acc
           }, {}),
         )
+        setPreviewOpenByTab(
+          restoredTabs.reduce((acc, tab, index) => {
+            acc[tab.id] = Boolean(sessionTabs[index]?.isPreviewOpen)
+            return acc
+          }, {}),
+        )
         setScrollPositionsByTab(
           restoredTabs.reduce((acc, tab) => {
             acc[tab.id] = { editorTop: 0, previewTop: 0 }
@@ -878,8 +911,14 @@ function App() {
               return acc
             }, {}),
           )
-
           const restoredActivePath = (nextSettings.sessionActiveTabPath || '').trim()
+          setPreviewOpenByTab(
+            restoredTabs.reduce((acc, tab) => {
+              acc[tab.id] = tab.filePath === restoredActivePath ? Boolean(nextSettings.defaultStartupPreview) : false
+              return acc
+            }, {}),
+          )
+
           const restoredActiveTab =
             restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
           activateTab(restoredActiveTab.id)
@@ -990,15 +1029,19 @@ function App() {
       ...currentPositions,
       [nextTab.id]: { editorTop: 0, previewTop: 0 },
     }))
+    setPreviewOpenByTab((currentStates) => ({
+      ...currentStates,
+      [nextTab.id]: false,
+    }))
     setWindowsSelectionContext(null)
     setWindowsSelectionContextHistoryByTab((current) => {
       const next = { ...current }
       delete next[nextTab.id]
       return next
     })
-    activateTab(nextTab.id)
+    switchActiveTab(nextTab.id)
     return nextTab
-  }, [activateTab, nextUntitledIndex])
+  }, [nextUntitledIndex, switchActiveTab])
 
   const handleNew = useCallback(() => {
     createAndActivateTab()
@@ -1022,7 +1065,7 @@ function App() {
 
     setTabs((currentTabs) => [...currentTabs, duplicateTab])
     setNextUntitledIndex((current) => current + 1)
-    activateTab(duplicateTab.id)
+    switchActiveTab(duplicateTab.id)
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
       [duplicateTab.id]: { start: 0, end: 0 },
@@ -1034,13 +1077,17 @@ function App() {
         previewTop: currentPositions[activeTab.id]?.previewTop ?? 0,
       },
     }))
+    setPreviewOpenByTab((currentStates) => ({
+      ...currentStates,
+      [duplicateTab.id]: isPreviewOpen,
+    }))
     setWindowsSelectionContext(null)
     setWindowsSelectionContextHistoryByTab((current) => {
       const next = { ...current }
       delete next[duplicateTab.id]
       return next
     })
-  }, [activeTab, activateTab, nextUntitledIndex])
+  }, [activeTab, isPreviewOpen, nextUntitledIndex, switchActiveTab])
 
   const handleRename = useCallback(async () => {
     if (!activeTabId) return
@@ -1079,10 +1126,6 @@ function App() {
     )
   }, [activeTab, activeTabId])
 
-  const handleTabSelect = useCallback((tabId) => {
-    activateTab(tabId)
-  }, [activateTab])
-
   const closeTabsInState = useCallback(
     (tabsToClose = [], tabsSnapshot = tabs) => {
       if (!tabsToClose.length) return
@@ -1113,6 +1156,13 @@ function App() {
         })
         return nextHistory
       })
+      setPreviewOpenByTab((currentStates) => {
+        const nextStates = { ...currentStates }
+        tabIdsToClose.forEach((tabId) => {
+          delete nextStates[tabId]
+        })
+        return nextStates
+      })
 
       const activeTabWasClosed = activeTabId ? tabIdsToClose.has(activeTabId) : false
       if (activeTabWasClosed) {
@@ -1128,10 +1178,12 @@ function App() {
         setScrollPositionsByTab({
           [replacementTab.id]: { editorTop: 0, previewTop: 0 },
         })
+        setPreviewOpenByTab({
+          [replacementTab.id]: false,
+        })
         setWindowsSelectionContext(null)
         setWindowsSelectionContextHistoryByTab({})
-        activateTab(replacementTab.id)
-        setIsPreviewOpen(false)
+        setActiveTabId(replacementTab.id)
         return
       }
 
@@ -1350,7 +1402,7 @@ function App() {
       } else {
         setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        activateTab(nextTab.id)
+        switchActiveTab(nextTab.id)
       }
 
       const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
@@ -1362,6 +1414,12 @@ function App() {
         ...currentPositions,
         [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
+      if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+        setPreviewOpenByTab((currentStates) => ({
+          ...currentStates,
+          [targetTabId]: false,
+        }))
+      }
       resetGenerationState({ tabId: targetTabId })
       setPromptError('')
       return
@@ -1375,6 +1433,7 @@ function App() {
     resetGenerationState,
     setPromptError,
     shouldReplaceEmptyUntitledActiveTab,
+    switchActiveTab,
   ])
 
   useEffect(() => {
@@ -1436,7 +1495,7 @@ function App() {
         } else {
           setNextUntitledIndex((current) => current + 1)
           setTabs((currentTabs) => [...currentTabs, nextTab])
-          activateTab(nextTab.id)
+          switchActiveTab(nextTab.id)
         }
 
         setSelectionRangesByTab((currentRanges) => ({
@@ -1447,6 +1506,12 @@ function App() {
           ...currentPositions,
           [targetTabId]: { editorTop: 0, previewTop: 0 },
         }))
+        if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+          setPreviewOpenByTab((currentStates) => ({
+            ...currentStates,
+            [targetTabId]: false,
+          }))
+        }
         resetGenerationState({ tabId: targetTabId })
       }
       reader.onerror = () => {
@@ -1462,6 +1527,7 @@ function App() {
       resetGenerationState,
       setPromptError,
       shouldReplaceEmptyUntitledActiveTab,
+      switchActiveTab,
     ],
   )
 
@@ -1503,7 +1569,7 @@ function App() {
       } else {
         setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        activateTab(nextTab.id)
+        switchActiveTab(nextTab.id)
       }
 
       setSelectionRangesByTab((currentRanges) => ({
@@ -1514,6 +1580,12 @@ function App() {
         ...currentPositions,
         [targetTabId]: { editorTop: 0, previewTop: 0 },
       }))
+      if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
+        setPreviewOpenByTab((currentStates) => ({
+          ...currentStates,
+          [targetTabId]: false,
+        }))
+      }
       resetGenerationState({ tabId: targetTabId })
       setPromptError('')
     },
@@ -1524,6 +1596,7 @@ function App() {
       resetGenerationState,
       setPromptError,
       shouldReplaceEmptyUntitledActiveTab,
+      switchActiveTab,
     ],
   )
 
@@ -1599,13 +1672,15 @@ function App() {
         if (Math.abs(previous.editorTop - nextTop) < 1) {
           return currentPositions
         }
-        return {
+        const nextPositions = {
           ...currentPositions,
           [activeTabId]: {
             ...previous,
             editorTop: nextTop,
           },
         }
+        scrollPositionsByTabRef.current = nextPositions
+        return nextPositions
       })
     },
     [activeTabId],
@@ -1748,7 +1823,7 @@ function App() {
       }
 
       if (key === 'defaultStartupPreview') {
-        setIsPreviewOpen(Boolean(value))
+        setPreviewOpenForTab(activeTabId, Boolean(value))
       }
 
       if (key === 'defaultSpellCheck') {
@@ -1762,7 +1837,7 @@ function App() {
         setIsMdPromptsVisible(Boolean(value))
       }
     },
-    [setSelectedModel],
+    [activeTabId, setPreviewOpenForTab, setSelectedModel],
   )
 
   const syncPreviewScrollBackToEditor = useCallback(() => {
@@ -1772,12 +1847,14 @@ function App() {
       const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
       const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
         ? Math.max(0, livePreviewScrollTop)
-        : previous.previewTop
+        : Number.isFinite(previewScrollTopRef.current)
+          ? Math.max(0, previewScrollTopRef.current)
+          : previous.previewTop
 
       if (Math.abs(previous.editorTop - nextPreviewTop) < 1 && Math.abs(previous.previewTop - nextPreviewTop) < 1) {
         return currentPositions
       }
-      return {
+      const nextPositions = {
         ...currentPositions,
         [activeTabId]: {
           ...previous,
@@ -1785,8 +1862,52 @@ function App() {
           previewTop: nextPreviewTop,
         },
       }
+      scrollPositionsByTabRef.current = nextPositions
+      return nextPositions
     })
   }, [activeTabId])
+
+  const syncPreviewScrollForTabSwitch = useCallback(() => {
+    if (!activeTabId) return
+    const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
+    setScrollPositionsByTab((currentPositions) => {
+      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+      const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
+        ? Math.max(0, livePreviewScrollTop)
+        : Number.isFinite(previewScrollTopRef.current)
+          ? Math.max(0, previewScrollTopRef.current)
+          : previous.previewTop
+
+      if (Math.abs(previous.previewTop - nextPreviewTop) < 1) {
+        return currentPositions
+      }
+
+      const nextPositions = {
+        ...currentPositions,
+        [activeTabId]: {
+          ...previous,
+          previewTop: nextPreviewTop,
+        },
+      }
+      scrollPositionsByTabRef.current = nextPositions
+      return nextPositions
+    })
+  }, [activeTabId])
+
+  function switchActiveTab(tabId, { clearWindowsSelection = false } = {}) {
+    if (!tabId) return
+    if (isPreviewOpen) {
+      syncPreviewScrollForTabSwitch()
+    }
+    if (clearWindowsSelection) {
+      setWindowsSelectionContext(null)
+    }
+    setActiveTabId(tabId)
+  }
+
+  const handleTabSelect = useCallback((tabId) => {
+    switchActiveTab(tabId, { clearWindowsSelection: true })
+  }, [switchActiveTab])
 
   const syncPreviewCheckboxesToMarkdown = useCallback(() => {
     if (!activeTabId) return
@@ -1827,22 +1948,22 @@ function App() {
   }, [activeTabId])
 
   const handleShowPreview = useCallback(() => {
-    setIsPreviewOpen(true)
-  }, [])
+    setPreviewOpenForTab(activeTabId, true)
+  }, [activeTabId, setPreviewOpenForTab])
 
   const handleShowTextEdit = useCallback(() => {
     syncPreviewCheckboxesToMarkdown()
     syncPreviewScrollBackToEditor()
-    setIsPreviewOpen(false)
-  }, [syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
+    setPreviewOpenForTab(activeTabId, false)
+  }, [activeTabId, setPreviewOpenForTab, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleTogglePreview = useCallback(() => {
     if (isPreviewOpen) {
       syncPreviewCheckboxesToMarkdown()
       syncPreviewScrollBackToEditor()
     }
-    setIsPreviewOpen((previous) => !previous)
-  }, [isPreviewOpen, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
+    setPreviewOpenForTab(activeTabId, (previous) => !previous)
+  }, [activeTabId, isPreviewOpen, setPreviewOpenForTab, syncPreviewCheckboxesToMarkdown, syncPreviewScrollBackToEditor])
 
   const handleToggleFooter = useCallback(() => {
     setIsFooterCollapsed((previous) => !previous)
@@ -2255,27 +2376,40 @@ ${escapeLatex(exportMarkdownSource)}
     if (!previewElement) return undefined
 
     const handlePreviewScroll = () => {
-      previewScrollTopRef.current = Math.max(0, Number(previewElement.scrollTop) || 0)
+      const nextTop = Math.max(0, Number(previewElement.scrollTop) || 0)
+      previewScrollTopRef.current = nextTop
+      const currentPositions = scrollPositionsByTabRef.current
+      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+      if (Math.abs(previous.previewTop - nextTop) >= 1) {
+        scrollPositionsByTabRef.current = {
+          ...currentPositions,
+          [activeTabId]: {
+            ...previous,
+            previewTop: nextTop,
+          },
+        }
+      }
       if (isWindows) return
       if (isPreviewScrollTickingRef.current) return
 
       isPreviewScrollTickingRef.current = true
       requestAnimationFrame(() => {
         isPreviewScrollTickingRef.current = false
-        const nextTop = previewScrollTopRef.current
         setScrollPositionsByTab((currentPositions) => {
           const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
           if (Math.abs(previous.previewTop - nextTop) < 1) {
             return currentPositions
           }
 
-          return {
+          const nextPositions = {
             ...currentPositions,
             [activeTabId]: {
               ...previous,
               previewTop: nextTop,
             },
           }
+          scrollPositionsByTabRef.current = nextPositions
+          return nextPositions
         })
       })
     }

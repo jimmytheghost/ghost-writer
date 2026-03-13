@@ -453,4 +453,120 @@ describe('App desktop save flow', () => {
     setIntervalSpy.mockRestore()
     clearIntervalSpy.mockRestore()
   })
+
+  it('does not reload desktop settings when switching between open tabs', async () => {
+    desktopRuntimeMocks.loadSettings.mockResolvedValueOnce({
+      hasFile: true,
+      settings: {
+        defaultModel: '',
+        defaultTheme: 'dark',
+        defaultTextZoom: '100%',
+        defaultAlwaysOnTop: false,
+        defaultFooterCollapsed: true,
+        defaultStartupPreview: false,
+        defaultSpellCheck: false,
+        defaultShowMdPrompts: true,
+        autoSaveEnabled: false,
+        autoSaveIntervalSeconds: 60,
+        ollamaBaseUrl: 'http://127.0.0.1:11434',
+        customWordList: [],
+        customWordListDisabled: [],
+        sessionTabs: [],
+        sessionActiveTabId: '',
+        sessionNextUntitledIndex: 2,
+        sessionSavedTabPaths: [],
+        sessionActiveTabPath: '',
+      },
+    })
+    desktopRuntimeMocks.openMarkdownWithNativeDialog
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-six.md',
+        content: 'First file',
+      })
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-seven.md',
+        content: 'Second file',
+      })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-six' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-seven' })).toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.loadSettings).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-six' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-seven' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-six' }))
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.loadSettings).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('restores editor scroll position independently for loaded file tabs', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-scroll-one.md',
+        content: Array.from({ length: 300 }, (_, index) => `First file line ${index + 1}`).join('\n'),
+      })
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-scroll-two.md',
+        content: Array.from({ length: 300 }, (_, index) => `Second file line ${index + 1}`).join('\n'),
+      })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-scroll-one' })).toBeInTheDocument()
+    })
+
+    let editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    editor.scrollTop = 240
+    fireEvent.scroll(editor)
+
+    const expandFooterButton = screen.queryByLabelText('Expand footer controls')
+    if (expandFooterButton) {
+      fireEvent.click(expandFooterButton)
+    }
+    fireEvent.click(screen.getByLabelText('Load document'))
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-scroll-two' })).toBeInTheDocument()
+    })
+
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(0)
+    })
+
+    editor.scrollTop = 90
+    fireEvent.scroll(editor)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-scroll-one' }))
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(240)
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Switch to chapter-scroll-two' }))
+    editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    await waitFor(() => {
+      expect(editor.scrollTop).toBe(90)
+    })
+  })
 })
