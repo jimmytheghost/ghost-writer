@@ -98,6 +98,17 @@ function getNextUntitledIndexFromTabs(tabs = []) {
   return nextIndex
 }
 
+function normalizeFilePath(filePath = '') {
+  return String(filePath ?? '').trim().replaceAll('\\', '/').toLowerCase()
+}
+
+function findTabByFilePath(tabs = [], filePath = '') {
+  const normalizedPath = normalizeFilePath(filePath)
+  if (!normalizedPath) return null
+
+  return tabs.find((tab) => normalizeFilePath(tab?.filePath) === normalizedPath) ?? null
+}
+
 function getPreviewEventTargetElement(target) {
   if (target instanceof HTMLElement) return target
   if (target instanceof Text) return target.parentElement
@@ -223,6 +234,7 @@ function App() {
   const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
   const [isColoredStreamingOutputEnabled, setIsColoredStreamingOutputEnabled] = useState(true)
   const [dirtyCloseConfirmTab, setDirtyCloseConfirmTab] = useState(null)
+  const [alreadyOpenTabId, setAlreadyOpenTabId] = useState(null)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -271,6 +283,7 @@ function App() {
   }, [])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
+  const alreadyOpenTab = useMemo(() => tabs.find((tab) => tab.id === alreadyOpenTabId) ?? null, [tabs, alreadyOpenTabId])
   const isPreviewOpen = Boolean(previewOpenByTab[activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
   const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null
@@ -728,6 +741,14 @@ function App() {
     updateTabById,
     promptFormRef,
   })
+
+  const handleConfirmAlreadyOpen = useCallback(() => {
+    if (alreadyOpenTabId) {
+      activateTab(alreadyOpenTabId)
+    }
+    setAlreadyOpenTabId(null)
+    setPromptError('')
+  }, [activateTab, alreadyOpenTabId, setPromptError])
 
   const checkboxLineIndexes = useMemo(
     () => (isPreviewOpen ? collectCheckboxLineIndexes(activeContent) : []),
@@ -1383,6 +1404,12 @@ function App() {
         setPromptError(FILE_TOO_LARGE_MESSAGE)
         return
       }
+      const existingTab = findTabByFilePath(tabs, path)
+      if (existingTab) {
+        setAlreadyOpenTabId(existingTab.id)
+        setPromptError('')
+        return
+      }
 
       const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
       const nextTab = {
@@ -1436,6 +1463,7 @@ function App() {
     resetGenerationState,
     setPromptError,
     shouldReplaceEmptyUntitledActiveTab,
+    tabs,
     activateTab,
   ])
 
@@ -1543,6 +1571,12 @@ function App() {
         setPromptError(FILE_TOO_LARGE_MESSAGE)
         return
       }
+      const existingTab = findTabByFilePath(tabs, path)
+      if (existingTab) {
+        setAlreadyOpenTabId(existingTab.id)
+        setPromptError('')
+        return
+      }
 
       const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
       const nextTab = {
@@ -1593,6 +1627,7 @@ function App() {
       resetGenerationState,
       setPromptError,
       shouldReplaceEmptyUntitledActiveTab,
+      tabs,
       activateTab,
     ],
   )
@@ -2690,6 +2725,8 @@ ${escapeLatex(exportMarkdownSource)}
         models={models}
         appName={appName}
         appVersion={appVersion}
+        alreadyOpenTab={alreadyOpenTab}
+        onConfirmAlreadyOpen={handleConfirmAlreadyOpen}
         dirtyCloseConfirmTab={dirtyCloseConfirmTab}
         onConfirmDirtyCloseSave={() => resolveDirtyCloseConfirm(true)}
         onConfirmDirtyCloseDiscard={() => resolveDirtyCloseConfirm(false)}

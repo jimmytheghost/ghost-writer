@@ -190,6 +190,49 @@ describe('App desktop save flow', () => {
     expect(screen.queryByRole('tab', { name: /Switch to Untitled 2\*?/ })).not.toBeInTheDocument()
   })
 
+  it('shows an already-open modal and switches to the existing tab when opening the same desktop file twice', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-duplicate.md',
+        content: 'Loaded once',
+      })
+      .mockResolvedValueOnce({
+        path: '/tmp/chapter-duplicate.md',
+        content: 'Loaded once',
+      })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-duplicate' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'This file is already open' })).toBeInTheDocument()
+    })
+
+    expect(screen.getAllByRole('tab', { name: 'Switch to chapter-duplicate' })).toHaveLength(1)
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'This file is already open' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Switch to chapter-duplicate' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('closes an unmodified saved tab without opening native save dialog', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/chapter-three.md',
