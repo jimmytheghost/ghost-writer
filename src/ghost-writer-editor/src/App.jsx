@@ -69,9 +69,33 @@ import {
 const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
+const UNTITLED_TITLE_PATTERN = /^Untitled(?:\s+(\d+))?(?:\.md)?$/i
 
 function isWindowsPlatform() {
   return /Win/i.test(navigator.platform)
+}
+
+function getUntitledIndexFromTitle(title = '') {
+  const match = UNTITLED_TITLE_PATTERN.exec(String(title).trim())
+  if (!match) return null
+
+  const value = Number(match[1] ?? '1')
+  return Number.isInteger(value) && value > 0 ? value : null
+}
+
+function getNextUntitledIndexFromTabs(tabs = []) {
+  const usedIndexes = new Set(
+    tabs
+      .map((tab) => getUntitledIndexFromTitle(tab?.title))
+      .filter((index) => Number.isInteger(index) && index > 0),
+  )
+
+  let nextIndex = 1
+  while (usedIndexes.has(nextIndex)) {
+    nextIndex += 1
+  }
+
+  return nextIndex
 }
 
 function getPreviewEventTargetElement(target) {
@@ -156,7 +180,6 @@ function App() {
   const [theme, setTheme] = useState('dark')
   const [tabs, setTabs] = useState(() => [initialTab])
   const [activeTabId, setActiveTabId] = useState(() => initialTab.id)
-  const [nextUntitledIndex, setNextUntitledIndex] = useState(2)
   const [selectionRangesByTab, setSelectionRangesByTab] = useState(() => ({
     [initialTab.id]: { start: 0, end: 0 },
   }))
@@ -204,6 +227,7 @@ function App() {
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
   const modKeyLabel = showDragRegion ? 'Cmd' : 'Ctrl'
+  const nextUntitledIndexFromTabs = useMemo(() => getNextUntitledIndexFromTabs(tabs), [tabs])
 
   const fileInputRef = useRef(null)
   const promptFormRef = useRef(null)
@@ -864,14 +888,6 @@ function App() {
         const restoredActiveTab =
           restoredTabs.find((tab) => tab.id === String(nextSettings.sessionActiveTabId || '')) ?? restoredTabs[0]
         activateTab(restoredActiveTab.id)
-        setNextUntitledIndex(
-          Math.max(
-            2,
-            Number.isFinite(Number(nextSettings.sessionNextUntitledIndex))
-              ? Number(nextSettings.sessionNextUntitledIndex)
-              : 2,
-          ),
-        )
         setHasLoadedDesktopSettings(true)
         return
       }
@@ -884,15 +900,9 @@ function App() {
           (file) => !exceedsLoadFileSizeLimit(file?.content ?? ''),
         )
         if (restoredFiles.length) {
-          let highestUntitledIndex = 1
           const restoredTabs = restoredFiles.map((file) => {
             const base = createNewTab(1)
             const title = ensureMarkdownFileName(fileNameFromPath(file.path))
-            const untitledMatch = /^Untitled(?:\s+(\d+))?$/i.exec(title.replace(/\.md$/i, ''))
-            if (untitledMatch) {
-              const value = Number(untitledMatch[1] ?? '1')
-              if (Number.isFinite(value)) highestUntitledIndex = Math.max(highestUntitledIndex, value)
-            }
 
             return {
               ...base,
@@ -922,7 +932,6 @@ function App() {
           const restoredActiveTab =
             restoredTabs.find((tab) => tab.filePath === restoredActivePath) ?? restoredTabs[0]
           activateTab(restoredActiveTab.id)
-          setNextUntitledIndex(highestUntitledIndex + 1)
         }
       }
 
@@ -944,7 +953,7 @@ function App() {
     const sessionKey = JSON.stringify({
       sessionTabs,
       sessionActiveTabId: activeTabId ?? '',
-      sessionNextUntitledIndex: nextUntitledIndex,
+      sessionNextUntitledIndex: nextUntitledIndexFromTabs,
     })
 
     const persistedPaths = Array.isArray(lastPersistedSessionRef.current.paths)
@@ -968,11 +977,11 @@ function App() {
       ...settings,
       sessionTabs,
       sessionActiveTabId: activeTabId ?? '',
-      sessionNextUntitledIndex: nextUntitledIndex,
+      sessionNextUntitledIndex: nextUntitledIndexFromTabs,
       sessionSavedTabPaths,
       sessionActiveTabPath: activeTabPath,
     })
-  }, [activeTabId, getSessionSnapshotTabs, hasLoadedDesktopSettings, nextUntitledIndex, settings, tabs])
+  }, [activeTabId, getSessionSnapshotTabs, hasLoadedDesktopSettings, nextUntitledIndexFromTabs, settings, tabs])
 
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined
@@ -1018,8 +1027,7 @@ function App() {
   }, [isAlwaysOnTop])
 
   const createAndActivateTab = useCallback(() => {
-    const nextTab = createNewTab(nextUntitledIndex)
-    setNextUntitledIndex((current) => current + 1)
+    const nextTab = createNewTab(nextUntitledIndexFromTabs)
     setTabs((currentTabs) => [...currentTabs, nextTab])
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
@@ -1039,9 +1047,9 @@ function App() {
       delete next[nextTab.id]
       return next
     })
-    switchActiveTab(nextTab.id)
+    activateTab(nextTab.id)
     return nextTab
-  }, [nextUntitledIndex, switchActiveTab])
+  }, [activateTab, nextUntitledIndexFromTabs])
 
   const handleNew = useCallback(() => {
     createAndActivateTab()
@@ -1050,7 +1058,7 @@ function App() {
   const handleDuplicate = useCallback(() => {
     if (!activeTab) return
 
-    const baseDuplicateTab = createNewTab(nextUntitledIndex)
+    const baseDuplicateTab = createNewTab(1)
     const sourceTitle = stripExtension(activeTab.title || 'untitled').trim() || 'untitled'
     const duplicateTitle = ensureMarkdownFileName(`${sourceTitle} copy`)
     const duplicateContent = activeTab.content ?? ''
@@ -1064,8 +1072,7 @@ function App() {
     }
 
     setTabs((currentTabs) => [...currentTabs, duplicateTab])
-    setNextUntitledIndex((current) => current + 1)
-    switchActiveTab(duplicateTab.id)
+    activateTab(duplicateTab.id)
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
       [duplicateTab.id]: { start: 0, end: 0 },
@@ -1087,7 +1094,7 @@ function App() {
       delete next[duplicateTab.id]
       return next
     })
-  }, [activeTab, isPreviewOpen, nextUntitledIndex, switchActiveTab])
+  }, [activeTab, activateTab, isPreviewOpen])
 
   const handleRename = useCallback(async () => {
     if (!activeTabId) return
@@ -1169,8 +1176,7 @@ function App() {
         setWindowsSelectionContext(null)
       }
       if (!nextTabs.length) {
-        const replacementTab = createNewTab(nextUntitledIndex)
-        setNextUntitledIndex((current) => current + 1)
+        const replacementTab = createNewTab(1)
         setTabs([replacementTab])
         setSelectionRangesByTab({
           [replacementTab.id]: { start: 0, end: 0 },
@@ -1200,7 +1206,7 @@ function App() {
       const nextActiveTab = nextTabs[fallbackIndex] ?? nextTabs[fallbackIndex - 1] ?? nextTabs[nextTabs.length - 1]
       activateTab(nextActiveTab.id)
     },
-    [activeTabId, activateTab, nextUntitledIndex, tabs],
+    [activeTabId, activateTab, tabs],
   )
 
   const handleCloseTab = useCallback(
@@ -1380,7 +1386,7 @@ function App() {
 
       const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
       const nextTab = {
-        ...createNewTab(nextUntitledIndex),
+        ...createNewTab(1),
         title: fileTitle,
         content: loadedContent,
         filePath: path,
@@ -1400,9 +1406,8 @@ function App() {
           })),
         )
       } else {
-        setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        switchActiveTab(nextTab.id)
+        activateTab(nextTab.id)
       }
 
       const targetTabId = shouldReplaceEmptyUntitledActiveTab && activeTabId ? activeTabId : nextTab.id
@@ -1428,12 +1433,10 @@ function App() {
     fileInputRef.current?.click()
   }, [
     activeTabId,
-    activateTab,
-    nextUntitledIndex,
     resetGenerationState,
     setPromptError,
     shouldReplaceEmptyUntitledActiveTab,
-    switchActiveTab,
+    activateTab,
   ])
 
   useEffect(() => {
@@ -1472,7 +1475,7 @@ function App() {
       reader.onload = (loadEvent) => {
         const loadedContent = loadEvent.target?.result?.toString() ?? ''
         const nextTab = {
-          ...createNewTab(nextUntitledIndex),
+          ...createNewTab(1),
           content: loadedContent,
           title: file.name,
           filePath: '',
@@ -1493,9 +1496,8 @@ function App() {
             })),
           )
         } else {
-          setNextUntitledIndex((current) => current + 1)
           setTabs((currentTabs) => [...currentTabs, nextTab])
-          switchActiveTab(nextTab.id)
+          activateTab(nextTab.id)
         }
 
         setSelectionRangesByTab((currentRanges) => ({
@@ -1522,12 +1524,10 @@ function App() {
     },
     [
       activeTabId,
-      activateTab,
-      nextUntitledIndex,
       resetGenerationState,
       setPromptError,
       shouldReplaceEmptyUntitledActiveTab,
-      switchActiveTab,
+      activateTab,
     ],
   )
 
@@ -1546,7 +1546,7 @@ function App() {
 
       const fileTitle = ensureMarkdownFileName(fileNameFromPath(path))
       const nextTab = {
-        ...createNewTab(nextUntitledIndex),
+        ...createNewTab(1),
         content,
         title: fileTitle,
         filePath: path,
@@ -1567,9 +1567,8 @@ function App() {
           })),
         )
       } else {
-        setNextUntitledIndex((current) => current + 1)
         setTabs((currentTabs) => [...currentTabs, nextTab])
-        switchActiveTab(nextTab.id)
+        activateTab(nextTab.id)
       }
 
       setSelectionRangesByTab((currentRanges) => ({
@@ -1591,12 +1590,10 @@ function App() {
     },
     [
       activeTabId,
-      activateTab,
-      nextUntitledIndex,
       resetGenerationState,
       setPromptError,
       shouldReplaceEmptyUntitledActiveTab,
-      switchActiveTab,
+      activateTab,
     ],
   )
 
