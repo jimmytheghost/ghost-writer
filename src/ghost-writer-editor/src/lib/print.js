@@ -6,8 +6,43 @@ const PRINT_ROOT_ID = 'ghost-writer-print-root'
 const PRINT_STYLE_ID = 'ghost-writer-print-style'
 let desktopPrintInFlight = false
 
+function isHeadingElement(node) {
+  return node?.nodeType === Node.ELEMENT_NODE && /^H[1-6]$/.test(node.nodeName)
+}
+
+function groupPrintSections(bodyHtml = '') {
+  if (typeof document === 'undefined') return bodyHtml
+
+  const template = document.createElement('template')
+  template.innerHTML = bodyHtml
+
+  const groupedRoot = document.createElement('div')
+  let currentSection = null
+
+  for (const node of Array.from(template.content.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE && !(node.textContent ?? '').trim()) continue
+
+    if (isHeadingElement(node)) {
+      currentSection = document.createElement('section')
+      currentSection.className = 'ghost-writer-print-section'
+      currentSection.appendChild(node)
+      groupedRoot.appendChild(currentSection)
+      continue
+    }
+
+    if (currentSection) {
+      currentSection.appendChild(node)
+      continue
+    }
+
+    groupedRoot.appendChild(node)
+  }
+
+  return groupedRoot.innerHTML
+}
+
 function buildPrintContentHtml({ bodyHtml }) {
-  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${bodyHtml}</article>`
+  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${groupPrintSections(bodyHtml)}</article>`
 }
 
 function ensurePrintStyle() {
@@ -67,6 +102,28 @@ function ensurePrintStyle() {
 
       .ghost-writer-print-main {
         padding: 0 !important;
+      }
+
+      .ghost-writer-print-section {
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+      }
+
+      .ghost-writer-print-section + .ghost-writer-print-section {
+        break-before: auto;
+      }
+
+      .ghost-writer-print-section > :last-child {
+        margin-bottom: 0;
+      }
+
+      .ghost-writer-print-section > h1,
+      .ghost-writer-print-section > h2,
+      .ghost-writer-print-section > h3,
+      .ghost-writer-print-section > h4,
+      .ghost-writer-print-section > h5,
+      .ghost-writer-print-section > h6 {
+        break-after: avoid-page;
       }
     }
   `
