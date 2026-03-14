@@ -12,13 +12,13 @@ vi.mock('../lib/desktopRuntime', () => ({
   isDesktopRuntime: () => true,
 }))
 
-function TestHarness({ onTogglePromptPanel, onToggleColoredOutput }) {
+function TestHarness({ onDuplicate = vi.fn(), onTogglePromptPanel, onToggleColoredOutput }) {
   useTauriMenuEvents({
     onNew: vi.fn(),
     onOpen: vi.fn(),
     onClose: vi.fn(),
     onCloseAll: vi.fn(),
-    onDuplicate: vi.fn(),
+    onDuplicate,
     onRename: vi.fn(),
     onOpenRecent: vi.fn(),
     onOpenRecentError: vi.fn(),
@@ -106,5 +106,50 @@ describe('useTauriMenuEvents', () => {
 
     handler()
     expect(onToggleColoredOutput).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps one duplicate listener across rerenders and calls the latest handler', async () => {
+    listenMock.mockReset()
+    listenMock.mockImplementation(async () => vi.fn())
+
+    const firstOnDuplicate = vi.fn()
+    const secondOnDuplicate = vi.fn()
+
+    const { rerender } = render(
+      <TestHarness
+        onDuplicate={firstOnDuplicate}
+        onTogglePromptPanel={vi.fn()}
+        onToggleColoredOutput={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(listenMock).toHaveBeenCalled()
+    })
+
+    const initialCallCount = listenMock.mock.calls.length
+    const duplicateRegistration = listenMock.mock.calls.find(
+      ([eventName]) => eventName === 'ghost-writer://menu-duplicate',
+    )
+    const duplicateHandler = duplicateRegistration?.[1]
+
+    rerender(
+      <TestHarness
+        onDuplicate={secondOnDuplicate}
+        onTogglePromptPanel={vi.fn()}
+        onToggleColoredOutput={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(listenMock.mock.calls.length).toBe(initialCallCount)
+    })
+
+    expect(typeof duplicateHandler).toBe('function')
+
+    duplicateHandler()
+
+    expect(firstOnDuplicate).not.toHaveBeenCalled()
+    expect(secondOnDuplicate).toHaveBeenCalledTimes(1)
   })
 })

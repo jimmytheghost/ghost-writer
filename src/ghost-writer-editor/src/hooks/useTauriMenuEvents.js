@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { isDesktopRuntime, warnDesktopRuntime } from '../lib/desktopRuntime'
 
@@ -38,6 +38,41 @@ export function useTauriMenuEvents({
   onShowFindReplace,
   onToggleMdPrompts,
 }) {
+  const handleNew = useEffectEvent(() => onNew())
+  const handleOpen = useEffectEvent(() => onOpen())
+  const handleClose = useEffectEvent(() => onClose())
+  const handleCloseAll = useEffectEvent(() => onCloseAll())
+  const handleDuplicate = useEffectEvent(() => onDuplicate())
+  const handleRename = useEffectEvent(() => onRename())
+  const handleOpenRecent = useEffectEvent((event) => onOpenRecent(event.payload))
+  const handleOpenRecentError = useEffectEvent((event) => onOpenRecentError(event.payload))
+  const handleSave = useEffectEvent(() => onSave())
+  const handleSaveAs = useEffectEvent(() => onSaveAs?.())
+  const handlePrint = useEffectEvent(() => onPrint())
+  const handleShowPreview = useEffectEvent(() => onShowPreview())
+  const handleShowTextEdit = useEffectEvent(() => onShowTextEdit())
+  const handleToggleAlwaysOnTop = useEffectEvent(() => onToggleAlwaysOnTop())
+  const handleToggleFooter = useEffectEvent(() => onToggleFooter())
+  const handleToggleTabBar = useEffectEvent(() => onToggleTabBar())
+  const handleTogglePromptPanel = useEffectEvent(() => onTogglePromptPanel())
+  const handleToggleMdPrompts = useEffectEvent(() => onToggleMdPrompts?.())
+  const handleToggleColoredOutput = useEffectEvent(() => onToggleColoredOutput?.())
+  const handleShowSettings = useEffectEvent(() => onShowSettings())
+  const handleShowWordList = useEffectEvent(() => onShowWordList())
+  const handleShowTextZoom = useEffectEvent(() => onShowTextZoom())
+  const handleShowAutoSave = useEffectEvent(() => onShowAutoSave())
+  const handleShowSpellCheck = useEffectEvent(() => onShowSpellCheck())
+  const handleExportCopyHtml = useEffectEvent(() => onExportCopyHtml())
+  const handleExportCopyRichText = useEffectEvent(() => onExportCopyRichText())
+  const handleExportHtml = useEffectEvent(() => onExportHtml())
+  const handleExportPdf = useEffectEvent(() => onExportPdf())
+  const handleExportRtf = useEffectEvent(() => onExportRtf())
+  const handleExportWord = useEffectEvent(() => onExportWord())
+  const handleExportLatex = useEffectEvent(() => onExportLatex())
+  const handleExportDiagnostics = useEffectEvent(() => onExportDiagnostics?.())
+  const handleShowFindReplace = useEffectEvent(() => onShowFindReplace())
+  const handleShowAbout = useEffectEvent(() => onShowAbout())
+
   useEffect(() => {
     if (!isDesktopRuntime()) return undefined
 
@@ -46,41 +81,41 @@ export function useTauriMenuEvents({
 
     const registerListeners = async () => {
       const listenerSpecs = [
-        ['ghost-writer://menu-new', () => onNew()],
-        ['ghost-writer://menu-open', () => onOpen()],
-        ['ghost-writer://menu-close', () => onClose()],
-        ['ghost-writer://menu-close-all', () => onCloseAll()],
-        ['ghost-writer://menu-duplicate', () => onDuplicate()],
-        ['ghost-writer://menu-rename', () => onRename()],
-        ['ghost-writer://menu-open-recent', (event) => onOpenRecent(event.payload)],
-        ['ghost-writer://menu-open-recent-error', (event) => onOpenRecentError(event.payload)],
-        ['ghost-writer://menu-save', () => onSave()],
-        ['ghost-writer://menu-save-as', () => onSaveAs?.()],
-        ['ghost-writer://menu-print', () => onPrint()],
-        ['ghost-writer://menu-preview', () => onShowPreview()],
-        ['ghost-writer://menu-text-edit', () => onShowTextEdit()],
-        ['ghost-writer://menu-pin-top', () => onToggleAlwaysOnTop()],
-        ['ghost-writer://menu-toggle-footer', () => onToggleFooter()],
-        ['ghost-writer://menu-toggle-tab-bar', () => onToggleTabBar()],
-        ['ghost-writer://menu-toggle-prompt-panel', () => onTogglePromptPanel()],
+        ['ghost-writer://menu-new', handleNew],
+        ['ghost-writer://menu-open', handleOpen],
+        ['ghost-writer://menu-close', handleClose],
+        ['ghost-writer://menu-close-all', handleCloseAll],
+        ['ghost-writer://menu-duplicate', handleDuplicate],
+        ['ghost-writer://menu-rename', handleRename],
+        ['ghost-writer://menu-open-recent', handleOpenRecent],
+        ['ghost-writer://menu-open-recent-error', handleOpenRecentError],
+        ['ghost-writer://menu-save', handleSave],
+        ['ghost-writer://menu-save-as', handleSaveAs],
+        ['ghost-writer://menu-print', handlePrint],
+        ['ghost-writer://menu-preview', handleShowPreview],
+        ['ghost-writer://menu-text-edit', handleShowTextEdit],
+        ['ghost-writer://menu-pin-top', handleToggleAlwaysOnTop],
+        ['ghost-writer://menu-toggle-footer', handleToggleFooter],
+        ['ghost-writer://menu-toggle-tab-bar', handleToggleTabBar],
+        ['ghost-writer://menu-toggle-prompt-panel', handleTogglePromptPanel],
         // New: toggle showing Markdown inline prompts within the document
-        ['ghost-writer://menu-toggle-md-prompts', () => onToggleMdPrompts?.()],
-        ['ghost-writer://menu-toggle-colored-output', () => onToggleColoredOutput?.()],
-        ['ghost-writer://menu-settings', () => onShowSettings()],
-        ['ghost-writer://menu-word-list', () => onShowWordList()],
-        ['ghost-writer://menu-text-zoom', () => onShowTextZoom()],
-        ['ghost-writer://menu-auto-save', () => onShowAutoSave()],
-        ['ghost-writer://menu-spell-check', () => onShowSpellCheck()],
-        ['ghost-writer://menu-export-copy-html', () => onExportCopyHtml()],
-        ['ghost-writer://menu-export-copy-rich-text', () => onExportCopyRichText()],
-        ['ghost-writer://menu-export-html', () => onExportHtml()],
-        ['ghost-writer://menu-export-pdf', () => onExportPdf()],
-        ['ghost-writer://menu-export-rtf', () => onExportRtf()],
-        ['ghost-writer://menu-export-word', () => onExportWord()],
-        ['ghost-writer://menu-export-latex', () => onExportLatex()],
-        ['ghost-writer://menu-export-diagnostics', () => onExportDiagnostics?.()],
-        ['ghost-writer://menu-find-replace', () => onShowFindReplace()],
-        ['ghost-writer://menu-about', () => onShowAbout()],
+        ['ghost-writer://menu-toggle-md-prompts', handleToggleMdPrompts],
+        ['ghost-writer://menu-toggle-colored-output', handleToggleColoredOutput],
+        ['ghost-writer://menu-settings', handleShowSettings],
+        ['ghost-writer://menu-word-list', handleShowWordList],
+        ['ghost-writer://menu-text-zoom', handleShowTextZoom],
+        ['ghost-writer://menu-auto-save', handleShowAutoSave],
+        ['ghost-writer://menu-spell-check', handleShowSpellCheck],
+        ['ghost-writer://menu-export-copy-html', handleExportCopyHtml],
+        ['ghost-writer://menu-export-copy-rich-text', handleExportCopyRichText],
+        ['ghost-writer://menu-export-html', handleExportHtml],
+        ['ghost-writer://menu-export-pdf', handleExportPdf],
+        ['ghost-writer://menu-export-rtf', handleExportRtf],
+        ['ghost-writer://menu-export-word', handleExportWord],
+        ['ghost-writer://menu-export-latex', handleExportLatex],
+        ['ghost-writer://menu-export-diagnostics', handleExportDiagnostics],
+        ['ghost-writer://menu-find-replace', handleShowFindReplace],
+        ['ghost-writer://menu-about', handleShowAbout],
       ]
 
       const results = await Promise.allSettled(
@@ -120,40 +155,5 @@ export function useTauriMenuEvents({
       disposed = true
       unlistenFns.forEach((unlisten) => unlisten())
     }
-  }, [
-    onNew,
-    onOpen,
-    onClose,
-    onCloseAll,
-    onDuplicate,
-    onRename,
-    onOpenRecent,
-    onOpenRecentError,
-    onPrint,
-    onSave,
-    onSaveAs,
-    onShowAbout,
-    onShowTextEdit,
-    onShowPreview,
-    onShowSettings,
-    onShowTextZoom,
-    onShowAutoSave,
-    onShowSpellCheck,
-    onShowWordList,
-    onExportCopyHtml,
-    onExportCopyRichText,
-    onExportHtml,
-    onExportPdf,
-    onExportRtf,
-    onExportWord,
-    onExportLatex,
-    onExportDiagnostics,
-    onShowFindReplace,
-    onToggleAlwaysOnTop,
-    onToggleFooter,
-    onToggleTabBar,
-    onTogglePromptPanel,
-    onToggleMdPrompts,
-    onToggleColoredOutput,
-  ])
+  }, [])
 }
