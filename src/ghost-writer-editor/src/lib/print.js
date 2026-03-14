@@ -68,6 +68,29 @@ function ensurePrintStyle() {
       .ghost-writer-print-main {
         padding: 0 !important;
       }
+
+      .ghost-writer-print-main h1,
+      .ghost-writer-print-main h2,
+      .ghost-writer-print-main h3,
+      .ghost-writer-print-main h4,
+      .ghost-writer-print-main h5,
+      .ghost-writer-print-main h6 {
+        break-after: avoid-page;
+        break-inside: avoid-page;
+      }
+
+      .ghost-writer-print-main p,
+      .ghost-writer-print-main blockquote,
+      .ghost-writer-print-main pre,
+      .ghost-writer-print-main ul,
+      .ghost-writer-print-main ol,
+      .ghost-writer-print-main li,
+      .ghost-writer-print-main table,
+      .ghost-writer-print-main img {
+        break-inside: avoid-page;
+        orphans: 3;
+        widows: 3;
+      }
     }
   `
 
