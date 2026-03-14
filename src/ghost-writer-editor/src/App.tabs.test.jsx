@@ -73,7 +73,8 @@ describe('App tabs', () => {
 
     fireEvent.click(screen.getByLabelText('Close Untitled'))
 
-    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled 2' })).not.toBeInTheDocument()
   })
 
   it('closing active tab selects nearest remaining tab', () => {
@@ -87,6 +88,19 @@ describe('App tabs', () => {
     fireEvent.click(screen.getByLabelText('Close Untitled 3'))
 
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('reuses the lowest missing untitled number when opening a new tab', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    fireEvent.click(screen.getByLabelText('Close Untitled 2'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled 4' })).not.toBeInTheDocument()
   })
 
   it('restores markdown preview state per tab when switching between tabs', () => {

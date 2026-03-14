@@ -513,6 +513,53 @@ describe('App desktop save flow', () => {
     })
   })
 
+  it('reuses the lowest untitled number after restoring a desktop session', async () => {
+    desktopRuntimeMocks.loadSettings.mockResolvedValueOnce({
+      hasFile: true,
+      settings: {
+        defaultModel: '',
+        defaultTheme: 'dark',
+        defaultTextZoom: '100%',
+        defaultAlwaysOnTop: false,
+        defaultFooterCollapsed: true,
+        defaultStartupPreview: false,
+        defaultSpellCheck: false,
+        defaultShowMdPrompts: true,
+        autoSaveEnabled: false,
+        autoSaveIntervalSeconds: 60,
+        ollamaBaseUrl: 'http://127.0.0.1:11434',
+        customWordList: [],
+        customWordListDisabled: [],
+        sessionTabs: [
+          {
+            id: 'tab-existing',
+            title: 'Untitled',
+            content: '',
+            filePath: '',
+            lastSavedContent: '',
+            isDirty: false,
+            isPreviewOpen: false,
+          },
+        ],
+        sessionActiveTabId: 'tab-existing',
+        sessionNextUntitledIndex: 23,
+        sessionSavedTabPaths: [],
+        sessionActiveTabPath: '',
+      },
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Switch to Untitled 23' })).not.toBeInTheDocument()
+  })
+
   it('restores editor scroll position independently for loaded file tabs', async () => {
     desktopRuntimeMocks.openMarkdownWithNativeDialog
       .mockResolvedValueOnce({
