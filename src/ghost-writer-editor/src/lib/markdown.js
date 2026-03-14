@@ -10,6 +10,7 @@ import markdownItTaskLists from 'markdown-it-task-lists'
 
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
 const QUOTE_CHARS = new Set(["'", '"', '‘', '’', '“', '”'])
+const INVISIBLE_TEXT_CHARS = /[\s\u200B-\u200D\u2060\uFEFF]+/g
 const QUOTE_PAIRS = Object.freeze({
   "'": "'",
   '"': '"',
@@ -121,6 +122,17 @@ function normalizeStandaloneFilesystemPathLines(markdown = '') {
       return `${leadingWhitespace}${tickWrapper}${trimmed}${tickWrapper}`
     })
     .join('\n')
+}
+
+function normalizeEmptyTaskListItems(markdown = '') {
+  return String(markdown).replace(
+    /^(\s*(?:[-+*]|\d+[.)])\s+\[(?: |x|X)\])(\s*)$/gm,
+    '$1 \u200B$2',
+  )
+}
+
+function isMeaningfulTextContent(value = '') {
+  return String(value).replace(INVISIBLE_TEXT_CHARS, '').length > 0
 }
 
 function trimWrappingQuotes(value = '') {
@@ -528,7 +540,7 @@ function sanitizeHtml(html, options = {}) {
       item.insertBefore(directCheckbox, sourceContainer)
 
       for (const node of [...sourceContainer.childNodes]) {
-        if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue
+        if (node.nodeType === Node.TEXT_NODE && !isMeaningfulTextContent(node.textContent)) continue
         contentWrapper.append(node)
       }
 
@@ -548,7 +560,7 @@ function sanitizeHtml(html, options = {}) {
         }
       }
 
-      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) continue
+      if (node.nodeType === Node.TEXT_NODE && !isMeaningfulTextContent(node.textContent)) continue
       contentWrapper.append(node)
     }
 
@@ -566,7 +578,7 @@ function sanitizeHtml(html, options = {}) {
 
 export function renderMarkdownToSafeHtml(markdown, options = {}) {
   const normalizedMarkdown = normalizeMarkdownImagePaths(
-    normalizeStandaloneFilesystemPathLines(normalizeDirectionalArrows(markdown ?? '')),
+    normalizeEmptyTaskListItems(normalizeStandaloneFilesystemPathLines(normalizeDirectionalArrows(markdown ?? ''))),
     options,
   )
   return sanitizeHtml(markdownRenderer.render(normalizedMarkdown), options)

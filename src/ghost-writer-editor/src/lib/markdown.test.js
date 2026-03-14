@@ -137,6 +137,13 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).not.toContain('type="checkbox"')
   })
 
+  it('renders empty task-list items as preview checkboxes', () => {
+    const output = renderMarkdownToSafeHtml('- [ ]\n- [ ] text')
+    expect(output).toContain('class="task-list-item enabled"')
+    expect(output.match(/data-preview-checkbox="true"/g)).toHaveLength(2)
+    expect(output).not.toContain('<li>[ ]</li>')
+  })
+
   it('embeds source-line metadata directly into preview checkbox html when provided', () => {
     const output = renderMarkdownToSafeHtml('- [ ] task', { checkboxLineIndexes: [4] })
     expect(output).toContain('data-source-line="4"')
