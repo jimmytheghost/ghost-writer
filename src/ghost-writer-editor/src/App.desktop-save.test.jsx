@@ -383,6 +383,111 @@ describe('App desktop save flow', () => {
     expect(screen.queryByRole('tab', { name: 'Switch to Untitled*' })).not.toBeInTheDocument()
   })
 
+  it('keeps a dirty tab open when the close confirmation is cancelled with Escape', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-escape-cancel.md',
+      content: 'Original content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-escape-cancel' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-escape-cancel*'))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Save before closing?' })
+    expect(dialog).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Save before closing?' })).not.toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownToPath).not.toHaveBeenCalled()
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Switch to chapter-escape-cancel*' })).toBeInTheDocument()
+  })
+
+  it('keeps a dirty tab open when the close confirmation is cancelled by clicking the backdrop', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-backdrop-cancel.md',
+      content: 'Original content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-backdrop-cancel' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-backdrop-cancel*'))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Save before closing?' })
+    const overlay = dialog.parentElement
+    expect(overlay).not.toBeNull()
+
+    fireEvent.click(overlay)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Save before closing?' })).not.toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownToPath).not.toHaveBeenCalled()
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Switch to chapter-backdrop-cancel*' })).toBeInTheDocument()
+  })
+
+  it('keeps a dirty tab open when the close confirmation is cancelled with the close button', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
+      path: '/tmp/chapter-close-button-cancel.md',
+      content: 'Original content',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to chapter-close-button-cancel' })).toBeInTheDocument()
+    })
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Original content\nChanged' } })
+
+    fireEvent.click(screen.getByLabelText('Close chapter-close-button-cancel*'))
+
+    await screen.findByRole('dialog', { name: 'Save before closing?' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel close confirmation' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Save before closing?' })).not.toBeInTheDocument()
+    })
+
+    expect(desktopRuntimeMocks.saveMarkdownToPath).not.toHaveBeenCalled()
+    expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Switch to chapter-close-button-cancel*' })).toBeInTheDocument()
+  })
+
   it('persists theme changes from footer toggle', async () => {
     render(<App />)
 

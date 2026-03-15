@@ -267,7 +267,7 @@ function App() {
   useEffect(() => {
     return () => {
       if (dirtyCloseConfirmResolverRef.current) {
-        dirtyCloseConfirmResolverRef.current(false)
+        dirtyCloseConfirmResolverRef.current('cancel')
         dirtyCloseConfirmResolverRef.current = null
       }
     }
@@ -331,12 +331,12 @@ function App() {
     [previewOpenByTab],
   )
 
-  const resolveDirtyCloseConfirm = useCallback((shouldSave) => {
+  const resolveDirtyCloseConfirm = useCallback((decision = 'cancel') => {
     const resolver = dirtyCloseConfirmResolverRef.current
     dirtyCloseConfirmResolverRef.current = null
     setDirtyCloseConfirmTab(null)
     if (resolver) {
-      resolver(Boolean(shouldSave))
+      resolver(decision)
     }
   }, [])
 
@@ -344,7 +344,7 @@ function App() {
     async (tab) =>
       new Promise((resolve) => {
         if (dirtyCloseConfirmResolverRef.current) {
-          dirtyCloseConfirmResolverRef.current(false)
+          dirtyCloseConfirmResolverRef.current('cancel')
         }
 
         dirtyCloseConfirmResolverRef.current = resolve
@@ -363,8 +363,12 @@ function App() {
       return { didContinue: true }
     }
 
-    const shouldSave = await requestDirtyCloseConfirm(tab)
-    if (!shouldSave) {
+    const closeDecision = await requestDirtyCloseConfirm(tab)
+    if (closeDecision === 'cancel') {
+      return { didContinue: false }
+    }
+
+    if (closeDecision === 'discard') {
       return { didContinue: true, skippedSave: true }
     }
 
@@ -2722,8 +2726,9 @@ ${escapeLatex(exportMarkdownSource)}
         appName={appName}
         appVersion={appVersion}
         dirtyCloseConfirmTab={dirtyCloseConfirmTab}
-        onConfirmDirtyCloseSave={() => resolveDirtyCloseConfirm(true)}
-        onConfirmDirtyCloseDiscard={() => resolveDirtyCloseConfirm(false)}
+        onConfirmDirtyCloseSave={() => resolveDirtyCloseConfirm('save')}
+        onConfirmDirtyCloseDiscard={() => resolveDirtyCloseConfirm('discard')}
+        onCancelDirtyCloseConfirm={() => resolveDirtyCloseConfirm('cancel')}
         onExportDiagnostics={() => {
           void handleExportDiagnostics()
         }}
