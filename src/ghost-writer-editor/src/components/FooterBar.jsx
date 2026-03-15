@@ -15,11 +15,19 @@ function FooterBar({
   loadModels,
   isLoadingModels,
   modelLoadStatus,
+  footerActionFeedback,
   isDark,
   onToggleTheme,
   isAlwaysOnTop,
   handleAlwaysOnTopToggle,
 }) {
+  const activeFooterAction = footerActionFeedback?.action ?? ''
+  const footerFeedbackMessage = footerActionFeedback?.message ?? ''
+
+  function getActionButtonClass(action) {
+    return `doc-actions__button${activeFooterAction === action ? ' doc-actions__button--feedback' : ''}`
+  }
+
   return (
     <footer
       ref={footerRef}
@@ -43,7 +51,7 @@ function FooterBar({
           <div className="doc-actions">
             <button
               type="button"
-              className="doc-actions__button"
+              className={getActionButtonClass('new')}
               onClick={handleNew}
               aria-label="New document"
               title={`New (${modKeyLabel}+N)`}
@@ -54,7 +62,7 @@ function FooterBar({
             </button>
             <button
               type="button"
-              className="doc-actions__button"
+              className={getActionButtonClass('save')}
               onClick={handleSaveClick}
               aria-label="Save document"
               title={`Save (${modKeyLabel}+S)`}
@@ -65,7 +73,7 @@ function FooterBar({
             </button>
             <button
               type="button"
-              className="doc-actions__button"
+              className={getActionButtonClass('load')}
               onClick={handleLoadClick}
               aria-label="Load document"
               title={`Open (${modKeyLabel}+O)`}
@@ -76,7 +84,7 @@ function FooterBar({
             </button>
             <button
               type="button"
-              className="doc-actions__button"
+              className={getActionButtonClass('copy')}
               onClick={handleCopyClick}
               aria-label="Copy to clipboard"
             >
@@ -96,6 +104,11 @@ function FooterBar({
                 {isPreviewOpen ? 'close' : 'preview'}
               </span>
             </button>
+            {footerFeedbackMessage ? (
+              <div className="doc-actions__status" role="status" aria-live="polite">
+                {footerFeedbackMessage}
+              </div>
+            ) : null}
           </div>
         )}
         {!isFooterCollapsed && (

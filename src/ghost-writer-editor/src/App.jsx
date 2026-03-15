@@ -70,6 +70,7 @@ const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   ? bundledModelSnapshot.models.filter(Boolean)
   : []
 const UNTITLED_TITLE_PATTERN = /^Untitled(?:\s+(\d+))?(?:\.md)?$/i
+const FOOTER_ACTION_FEEDBACK_DURATION_MS = 1500
 
 function isWindowsPlatform() {
   return /Win/i.test(navigator.platform)
@@ -218,6 +219,7 @@ function App() {
   const [findQuery, setFindQuery] = useState('')
   const [replaceQuery, setReplaceQuery] = useState('')
   const [isFindCaseSensitive, setIsFindCaseSensitive] = useState(false)
+  const [footerActionFeedback, setFooterActionFeedback] = useState(null)
   const [findStatusMessage, setFindStatusMessage] = useState('')
   const [editorFocusRequestId, setEditorFocusRequestId] = useState(0)
   const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
@@ -239,6 +241,7 @@ function App() {
   const closeAllActionRef = useRef(() => {})
   const printActionRef = useRef(() => {})
   const appRef = useRef(null)
+  const footerActionFeedbackTimeoutRef = useRef(null)
   const footerRef = useRef(null)
   const previewContentRef = useRef(null)
   const findInputRef = useRef(null)
@@ -1053,7 +1056,28 @@ function App() {
 
   const handleNew = useCallback(() => {
     createAndActivateTab()
+    setFooterActionFeedback({ action: 'new', message: 'New document created' })
   }, [createAndActivateTab])
+
+  useEffect(() => {
+    if (!footerActionFeedback) return undefined
+
+    if (footerActionFeedbackTimeoutRef.current) {
+      clearTimeout(footerActionFeedbackTimeoutRef.current)
+    }
+
+    footerActionFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setFooterActionFeedback(null)
+      footerActionFeedbackTimeoutRef.current = null
+    }, FOOTER_ACTION_FEEDBACK_DURATION_MS)
+
+    return () => {
+      if (footerActionFeedbackTimeoutRef.current) {
+        clearTimeout(footerActionFeedbackTimeoutRef.current)
+        footerActionFeedbackTimeoutRef.current = null
+      }
+    }
+  }, [footerActionFeedback])
 
   const handleDuplicate = useCallback(() => {
     if (!activeTab) return
@@ -1283,6 +1307,7 @@ function App() {
           })),
         )
         setPromptError('')
+        setFooterActionFeedback({ action: 'save', message: 'Saved' })
         return
       }
 
@@ -1300,6 +1325,7 @@ function App() {
         })),
       )
       setPromptError('')
+      setFooterActionFeedback({ action: 'save', message: 'Saved' })
       return
     }
 
@@ -1322,6 +1348,7 @@ function App() {
       })),
     )
     setPromptError('')
+    setFooterActionFeedback({ action: 'save', message: 'Saved' })
   }, [activeContent, activeTab, activeTabId, setPromptError])
 
   const handleSaveAsClick = useCallback(async () => {
@@ -1427,6 +1454,7 @@ function App() {
       }
       resetGenerationState({ tabId: targetTabId })
       setPromptError('')
+      setFooterActionFeedback({ action: 'load', message: 'Loaded' })
       return
     }
 
@@ -1515,6 +1543,7 @@ function App() {
           }))
         }
         resetGenerationState({ tabId: targetTabId })
+        setFooterActionFeedback({ action: 'load', message: 'Loaded' })
       }
       reader.onerror = () => {
         setPromptError('Unable to read the selected file.')
@@ -1619,6 +1648,7 @@ function App() {
     try {
       await navigator.clipboard.writeText(textToCopy)
       setPromptError('')
+      setFooterActionFeedback({ action: 'copy', message: 'Copied' })
     } catch (error) {
       setPromptError(error?.message ?? 'Unable to copy text to the clipboard.')
     }
@@ -2657,6 +2687,7 @@ ${escapeLatex(exportMarkdownSource)}
         loadModels={loadModels}
         isLoadingModels={isLoadingModels}
         modelLoadStatus={modelLoadStatus}
+        footerActionFeedback={footerActionFeedback}
         isDark={isDark}
         onToggleTheme={handleThemeToggle}
         isAlwaysOnTop={isAlwaysOnTop}

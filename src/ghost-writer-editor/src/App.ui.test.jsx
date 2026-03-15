@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -61,6 +61,35 @@ describe('App UI behaviors', () => {
 
     expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toBeInTheDocument()
+  })
+
+  it('shows transient footer feedback after copying text', async () => {
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    const copyButton = screen.getByLabelText('Copy to clipboard')
+    fireEvent.click(copyButton)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Copied')
+    })
+    expect(copyButton).toHaveClass('doc-actions__button--feedback')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1700))
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+    expect(copyButton).not.toHaveClass('doc-actions__button--feedback')
   })
 
   it('exits markdown preview back to the editor with Escape', () => {
