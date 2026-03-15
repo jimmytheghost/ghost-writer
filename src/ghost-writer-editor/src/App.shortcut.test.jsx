@@ -170,19 +170,30 @@ describe('App keyboard shortcuts', () => {
     expect(screen.getByRole('tablist', { name: 'Document tabs' })).toBeInTheDocument()
   })
 
-  it('toggles prompt panel visibility with Ctrl+Shift+D and expands editor layout', () => {
+  it('duplicates the active tab with Ctrl+Shift+D', () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true })
+
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled copy' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('toggles prompt panel visibility with Ctrl+Shift+I and expands editor layout', () => {
     const { container } = render(<App />)
     const appMain = container.querySelector('.app__main')
     expect(appMain).not.toBeNull()
     expect(screen.getByLabelText('Prompt input')).toBeInTheDocument()
     expect(appMain).not.toHaveClass('app__main--focus-editor')
 
-    fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true })
+    fireEvent.keyDown(window, { key: 'i', ctrlKey: true, shiftKey: true })
 
     expect(screen.queryByLabelText('Prompt input')).not.toBeInTheDocument()
     expect(appMain).toHaveClass('app__main--focus-editor')
 
-    fireEvent.keyDown(window, { key: 'D', ctrlKey: true, shiftKey: true })
+    fireEvent.keyDown(window, { key: 'I', ctrlKey: true, shiftKey: true })
 
     expect(screen.getByLabelText('Prompt input')).toBeInTheDocument()
     expect(appMain).not.toHaveClass('app__main--focus-editor')

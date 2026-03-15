@@ -9,6 +9,7 @@ export function useGlobalShortcuts({
   closeAllActionRef,
   printActionRef,
   onToggleAlwaysOnTop,
+  onDuplicate,
   onTogglePreview,
   onToggleFooter,
   onToggleTabBar,
@@ -85,6 +86,12 @@ export function useGlobalShortcuts({
 
       if (hasMod && event.shiftKey && !event.altKey && key === 'd') {
         event.preventDefault()
+        onDuplicate()
+        return
+      }
+
+      if (hasMod && event.shiftKey && !event.altKey && key === 'i') {
+        event.preventDefault()
         onTogglePromptPanel()
         return
       }
@@ -103,6 +110,7 @@ export function useGlobalShortcuts({
     closeActionRef,
     closeAllActionRef,
     newActionRef,
+    onDuplicate,
     onToggleAlwaysOnTop,
     onToggleFooter,
     onTogglePromptPanel,

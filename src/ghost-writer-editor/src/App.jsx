@@ -2408,6 +2408,7 @@ ${escapeLatex(exportMarkdownSource)}
     closeAllActionRef,
     printActionRef,
     onToggleAlwaysOnTop: handleAlwaysOnTopToggle,
+    onDuplicate: handleDuplicate,
     onTogglePreview: handleTogglePreview,
     onToggleFooter: handleToggleFooter,
     onToggleTabBar: handleToggleTabBar,
