@@ -72,6 +72,43 @@ const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
 const UNTITLED_TITLE_PATTERN = /^Untitled(?:\s+(\d+))?(?:\.md)?$/i
 const FOOTER_ACTION_FEEDBACK_DURATION_MS = 1500
 
+function createInitialScrollPosition() {
+  return {
+    editorTop: 0,
+    editorScrollHeight: 0,
+    editorClientHeight: 0,
+    previewTop: 0,
+    previewScrollHeight: 0,
+    previewClientHeight: 0,
+  }
+}
+
+function getScrollableRange(scrollHeight, clientHeight) {
+  const safeScrollHeight = Number(scrollHeight)
+  const safeClientHeight = Number(clientHeight)
+  if (!Number.isFinite(safeScrollHeight) || !Number.isFinite(safeClientHeight)) return 0
+  return Math.max(0, safeScrollHeight - safeClientHeight)
+}
+
+function mapScrollTopBetweenRanges({
+  sourceTop,
+  sourceScrollHeight,
+  sourceClientHeight,
+  targetScrollHeight,
+  targetClientHeight,
+}) {
+  const sourceRange = getScrollableRange(sourceScrollHeight, sourceClientHeight)
+  const targetRange = getScrollableRange(targetScrollHeight, targetClientHeight)
+  if (targetRange <= 0) return 0
+
+  const safeSourceTop = Number.isFinite(Number(sourceTop)) ? Math.max(0, Number(sourceTop)) : 0
+  if (sourceRange <= 0) {
+    return Math.min(safeSourceTop, targetRange)
+  }
+
+  return Math.max(0, Math.min((safeSourceTop / sourceRange) * targetRange, targetRange))
+}
+
 function isWindowsPlatform() {
   return /Win/i.test(navigator.platform)
 }
@@ -185,7 +222,7 @@ function App() {
     [initialTab.id]: { start: 0, end: 0 },
   }))
   const [scrollPositionsByTab, setScrollPositionsByTab] = useState(() => ({
-    [initialTab.id]: { editorTop: 0, previewTop: 0 },
+    [initialTab.id]: createInitialScrollPosition(),
   }))
   const [previewOpenByTab, setPreviewOpenByTab] = useState(() => ({
     [initialTab.id]: false,
@@ -883,7 +920,7 @@ function App() {
         )
         setScrollPositionsByTab(
           restoredTabs.reduce((acc, tab) => {
-            acc[tab.id] = { editorTop: 0, previewTop: 0 }
+            acc[tab.id] = createInitialScrollPosition()
             return acc
           }, {}),
         )
@@ -1031,6 +1068,54 @@ function App() {
 
   const createAndActivateTab = useCallback(() => {
     const nextTab = createNewTab(nextUntitledIndexFromTabs)
+    if (isPreviewOpen && activeTabId) {
+      const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
+      const livePreviewScrollHeight = Number(previewContentRef.current?.scrollHeight)
+      const livePreviewClientHeight = Number(previewContentRef.current?.clientHeight)
+      setScrollPositionsByTab((currentPositions) => {
+        const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
+        const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
+          ? Math.max(0, livePreviewScrollTop)
+          : Number.isFinite(previewScrollTopRef.current)
+            ? Math.max(0, previewScrollTopRef.current)
+            : previous.previewTop
+        const nextPreviewScrollHeight = Number.isFinite(livePreviewScrollHeight)
+          ? Math.max(0, livePreviewScrollHeight)
+          : previous.previewScrollHeight
+        const nextPreviewClientHeight = Number.isFinite(livePreviewClientHeight)
+          ? Math.max(0, livePreviewClientHeight)
+          : previous.previewClientHeight
+        const nextEditorTop = mapScrollTopBetweenRanges({
+          sourceTop: nextPreviewTop,
+          sourceScrollHeight: nextPreviewScrollHeight,
+          sourceClientHeight: nextPreviewClientHeight,
+          targetScrollHeight: previous.editorScrollHeight,
+          targetClientHeight: previous.editorClientHeight,
+        })
+
+        if (
+          Math.abs(previous.editorTop - nextEditorTop) < 1 &&
+          Math.abs(previous.previewTop - nextPreviewTop) < 1 &&
+          Math.abs((previous.previewScrollHeight ?? 0) - nextPreviewScrollHeight) < 1 &&
+          Math.abs((previous.previewClientHeight ?? 0) - nextPreviewClientHeight) < 1
+        ) {
+          return currentPositions
+        }
+
+        const nextPositions = {
+          ...currentPositions,
+          [activeTabId]: {
+            ...previous,
+            editorTop: nextEditorTop,
+            previewTop: nextPreviewTop,
+            previewScrollHeight: nextPreviewScrollHeight,
+            previewClientHeight: nextPreviewClientHeight,
+          },
+        }
+        scrollPositionsByTabRef.current = nextPositions
+        return nextPositions
+      })
+    }
     setTabs((currentTabs) => [...currentTabs, nextTab])
     setSelectionRangesByTab((currentRanges) => ({
       ...currentRanges,
@@ -1038,7 +1123,7 @@ function App() {
     }))
     setScrollPositionsByTab((currentPositions) => ({
       ...currentPositions,
-      [nextTab.id]: { editorTop: 0, previewTop: 0 },
+      [nextTab.id]: createInitialScrollPosition(),
     }))
     setPreviewOpenByTab((currentStates) => ({
       ...currentStates,
@@ -1052,7 +1137,7 @@ function App() {
     })
     activateTab(nextTab.id)
     return nextTab
-  }, [activateTab, nextUntitledIndexFromTabs])
+  }, [activateTab, activeTabId, isPreviewOpen, nextUntitledIndexFromTabs])
 
   const handleNew = useCallback(() => {
     createAndActivateTab()
@@ -1104,8 +1189,8 @@ function App() {
     setScrollPositionsByTab((currentPositions) => ({
       ...currentPositions,
       [duplicateTab.id]: {
-        editorTop: currentPositions[activeTab.id]?.editorTop ?? 0,
-        previewTop: currentPositions[activeTab.id]?.previewTop ?? 0,
+        ...createInitialScrollPosition(),
+        ...currentPositions[activeTab.id],
       },
     }))
     setPreviewOpenByTab((currentStates) => ({
@@ -1206,7 +1291,7 @@ function App() {
           [replacementTab.id]: { start: 0, end: 0 },
         })
         setScrollPositionsByTab({
-          [replacementTab.id]: { editorTop: 0, previewTop: 0 },
+          [replacementTab.id]: createInitialScrollPosition(),
         })
         setPreviewOpenByTab({
           [replacementTab.id]: false,
@@ -1444,7 +1529,7 @@ function App() {
       }))
       setScrollPositionsByTab((currentPositions) => ({
         ...currentPositions,
-        [targetTabId]: { editorTop: 0, previewTop: 0 },
+        [targetTabId]: createInitialScrollPosition(),
       }))
       if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
         setPreviewOpenByTab((currentStates) => ({
@@ -1534,7 +1619,7 @@ function App() {
         }))
         setScrollPositionsByTab((currentPositions) => ({
           ...currentPositions,
-          [targetTabId]: { editorTop: 0, previewTop: 0 },
+          [targetTabId]: createInitialScrollPosition(),
         }))
         if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
           setPreviewOpenByTab((currentStates) => ({
@@ -1606,7 +1691,7 @@ function App() {
       }))
       setScrollPositionsByTab((currentPositions) => ({
         ...currentPositions,
-        [targetTabId]: { editorTop: 0, previewTop: 0 },
+        [targetTabId]: createInitialScrollPosition(),
       }))
       if (!(shouldReplaceEmptyUntitledActiveTab && activeTabId)) {
         setPreviewOpenByTab((currentStates) => ({
@@ -1693,10 +1778,25 @@ function App() {
     (payload = {}) => {
       if (!activeTabId) return
       const scrollTop = Number(payload.scrollTop)
+      const scrollHeight = Number(payload.scrollHeight)
+      const clientHeight = Number(payload.clientHeight)
       const nextTop = Number.isFinite(scrollTop) ? Math.max(0, scrollTop) : 0
+      const nextScrollHeight = Number.isFinite(scrollHeight) ? Math.max(0, scrollHeight) : 0
+      const nextClientHeight = Number.isFinite(clientHeight) ? Math.max(0, clientHeight) : 0
       setScrollPositionsByTab((currentPositions) => {
-        const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-        if (Math.abs(previous.editorTop - nextTop) < 1) {
+        const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
+        const shouldInvalidatePreviewPosition = !isPreviewOpen
+        const nextPreviewTop = shouldInvalidatePreviewPosition ? 0 : previous.previewTop
+        const nextPreviewScrollHeight = shouldInvalidatePreviewPosition ? 0 : previous.previewScrollHeight
+        const nextPreviewClientHeight = shouldInvalidatePreviewPosition ? 0 : previous.previewClientHeight
+        if (
+          Math.abs(previous.editorTop - nextTop) < 1 &&
+          Math.abs((previous.editorScrollHeight ?? 0) - nextScrollHeight) < 1 &&
+          Math.abs((previous.editorClientHeight ?? 0) - nextClientHeight) < 1 &&
+          Math.abs((previous.previewTop ?? 0) - nextPreviewTop) < 1 &&
+          Math.abs((previous.previewScrollHeight ?? 0) - nextPreviewScrollHeight) < 1 &&
+          Math.abs((previous.previewClientHeight ?? 0) - nextPreviewClientHeight) < 1
+        ) {
           return currentPositions
         }
         const nextPositions = {
@@ -1704,13 +1804,18 @@ function App() {
           [activeTabId]: {
             ...previous,
             editorTop: nextTop,
+            editorScrollHeight: nextScrollHeight,
+            editorClientHeight: nextClientHeight,
+            previewTop: nextPreviewTop,
+            previewScrollHeight: nextPreviewScrollHeight,
+            previewClientHeight: nextPreviewClientHeight,
           },
         }
         scrollPositionsByTabRef.current = nextPositions
         return nextPositions
       })
     },
-    [activeTabId],
+    [activeTabId, isPreviewOpen],
   )
 
   const handlePreviewCheckboxToggleByLine = useCallback(
@@ -1870,23 +1975,45 @@ function App() {
   const syncPreviewScrollBackToEditor = useCallback(() => {
     if (!activeTabId) return
     const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
+    const livePreviewScrollHeight = Number(previewContentRef.current?.scrollHeight)
+    const livePreviewClientHeight = Number(previewContentRef.current?.clientHeight)
     setScrollPositionsByTab((currentPositions) => {
-      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+      const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
       const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
         ? Math.max(0, livePreviewScrollTop)
         : Number.isFinite(previewScrollTopRef.current)
           ? Math.max(0, previewScrollTopRef.current)
           : previous.previewTop
+      const nextPreviewScrollHeight = Number.isFinite(livePreviewScrollHeight)
+        ? Math.max(0, livePreviewScrollHeight)
+        : previous.previewScrollHeight
+      const nextPreviewClientHeight = Number.isFinite(livePreviewClientHeight)
+        ? Math.max(0, livePreviewClientHeight)
+        : previous.previewClientHeight
+      const nextEditorTop = mapScrollTopBetweenRanges({
+        sourceTop: nextPreviewTop,
+        sourceScrollHeight: nextPreviewScrollHeight,
+        sourceClientHeight: nextPreviewClientHeight,
+        targetScrollHeight: previous.editorScrollHeight,
+        targetClientHeight: previous.editorClientHeight,
+      })
 
-      if (Math.abs(previous.editorTop - nextPreviewTop) < 1 && Math.abs(previous.previewTop - nextPreviewTop) < 1) {
+      if (
+        Math.abs(previous.editorTop - nextEditorTop) < 1 &&
+        Math.abs(previous.previewTop - nextPreviewTop) < 1 &&
+        Math.abs((previous.previewScrollHeight ?? 0) - nextPreviewScrollHeight) < 1 &&
+        Math.abs((previous.previewClientHeight ?? 0) - nextPreviewClientHeight) < 1
+      ) {
         return currentPositions
       }
       const nextPositions = {
         ...currentPositions,
         [activeTabId]: {
           ...previous,
-          editorTop: nextPreviewTop,
+          editorTop: nextEditorTop,
           previewTop: nextPreviewTop,
+          previewScrollHeight: nextPreviewScrollHeight,
+          previewClientHeight: nextPreviewClientHeight,
         },
       }
       scrollPositionsByTabRef.current = nextPositions
@@ -1897,28 +2024,50 @@ function App() {
   const syncPreviewScrollForTabSwitch = useCallback(() => {
     if (!activeTabId) return
     const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
-    setScrollPositionsByTab((currentPositions) => {
-      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-      const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
-        ? Math.max(0, livePreviewScrollTop)
-        : Number.isFinite(previewScrollTopRef.current)
-          ? Math.max(0, previewScrollTopRef.current)
-          : previous.previewTop
-
-      if (Math.abs(previous.previewTop - nextPreviewTop) < 1) {
-        return currentPositions
-      }
-
-      const nextPositions = {
-        ...currentPositions,
-        [activeTabId]: {
-          ...previous,
-          previewTop: nextPreviewTop,
-        },
-      }
-      scrollPositionsByTabRef.current = nextPositions
-      return nextPositions
+    const livePreviewScrollHeight = Number(previewContentRef.current?.scrollHeight)
+    const livePreviewClientHeight = Number(previewContentRef.current?.clientHeight)
+    const currentPositions = scrollPositionsByTabRef.current
+    const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
+    const nextPreviewTop = Number.isFinite(livePreviewScrollTop)
+      ? Math.max(0, livePreviewScrollTop)
+      : Number.isFinite(previewScrollTopRef.current)
+        ? Math.max(0, previewScrollTopRef.current)
+        : previous.previewTop
+    const nextPreviewScrollHeight = Number.isFinite(livePreviewScrollHeight)
+      ? Math.max(0, livePreviewScrollHeight)
+      : previous.previewScrollHeight
+    const nextPreviewClientHeight = Number.isFinite(livePreviewClientHeight)
+      ? Math.max(0, livePreviewClientHeight)
+      : previous.previewClientHeight
+    const nextEditorTop = mapScrollTopBetweenRanges({
+      sourceTop: nextPreviewTop,
+      sourceScrollHeight: nextPreviewScrollHeight,
+      sourceClientHeight: nextPreviewClientHeight,
+      targetScrollHeight: previous.editorScrollHeight,
+      targetClientHeight: previous.editorClientHeight,
     })
+
+    if (
+      Math.abs(previous.editorTop - nextEditorTop) < 1 &&
+      Math.abs(previous.previewTop - nextPreviewTop) < 1 &&
+      Math.abs((previous.previewScrollHeight ?? 0) - nextPreviewScrollHeight) < 1 &&
+      Math.abs((previous.previewClientHeight ?? 0) - nextPreviewClientHeight) < 1
+    ) {
+      return
+    }
+
+    const nextPositions = {
+      ...currentPositions,
+      [activeTabId]: {
+        ...previous,
+        editorTop: nextEditorTop,
+        previewTop: nextPreviewTop,
+        previewScrollHeight: nextPreviewScrollHeight,
+        previewClientHeight: nextPreviewClientHeight,
+      },
+    }
+    scrollPositionsByTabRef.current = nextPositions
+    setScrollPositionsByTab(nextPositions)
   }, [activeTabId])
 
   function switchActiveTab(tabId, { clearWindowsSelection = false } = {}) {
@@ -2380,11 +2529,17 @@ ${escapeLatex(exportMarkdownSource)}
     const previewElement = previewContentRef.current
     if (!previewElement || !activeTabId) return
 
-    const positions = scrollPositionsByTabRef.current[activeTabId] ?? { editorTop: 0, previewTop: 0 }
+    const positions = scrollPositionsByTabRef.current[activeTabId] ?? createInitialScrollPosition()
     const nextScrollTop =
       Number.isFinite(positions.previewTop) && positions.previewTop > 0
         ? positions.previewTop
-        : positions.editorTop
+        : mapScrollTopBetweenRanges({
+            sourceTop: positions.editorTop,
+            sourceScrollHeight: positions.editorScrollHeight,
+            sourceClientHeight: positions.editorClientHeight,
+            targetScrollHeight: previewElement.scrollHeight,
+            targetClientHeight: previewElement.clientHeight,
+          })
     previewElement.scrollTop = Math.max(0, Number(nextScrollTop) || 0)
     previewScrollTopRef.current = previewElement.scrollTop
   }, [activeTabId, isPreviewOpen])
@@ -2404,15 +2559,32 @@ ${escapeLatex(exportMarkdownSource)}
 
     const handlePreviewScroll = () => {
       const nextTop = Math.max(0, Number(previewElement.scrollTop) || 0)
+      const nextScrollHeight = Math.max(0, Number(previewElement.scrollHeight) || 0)
+      const nextClientHeight = Math.max(0, Number(previewElement.clientHeight) || 0)
       previewScrollTopRef.current = nextTop
       const currentPositions = scrollPositionsByTabRef.current
-      const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-      if (Math.abs(previous.previewTop - nextTop) >= 1) {
+      const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
+      const nextEditorTop = mapScrollTopBetweenRanges({
+        sourceTop: nextTop,
+        sourceScrollHeight: nextScrollHeight,
+        sourceClientHeight: nextClientHeight,
+        targetScrollHeight: previous.editorScrollHeight,
+        targetClientHeight: previous.editorClientHeight,
+      })
+      if (
+        Math.abs(previous.editorTop - nextEditorTop) >= 1 ||
+        Math.abs(previous.previewTop - nextTop) >= 1 ||
+        Math.abs((previous.previewScrollHeight ?? 0) - nextScrollHeight) >= 1 ||
+        Math.abs((previous.previewClientHeight ?? 0) - nextClientHeight) >= 1
+      ) {
         scrollPositionsByTabRef.current = {
           ...currentPositions,
           [activeTabId]: {
             ...previous,
+            editorTop: nextEditorTop,
             previewTop: nextTop,
+            previewScrollHeight: nextScrollHeight,
+            previewClientHeight: nextClientHeight,
           },
         }
       }
@@ -2423,8 +2595,13 @@ ${escapeLatex(exportMarkdownSource)}
       requestAnimationFrame(() => {
         isPreviewScrollTickingRef.current = false
         setScrollPositionsByTab((currentPositions) => {
-          const previous = currentPositions[activeTabId] ?? { editorTop: 0, previewTop: 0 }
-          if (Math.abs(previous.previewTop - nextTop) < 1) {
+          const previous = currentPositions[activeTabId] ?? createInitialScrollPosition()
+          if (
+            Math.abs(previous.editorTop - nextEditorTop) < 1 &&
+            Math.abs(previous.previewTop - nextTop) < 1 &&
+            Math.abs((previous.previewScrollHeight ?? 0) - nextScrollHeight) < 1 &&
+            Math.abs((previous.previewClientHeight ?? 0) - nextClientHeight) < 1
+          ) {
             return currentPositions
           }
 
@@ -2432,7 +2609,10 @@ ${escapeLatex(exportMarkdownSource)}
             ...currentPositions,
             [activeTabId]: {
               ...previous,
+              editorTop: nextEditorTop,
               previewTop: nextTop,
+              previewScrollHeight: nextScrollHeight,
+              previewClientHeight: nextClientHeight,
             },
           }
           scrollPositionsByTabRef.current = nextPositions

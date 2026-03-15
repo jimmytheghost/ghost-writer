@@ -25,8 +25,42 @@ function mockNavigatorPlatform(platform) {
 
 const stubNavigatorPlatform = mockNavigatorPlatform
 
+const scrollMetricsByElement = new Map()
+const defaultScrollMetricsBySelector = new Map()
+
+function setScrollMetrics(element, { scrollHeight, clientHeight }) {
+  scrollMetricsByElement.set(element, { scrollHeight, clientHeight })
+}
+
+function setDefaultScrollMetrics(selector, { scrollHeight, clientHeight }) {
+  defaultScrollMetricsBySelector.set(selector, { scrollHeight, clientHeight })
+}
+
+function getScrollMetrics(element) {
+  const explicitMetrics = scrollMetricsByElement.get(element)
+  if (explicitMetrics) return explicitMetrics
+
+  for (const [selector, metrics] of defaultScrollMetricsBySelector.entries()) {
+    if (element.matches?.(selector)) return metrics
+  }
+
+  return null
+}
+
 describe('App UI behaviors', () => {
   beforeEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get() {
+        return getScrollMetrics(this)?.scrollHeight ?? 0
+      },
+    })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return getScrollMetrics(this)?.clientHeight ?? 0
+      },
+    })
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -39,6 +73,8 @@ describe('App UI behaviors', () => {
   })
 
   afterEach(() => {
+    scrollMetricsByElement.clear()
+    defaultScrollMetricsBySelector.clear()
     vi.unstubAllGlobals()
   })
 
@@ -113,7 +149,7 @@ describe('App UI behaviors', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent?.textContent ?? '').toContain('Before')
     expect(previewContent?.textContent ?? '').toContain('after')
     expect(previewContent?.textContent ?? '').toContain('hidden inline prompt')
@@ -134,7 +170,7 @@ describe('App UI behaviors', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent).not.toBeNull()
 
     let previewButtons = previewContent.querySelectorAll('[data-preview-checkbox="true"]')
@@ -171,7 +207,7 @@ describe('App UI behaviors', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent).not.toBeNull()
 
     await waitFor(() => {
@@ -304,7 +340,7 @@ describe('App UI behaviors', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent).not.toBeNull()
 
     await waitFor(() => {
@@ -339,7 +375,7 @@ describe('App UI behaviors', () => {
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent).not.toBeNull()
 
     await waitFor(() => {
@@ -436,20 +472,37 @@ describe('App UI behaviors', () => {
   })
 
   it('syncs scroll position between editor and markdown preview for active tab', async () => {
+    setDefaultScrollMetrics('textarea.editor__textarea', {
+      scrollHeight: 1200,
+      clientHeight: 200,
+    })
+    setDefaultScrollMetrics('.preview__content', {
+      scrollHeight: 1800,
+      clientHeight: 300,
+    })
+
     render(<App />)
 
     let editor = document.querySelector('textarea.editor__textarea')
     expect(editor).not.toBeNull()
+    setScrollMetrics(editor, {
+      scrollHeight: 1200,
+      clientHeight: 200,
+    })
     editor.scrollTop = 220
     fireEvent.scroll(editor)
 
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
 
-    const previewContent = document.querySelector('.preview__content')
+    let previewContent = document.querySelector('.preview__content')
     expect(previewContent).not.toBeNull()
+    setScrollMetrics(previewContent, {
+      scrollHeight: 1800,
+      clientHeight: 300,
+    })
     await waitFor(() => {
-      expect(previewContent.scrollTop).toBe(220)
+      expect(previewContent.scrollTop).toBe(330)
     })
 
     previewContent.scrollTop = 75
@@ -459,8 +512,27 @@ describe('App UI behaviors', () => {
 
     editor = document.querySelector('textarea.editor__textarea')
     expect(editor).not.toBeNull()
+    setScrollMetrics(editor, {
+      scrollHeight: 1200,
+      clientHeight: 200,
+    })
     await waitFor(() => {
-      expect(editor.scrollTop).toBe(75)
+      expect(editor.scrollTop).toBe(50)
+    })
+
+    editor.scrollTop = 100
+    fireEvent.scroll(editor)
+
+    fireEvent.click(screen.getByLabelText('Toggle markdown preview'))
+
+    previewContent = document.querySelector('.preview__content')
+    expect(previewContent).not.toBeNull()
+    setScrollMetrics(previewContent, {
+      scrollHeight: 1800,
+      clientHeight: 300,
+    })
+    await waitFor(() => {
+      expect(previewContent.scrollTop).toBe(150)
     })
   })
 
@@ -472,6 +544,15 @@ describe('App UI behaviors', () => {
     })
 
     try {
+      setDefaultScrollMetrics('textarea.editor__textarea', {
+        scrollHeight: 1200,
+        clientHeight: 200,
+      })
+      setDefaultScrollMetrics('.preview__content', {
+        scrollHeight: 1800,
+        clientHeight: 300,
+      })
+
       render(<App />)
 
       let editor = document.querySelector('textarea.editor__textarea')
@@ -485,7 +566,7 @@ describe('App UI behaviors', () => {
       const previewContent = document.querySelector('.preview__content')
       expect(previewContent).not.toBeNull()
       await waitFor(() => {
-        expect(previewContent.scrollTop).toBe(220)
+        expect(previewContent.scrollTop).toBe(330)
       })
 
       requestAnimationFrameSpy.mockClear()
@@ -500,7 +581,7 @@ describe('App UI behaviors', () => {
       editor = document.querySelector('textarea.editor__textarea')
       expect(editor).not.toBeNull()
       await waitFor(() => {
-        expect(editor.scrollTop).toBe(75)
+        expect(editor.scrollTop).toBe(50)
       })
     } finally {
       requestAnimationFrameSpy.mockRestore()
@@ -509,6 +590,15 @@ describe('App UI behaviors', () => {
   })
 
   it('restores markdown preview scroll position independently per tab', async () => {
+    setDefaultScrollMetrics('textarea.editor__textarea', {
+      scrollHeight: 1200,
+      clientHeight: 200,
+    })
+    setDefaultScrollMetrics('.preview__content', {
+      scrollHeight: 1800,
+      clientHeight: 300,
+    })
+
     render(<App />)
 
     let editor = document.querySelector('textarea.editor__textarea')
@@ -561,4 +651,5 @@ describe('App UI behaviors', () => {
       expect(previewContent.scrollTop).toBe(70)
     })
   })
+
 })
