@@ -489,6 +489,7 @@ fn allow_asset_scope_for_path(app: &tauri::AppHandle, path: &Path) {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn with_windows_dialog_z_order_guard<T, FGet, FSet, FDialog>(
     is_windows: bool,
     get_always_on_top: FGet,
@@ -2173,6 +2174,7 @@ mod tests {
         assert_eq!(buf, b"pending".to_vec());
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn windows_dialog_guard_temporarily_disables_always_on_top() {
         let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
@@ -2193,6 +2195,7 @@ mod tests {
         assert_eq!(*calls.lock().expect("calls should lock"), vec![false, true]);
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn windows_dialog_guard_leaves_non_pinned_window_unchanged() {
         let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
@@ -2213,6 +2216,7 @@ mod tests {
         assert!(calls.lock().expect("calls should lock").is_empty());
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn windows_dialog_guard_is_noop_outside_windows() {
         let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
@@ -2233,6 +2237,7 @@ mod tests {
         assert!(calls.lock().expect("calls should lock").is_empty());
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn windows_dialog_guard_stops_before_dialog_when_unpin_fails() {
         let dialog_ran = Arc::new(AtomicBool::new(false));
@@ -2252,6 +2257,7 @@ mod tests {
         assert!(!dialog_ran.load(Ordering::SeqCst));
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn windows_dialog_guard_returns_restore_error_after_dialog_runs() {
         let calls = Arc::new(Mutex::new(Vec::<bool>::new()));
