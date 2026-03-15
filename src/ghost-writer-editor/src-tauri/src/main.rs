@@ -258,7 +258,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let file_save_as =
         MenuItem::with_id(app, "file_save_as", "Save As…", true, Some("CmdOrCtrl+Shift+S"))?;
     let file_duplicate =
-        MenuItem::with_id(app, "file_duplicate", "Duplicate", true, None::<&str>)?;
+        MenuItem::with_id(app, "file_duplicate", "Duplicate", true, Some("CmdOrCtrl+Shift+D"))?;
     let file_rename = MenuItem::with_id(app, "file_rename", "Rename", true, None::<&str>)?;
     let file_print = MenuItem::with_id(app, "file_print", "Print", true, Some("CmdOrCtrl+P"))?;
     let file_quit = MenuItem::with_id(app, "file_quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
@@ -330,7 +330,7 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "view_toggle_prompt_panel",
         prompt_panel_menu_label,
         true,
-        Some("CmdOrCtrl+Shift+D"),
+        Some("CmdOrCtrl+Shift+I"),
     )?;
     let view_toggle_md_prompts = MenuItem::with_id(
         app,
