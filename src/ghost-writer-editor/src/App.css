@@ -1706,6 +1706,61 @@
   font-family: var(--font-family-base);
 }
 
+.modal__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--color-gray-400) 58%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-gray-100) 88%, var(--color-white));
+  color: var(--color-gray-700);
+  cursor: pointer;
+  box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.55);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.modal__icon-button:hover {
+  background: color-mix(in srgb, var(--color-gray-200) 84%, var(--color-white));
+  border-color: color-mix(in srgb, var(--color-gray-500) 75%, transparent);
+  color: var(--color-gray-900);
+  box-shadow: 0 14px 28px -18px rgba(15, 23, 42, 0.6);
+  transform: translateY(-1px);
+}
+
+.modal__icon-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.app--dark .modal__icon-button {
+  border-color: color-mix(in srgb, var(--color-gray-500) 26%, transparent);
+  background: color-mix(in srgb, var(--color-gray-700) 40%, var(--color-gray-900));
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.app--dark .modal__icon-button:hover {
+  background: color-mix(in srgb, var(--color-gray-600) 52%, var(--color-gray-900));
+  border-color: color-mix(in srgb, var(--color-gray-400) 44%, transparent);
+  color: var(--color-white);
+}
+
+.modal__icon-glyph {
+  display: block;
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 500;
+  transform: translateY(-0.5px);
+}
+
 .modal,
 .modal * {
   font-family: var(--font-family-base);
@@ -1803,8 +1858,15 @@
 }
 
 .modal--confirm-close {
+  position: relative;
   width: min(420px, 100%);
   padding: var(--space-6);
+}
+
+.modal--confirm-close .modal__icon-button--close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
 }
 
 .modal--confirm-close .modal__title {

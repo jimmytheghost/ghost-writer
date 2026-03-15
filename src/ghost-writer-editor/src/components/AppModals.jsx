@@ -255,6 +255,7 @@ function AppModals({
   dirtyCloseConfirmTab = null,
   onConfirmDirtyCloseSave = () => {},
   onConfirmDirtyCloseDiscard = () => {},
+  onCancelDirtyCloseConfirm = () => {},
   onExportDiagnostics = () => {},
 }) {
   const normalizedWordList = Array.isArray(settings.customWordList) ? settings.customWordList : []
@@ -268,7 +269,7 @@ function AppModals({
   useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
   useEscapeToClose(isSpellCheckScanOpen, () => setIsSpellCheckScanOpen(false))
   useEscapeToClose(isAboutOpen, () => setIsAboutOpen(false))
-  useEscapeToClose(Boolean(dirtyCloseConfirmTab), onConfirmDirtyCloseDiscard)
+  useEscapeToClose(Boolean(dirtyCloseConfirmTab), onCancelDirtyCloseConfirm)
 
   const handleAboutLinkClick = (event) => {
     const anchor = event.target.closest('a[href]')
@@ -283,7 +284,7 @@ function AppModals({
   return (
     <>
       {dirtyCloseConfirmTab && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" onClick={onCancelDirtyCloseConfirm}>
           <div
             className="modal modal--confirm-close"
             role="dialog"
@@ -292,10 +293,18 @@ function AppModals({
             aria-describedby="dirty-close-confirm-description"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="modal__icon-button modal__icon-button--close"
+              aria-label="Cancel close confirmation"
+              onClick={onCancelDirtyCloseConfirm}
+            >
+              <span aria-hidden="true" className="modal__icon-glyph">×</span>
+            </button>
             <h2 id="dirty-close-confirm-title" className="modal__title">Save before closing?</h2>
             <p id="dirty-close-confirm-description" className="modal__description">
               This tab has unsaved changes. Choose <strong>Yes</strong> to open the save dialog, or{' '}
-              <strong>No</strong> to close without saving.
+              <strong>No</strong> to close without saving. Press <strong>Esc</strong> or click outside to cancel.
             </p>
             <div className="modal__confirm-file" aria-label="Tab being closed">
               <div className="modal__confirm-label">File</div>
