@@ -1414,6 +1414,15 @@
   flex: 0 0 auto;
 }
 
+.doc-actions__status {
+  min-width: 68px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--color-primary);
+  animation: footer-action-message-fade 1.5s ease-out forwards;
+}
+
 .doc-actions__button,
 .theme-toggle,
 .footer-pin,
@@ -1513,6 +1522,10 @@
   border-color: var(--color-gray-300);
 }
 
+.doc-actions__button--feedback {
+  animation: footer-action-glow 1.5s ease-out forwards;
+}
+
 .app--dark .doc-actions__button--active,
 .app--dark .prompt-panel__button--primary,
 .app--dark .modal__button--primary {
@@ -1521,12 +1534,47 @@
   color: var(--color-gray-100);
 }
 
+.app--dark .doc-actions__status {
+  color: color-mix(in srgb, var(--color-primary) 72%, var(--color-white));
+}
+
 .doc-actions__button--active {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 .app--dark .doc-actions__button--active {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+@keyframes footer-action-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+
+  25% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 28%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+}
+
+@keyframes footer-action-message-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
 }
 
 .prompt-panel__actions {

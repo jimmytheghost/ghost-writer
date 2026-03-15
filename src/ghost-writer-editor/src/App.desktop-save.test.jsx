@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const desktopRuntimeMocks = vi.hoisted(() => ({
@@ -99,6 +99,34 @@ describe('App desktop save flow', () => {
       )
     })
     expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).not.toHaveBeenCalled()
+  })
+
+  it('shows transient footer feedback after saving a desktop file', async () => {
+    desktopRuntimeMocks.saveMarkdownWithNativeDialog.mockResolvedValue('/tmp/feedback-save.md')
+
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Footer feedback save test' } })
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    const saveButton = screen.getByLabelText('Save document')
+    fireEvent.click(saveButton)
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Saved')
+    })
+    expect(saveButton).toHaveClass('doc-actions__button--feedback')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1700))
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+    expect(saveButton).not.toHaveClass('doc-actions__button--feedback')
   })
 
   it('uses Save As dialog on Ctrl+Shift+S instead of duplicating tabs', async () => {
