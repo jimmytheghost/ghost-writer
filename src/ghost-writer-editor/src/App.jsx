@@ -1123,6 +1123,11 @@ function App() {
   const handleRename = useCallback(async () => {
     if (!activeTabId) return
 
+    if (isDesktopRuntime() && !activeTab?.filePath) {
+      await saveAsActionRef.current?.()
+      return
+    }
+
     if (isDesktopRuntime() && activeTab?.filePath) {
       const currentFileName = ensureMarkdownFileName(fileNameFromPath(activeTab.filePath))
       const renamedPath = await renameMarkdownFileWithNativeDialog(activeTab.filePath, currentFileName)

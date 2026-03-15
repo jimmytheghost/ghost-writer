@@ -20,12 +20,18 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   listenDesktopEvent: vi.fn(async () => () => {}),
 }))
 
+const tauriMenuEventMocks = vi.hoisted(() => ({
+  latestHandlers: null,
+}))
+
 vi.mock('./hooks/useDesktopAppMetadata', () => ({
   useDesktopAppMetadata: () => {},
 }))
 
 vi.mock('./hooks/useTauriMenuEvents', () => ({
-  useTauriMenuEvents: () => {},
+  useTauriMenuEvents: (handlers) => {
+    tauriMenuEventMocks.latestHandlers = handlers
+  },
 }))
 
 vi.mock('./lib/desktopRuntime', async () => ({
@@ -150,6 +156,30 @@ describe('App desktop save flow', () => {
     expect(desktopRuntimeMocks.saveMarkdownToPath).not.toHaveBeenCalled()
     expect(screen.getByRole('tab', { name: 'Switch to untitled-saved' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByRole('tab', { name: 'Switch to Untitled 2' })).not.toBeInTheDocument()
+  })
+
+  it('routes rename on an untitled desktop tab through the native Save As workflow', async () => {
+    desktopRuntimeMocks.saveMarkdownWithNativeDialog.mockResolvedValue('/tmp/renamed-from-untitled.md')
+
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Untitled draft content' } })
+
+    await act(async () => {
+      await tauriMenuEventMocks.latestHandlers.onRename()
+    })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.saveMarkdownWithNativeDialog).toHaveBeenCalledWith(
+        'Untitled draft content',
+        'Untitled.md',
+      )
+    })
+
+    expect(desktopRuntimeMocks.renameMarkdownFileWithNativeDialog).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Switch to renamed-from-untitled' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('allows oversized native desktop file loads', async () => {
