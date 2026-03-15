@@ -135,6 +135,7 @@
   line-height: 1;
   opacity: 0;
   pointer-events: none;
+  z-index: 1;
   transition: opacity var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -142,14 +143,20 @@
 .tab-bar__tab:focus-within .tab-bar__close {
   opacity: 1;
   pointer-events: auto;
+  background: color-mix(in srgb, var(--color-gray-300) 20%, #383737);
+}
+
+.app--dark .tab-bar__tab:hover .tab-bar__close,
+.app--dark .tab-bar__tab:focus-within .tab-bar__close {
+  background: color-mix(in srgb, var(--color-gray-600) 38%, #383737);
 }
 
 .tab-bar__close:hover {
-  background: color-mix(in srgb, var(--color-gray-300) 50%, transparent);
+  background: color-mix(in srgb, var(--color-gray-200) 28%, #4c4b4b);
 }
 
 .app--dark .tab-bar__close:hover {
-  background: color-mix(in srgb, var(--color-gray-600) 65%, transparent);
+  background: color-mix(in srgb, var(--color-gray-500) 52%, #4c4b4b);
 }
 
 .tab-bar__add {

@@ -19,4 +19,14 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('border: 1px solid color-mix(in srgb, var(--color-gray-300)')
     expect(appCss).toContain('background: color-mix(in srgb, var(--color-gray-100)')
   })
+
+  it('renders tab close buttons as circular overlays above truncated labels', () => {
+    expect(appCss).toContain('.tab-bar__close {')
+    expect(appCss).toContain('border-radius: var(--radius-full);')
+    expect(appCss).toContain('z-index: 1;')
+    expect(appCss).toContain('.tab-bar__tab:hover .tab-bar__close,')
+    expect(appCss).toContain('background: color-mix(in srgb, var(--color-gray-300) 20%, #383737);')
+    expect(appCss).toContain('.app--dark .tab-bar__tab:hover .tab-bar__close,')
+    expect(appCss).toContain('background: color-mix(in srgb, var(--color-gray-600) 38%, #383737);')
+  })
 })
