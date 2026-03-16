@@ -4,10 +4,59 @@ import { renderMarkdownToSafeHtml } from './markdown'
 
 const PRINT_ROOT_ID = 'ghost-writer-print-root'
 const PRINT_STYLE_ID = 'ghost-writer-print-style'
+const PRINT_SECTION_CLASS = 'ghost-writer-print-section'
+const SECTION_HEADING_TAGS = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H6'])
 let desktopPrintInFlight = false
 
 function buildPrintContentHtml({ bodyHtml }) {
-  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${bodyHtml}</article>`
+  const sectionedBody = buildSectionAwarePrintBody(bodyHtml)
+  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${sectionedBody}</article>`
+}
+
+function buildSectionAwarePrintBody(bodyHtml = '') {
+  if (!bodyHtml) return ''
+  if (typeof document === 'undefined') return bodyHtml
+
+  const container = document.createElement('div')
+  container.innerHTML = bodyHtml
+  const nodes = Array.from(container.childNodes)
+  if (!nodes.length) return ''
+
+  const sections = []
+  let currentSection = createSectionElement()
+
+  for (const node of nodes) {
+    if (isSectionHeading(node) && hasMeaningfulChildNodes(currentSection)) {
+      sections.push(currentSection)
+      currentSection = createSectionElement()
+    }
+    currentSection.appendChild(node)
+  }
+
+  if (currentSection.childNodes.length > 0) {
+    sections.push(currentSection)
+  }
+
+  return sections.map((section) => section.outerHTML).join('')
+}
+
+function createSectionElement() {
+  const section = document.createElement('section')
+  section.className = PRINT_SECTION_CLASS
+  return section
+}
+
+function isSectionHeading(node) {
+  return node?.nodeType === 1 && SECTION_HEADING_TAGS.has(node.tagName)
+}
+
+function hasMeaningfulChildNodes(section) {
+  return Array.from(section.childNodes).some((child) => {
+    if (child.nodeType === 3) {
+      return Boolean(child.textContent?.trim())
+    }
+    return true
+  })
 }
 
 function ensurePrintStyle() {
@@ -67,6 +116,54 @@ function ensurePrintStyle() {
 
       .ghost-writer-print-main {
         padding: 0 !important;
+      }
+
+      .ghost-writer-print-main h1,
+      .ghost-writer-print-main h2,
+      .ghost-writer-print-main h3,
+      .ghost-writer-print-main h4,
+      .ghost-writer-print-main h5,
+      .ghost-writer-print-main h6,
+      .ghost-writer-print-main blockquote,
+      .ghost-writer-print-main figure,
+      .ghost-writer-print-main pre,
+      .ghost-writer-print-main table {
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+      }
+
+      .ghost-writer-print-main h1,
+      .ghost-writer-print-main h2,
+      .ghost-writer-print-main h3,
+      .ghost-writer-print-main h4,
+      .ghost-writer-print-main h5,
+      .ghost-writer-print-main h6,
+      .ghost-writer-print-main blockquote {
+        page-break-after: avoid;
+        break-after: avoid-page;
+      }
+
+      .ghost-writer-print-main hr {
+        page-break-after: avoid;
+        break-after: avoid-page;
+        margin: 1rem 0 !important;
+      }
+
+      .ghost-writer-print-main p,
+      .ghost-writer-print-main li {
+        orphans: 2;
+        widows: 2;
+      }
+
+      .ghost-writer-print-section {
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+        page-break-after: avoid;
+        break-after: avoid-page;
+      }
+
+      .ghost-writer-print-section + .ghost-writer-print-section {
+        margin-top: 0.5rem;
       }
     }
   `

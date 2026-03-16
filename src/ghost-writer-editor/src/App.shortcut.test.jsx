@@ -145,7 +145,7 @@ describe('App keyboard shortcuts', () => {
 
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(1)
-    expect(screen.getByRole('tab', { name: 'Switch to Untitled 4' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('toggles footer collapsed/open with Ctrl+Shift+B', () => {
