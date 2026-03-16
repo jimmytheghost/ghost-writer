@@ -262,6 +262,7 @@ function App() {
   const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
   const [isColoredStreamingOutputEnabled, setIsColoredStreamingOutputEnabled] = useState(true)
   const [dirtyCloseConfirmTab, setDirtyCloseConfirmTab] = useState(null)
+  const [alreadyOpenTab, setAlreadyOpenTab] = useState(null)
 
   const isDark = theme === 'dark'
   const showDragRegion = isMacDesktopRuntime()
@@ -322,6 +323,18 @@ function App() {
 
     return !hasContent && !activeTab.isDirty && !activeTab.filePath && isUntitled
   }, [activeTab, activeTabId])
+
+  const findTabByFilePath = useCallback(
+    (targetPath) => {
+      const normalizedPath = typeof targetPath === 'string' ? targetPath.trim() : ''
+      if (!normalizedPath) return null
+
+      return (
+        tabs.find((tab) => (tab.filePath ?? '').trim() === normalizedPath) ?? null
+      )
+    },
+    [tabs],
+  )
 
   const updateTabById = useCallback((tabId, updater) => {
     setTabs((currentTabs) =>
@@ -1490,6 +1503,7 @@ function App() {
   }, [activeContent, activeTab?.title, activeTabId, setPromptError])
 
   const handleLoadClick = useCallback(async () => {
+    setAlreadyOpenTab(null)
     if (isDesktopRuntime()) {
       const openedFile = await openMarkdownWithNativeDialog()
       if (!openedFile) return
@@ -1498,6 +1512,11 @@ function App() {
       const loadedContent = typeof openedFile.content === 'string' ? openedFile.content : ''
       if (!path) {
         setPromptError('Unable to open the selected file.')
+        return
+      }
+      const existingTab = findTabByFilePath(path)
+      if (existingTab) {
+        setAlreadyOpenTab(existingTab)
         return
       }
       if (exceedsLoadFileSizeLimit(loadedContent)) {
@@ -1555,10 +1574,16 @@ function App() {
     fileInputRef.current?.click()
   }, [
     activeTabId,
-    resetGenerationState,
-    setPromptError,
-    shouldReplaceEmptyUntitledActiveTab,
     activateTab,
+    findTabByFilePath,
+    resetGenerationState,
+    setAlreadyOpenTab,
+    setFooterActionFeedback,
+    setPreviewOpenByTab,
+    setPromptError,
+    setSelectionRangesByTab,
+    setScrollPositionsByTab,
+    shouldReplaceEmptyUntitledActiveTab,
   ])
 
   useEffect(() => {
@@ -2079,20 +2104,33 @@ function App() {
     setScrollPositionsByTab(nextPositions)
   }, [activeTabId])
 
-  function switchActiveTab(tabId, { clearWindowsSelection = false } = {}) {
-    if (!tabId) return
-    if (isPreviewOpen) {
-      syncPreviewScrollForTabSwitch()
-    }
-    if (clearWindowsSelection) {
-      setWindowsSelectionContext(null)
-    }
-    setActiveTabId(tabId)
-  }
+  const switchActiveTab = useCallback(
+    (tabId, { clearWindowsSelection = false } = {}) => {
+      if (!tabId) return
+      if (isPreviewOpen) {
+        syncPreviewScrollForTabSwitch()
+      }
+      if (clearWindowsSelection) {
+        setWindowsSelectionContext(null)
+      }
+      setActiveTabId(tabId)
+    },
+    [isPreviewOpen, setActiveTabId, setWindowsSelectionContext, syncPreviewScrollForTabSwitch]
+  )
 
-  const handleTabSelect = useCallback((tabId) => {
-    switchActiveTab(tabId, { clearWindowsSelection: true })
-  }, [switchActiveTab])
+  const handleTabSelect = useCallback(
+    (tabId) => {
+      switchActiveTab(tabId, { clearWindowsSelection: true })
+    },
+    [switchActiveTab]
+  )
+
+  const handleConfirmAlreadyOpen = useCallback(() => {
+    if (!alreadyOpenTab) return
+    switchActiveTab(alreadyOpenTab.id, { clearWindowsSelection: true })
+    setAlreadyOpenTab(null)
+  }, [alreadyOpenTab, setAlreadyOpenTab, switchActiveTab])
+
 
   const syncPreviewCheckboxesToMarkdown = useCallback(() => {
     if (!activeTabId) return
@@ -2911,6 +2949,8 @@ ${escapeLatex(exportMarkdownSource)}
         models={models}
         appName={appName}
         appVersion={appVersion}
+        alreadyOpenTab={alreadyOpenTab}
+        onConfirmAlreadyOpen={handleConfirmAlreadyOpen}
         dirtyCloseConfirmTab={dirtyCloseConfirmTab}
         onConfirmDirtyCloseSave={() => resolveDirtyCloseConfirm('save')}
         onConfirmDirtyCloseDiscard={() => resolveDirtyCloseConfirm('discard')}

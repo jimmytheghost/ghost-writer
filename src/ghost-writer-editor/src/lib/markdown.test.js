@@ -275,3 +275,15 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).toContain('Go ← back and → forward')
   })
 })
+
+  it('renders standalone checkboxes without label text', () => {
+    const output = renderMarkdownToSafeHtml('- [ ]')
+    expect(output).toContain('type="button"')
+    expect(output).toContain('data-preview-checkbox="true"')
+    expect(output).toContain('aria-pressed="false"')
+  })
+
+  it('renders standalone checked checkboxes without label text', () => {
+    const output = renderMarkdownToSafeHtml('- [x]')
+    expect(output).toContain('aria-pressed="true"')
+  })

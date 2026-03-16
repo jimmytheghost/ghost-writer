@@ -252,6 +252,8 @@ function AppModals({
   models,
   appName,
   appVersion,
+  alreadyOpenTab = null,
+  onConfirmAlreadyOpen = () => {},
   dirtyCloseConfirmTab = null,
   onConfirmDirtyCloseSave = () => {},
   onConfirmDirtyCloseDiscard = () => {},
@@ -269,6 +271,7 @@ function AppModals({
   useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
   useEscapeToClose(isSpellCheckScanOpen, () => setIsSpellCheckScanOpen(false))
   useEscapeToClose(isAboutOpen, () => setIsAboutOpen(false))
+  useEscapeToClose(Boolean(alreadyOpenTab), onConfirmAlreadyOpen)
   useEscapeToClose(Boolean(dirtyCloseConfirmTab), onCancelDirtyCloseConfirm)
 
   const handleAboutLinkClick = (event) => {
@@ -283,6 +286,41 @@ function AppModals({
 
   return (
     <>
+      {alreadyOpenTab && (
+        <div className="modal-overlay" onClick={onConfirmAlreadyOpen}>
+          <div
+            className="modal modal--confirm-close"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="already-open-title"
+            aria-describedby="already-open-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal__icon-button modal__icon-button--close"
+              aria-label="Switch to already open tab"
+              onClick={onConfirmAlreadyOpen}
+            >
+              <span aria-hidden="true" className="modal__icon-glyph">×</span>
+            </button>
+            <h2 id="already-open-title" className="modal__title">This file is already open</h2>
+            <p id="already-open-description" className="modal__description">
+              <strong>{alreadyOpenTab.filePath || alreadyOpenTab.title || 'This file'}</strong> is
+              already open in another tab. Switch to that tab to continue.
+            </p>
+            <div className="modal__actions">
+              <button
+                type="button"
+                className="modal__button modal__button--primary"
+                onClick={onConfirmAlreadyOpen}
+              >
+                Switch to tab
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {dirtyCloseConfirmTab && (
         <div className="modal-overlay" onClick={onCancelDirtyCloseConfirm}>
           <div

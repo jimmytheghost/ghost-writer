@@ -470,6 +470,32 @@ function sanitizeHtml(html, options = {}) {
     }
   }
 
+
+  // Handle standalone checkboxes without label text (e.g. "[ ]" or "[x]" alone)
+  const allListItems = [...doc.body.querySelectorAll('li')]
+  for (const item of allListItems) {
+    if (item.classList.contains('task-list-item')) continue
+
+    const trimmedText = item.textContent?.trim() ?? ''
+    if (!/^\[[ x]\]$/.test(trimmedText)) continue
+
+    const hasElementChildren = Array.from(item.childNodes).some(
+      (child) => child.nodeType === Node.ELEMENT_NODE,
+    )
+    if (hasElementChildren) continue
+
+    const isChecked = /x/i.test(trimmedText)
+    item.classList.add('task-list-item')
+
+    const checkboxButton = doc.createElement('button')
+    checkboxButton.type = 'button'
+    checkboxButton.className = 'task-list-item-checkbox preview__checkbox'
+    checkboxButton.setAttribute('data-preview-checkbox', 'true')
+    checkboxButton.setAttribute('aria-pressed', isChecked ? 'true' : 'false')
+    checkboxButton.setAttribute('aria-label', 'Toggle task checkbox')
+    item.replaceChildren(checkboxButton)
+  }
+
   const taskListItems = [...doc.body.querySelectorAll('li.task-list-item')]
   for (const item of taskListItems) {
     let directCheckbox = [...item.children].find((child) => {

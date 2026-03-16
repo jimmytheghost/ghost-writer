@@ -226,7 +226,56 @@ describe('App desktop save flow', () => {
     expect(document.querySelector('textarea.editor__textarea')).toHaveValue('Keep this in original tab')
   })
 
+  it('shows an already-open modal and switches to the existing tab when opening the same desktop file twice', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockReset()
+    desktopRuntimeMocks.openMarkdownWithNativeDialog
+      .mockResolvedValueOnce({
+        path: '/tmp/already-open.md',
+        content: '# First open',
+      })
+      .mockResolvedValueOnce({
+        path: '/tmp/already-open.md',
+        content: '# First open',
+      })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('Expand footer controls'))
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to already-open' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('New document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /Switch to Untitled\*?/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+
+    fireEvent.click(screen.getByLabelText('Load document'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'This file is already open' })).toBeInTheDocument()
+    })
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to tab' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to already-open' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+  })
+
   it('replaces active empty untitled tab when opening a desktop file', async () => {
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockReset()
     desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue({
       path: '/tmp/chapter-empty-replace.md',
       content: 'Loaded into empty tab',
