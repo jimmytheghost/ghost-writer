@@ -2,6 +2,23 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+function mockNavigatorPlatform(platform) {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'platform')
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    get: () => platform,
+  })
+
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(window.navigator, 'platform', originalDescriptor)
+      return
+    }
+
+    delete window.navigator.platform
+  }
+}
+
 function createStreamingResponse(chunks) {
   const encoder = new TextEncoder()
   const payload = chunks.map((chunk) => `${JSON.stringify({ response: chunk })}\n`).join('')
@@ -334,6 +351,61 @@ describe('App inline prompts', () => {
       expect(screen.getByText('Stopped')).toBeInTheDocument()
     })
     expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+  })
+
+  it('clears the visible selection highlight on Mac when prompt generation starts', async () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input) => {
+          const url = String(input ?? '')
+          if (url.includes('/ollama-models.json')) {
+            return {
+              ok: true,
+              json: async () => ({ models: ['devstral-small-2:24b'] }),
+            }
+          }
+
+          if (url.includes('/api/generate')) {
+            return createStreamingResponse(['generated'])
+          }
+
+          return {
+            ok: false,
+            body: null,
+            json: async () => ({}),
+          }
+        }),
+      )
+
+      render(<App />)
+
+      fireEvent.change(getEditor(), { target: { value: 'alpha beta gamma' } })
+
+      const editor = getEditor()
+      editor.focus()
+      editor.setSelectionRange(6, 10)
+      fireEvent.select(editor)
+
+      fireEvent.focus(screen.getByLabelText('Prompt input'))
+
+      await waitFor(() => {
+        expect(document.querySelector('.editor__selection-overlay')).not.toBeNull()
+      })
+
+      fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'tighten this' } })
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Send prompt'))
+      })
+
+      await waitFor(() => {
+        expect(document.querySelector('.editor__selection-overlay')).toBeNull()
+      })
+    } finally {
+      restorePlatform()
+    }
   })
 
   it('repairs an unfinished tail and resumes with a continuation prompt after stop and send again', async () => {

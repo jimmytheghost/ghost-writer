@@ -91,6 +91,7 @@ export function usePromptGeneration({
   getActiveTab,
   getTabById,
   onStreamingRangeChange,
+  onSelectionRangeConsumed,
   onSelectionTargetConsumed,
   onGenerationCursorChange,
   onSelectionTargetUndo,
@@ -603,6 +604,7 @@ export function usePromptGeneration({
           let range
           let refinedPrompt
           let trackedSession = null
+          let hasRangeSelection = false
 
           if (continuationSession) {
             const repairStart = getContinuationRepairStart(continuationSession.generatedText)
@@ -628,7 +630,7 @@ export function usePromptGeneration({
           } else {
             const rangeStart = hasSavedSelectionTarget ? selectionTarget.start ?? 0 : selectionRange.start ?? 0
             const rangeEnd = hasSavedSelectionTarget ? selectionTarget.end ?? rangeStart : selectionRange.end ?? 0
-            const hasRangeSelection = hasSavedSelectionTarget || rangeStart !== rangeEnd
+            hasRangeSelection = hasSavedSelectionTarget || rangeStart !== rangeEnd
             const selectedText = hasSavedSelectionTarget
               ? selectionTarget.text ?? ''
               : hasRangeSelection
@@ -662,6 +664,10 @@ export function usePromptGeneration({
             } else {
               clearResumeSession(submittingTabId)
             }
+          }
+
+          if (hasRangeSelection) {
+            onSelectionRangeConsumed?.(submittingTabId)
           }
 
           if (hasSavedSelectionTarget) {
@@ -735,6 +741,7 @@ export function usePromptGeneration({
       getActiveTab,
       getValidResumeSession,
       onStreamingRangeChange,
+      onSelectionRangeConsumed,
       onSelectionTargetConsumed,
       patchHistory,
       selectedModel,

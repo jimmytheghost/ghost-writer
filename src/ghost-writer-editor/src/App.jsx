@@ -529,15 +529,19 @@ function App() {
     setWindowsSelectionContext(null)
   }, [])
 
-  const clearVisibleSelectionRange = useCallback((tabId) => {
-    if (!tabId) return
-    setSelectionRangesByTab((currentRanges) => {
-      if (!currentRanges[tabId]) return currentRanges
-      const next = { ...currentRanges }
-      delete next[tabId]
-      return next
-    })
-  }, [])
+  const clearVisibleSelectionRange = useCallback(
+    (tabId) => {
+      if (isWindows || !tabId) return
+      setSelectionRangesByTab((currentRanges) => {
+        if (!currentRanges[tabId]) return currentRanges
+        return {
+          ...currentRanges,
+          [tabId]: EMPTY_SELECTION_RANGE,
+        }
+      })
+    },
+    [isWindows],
+  )
 
   const clearFindReplaceHistoryForTab = useCallback((tabId) => {
     if (!tabId) return
