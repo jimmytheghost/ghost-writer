@@ -24,6 +24,7 @@ export function usePromptGeneration({
   getActiveTab,
   getTabById,
   onStreamingRangeChange,
+  onSelectionRangeConsumed,
   onSelectionTargetConsumed,
   onSelectionTargetUndo,
   onSelectionTargetRedo,
@@ -420,6 +421,10 @@ export function usePromptGeneration({
             selectedText,
           })
 
+          if (hasRangeSelection) {
+            onSelectionRangeConsumed?.(submittingTabId)
+          }
+
           if (hasSavedSelectionTarget) {
             onSelectionTargetConsumed?.(submittingTabId, selectionTarget)
           }
@@ -475,6 +480,7 @@ export function usePromptGeneration({
     [
       getActiveTab,
       onStreamingRangeChange,
+      onSelectionRangeConsumed,
       onSelectionTargetConsumed,
       patchHistory,
       selectedModel,
