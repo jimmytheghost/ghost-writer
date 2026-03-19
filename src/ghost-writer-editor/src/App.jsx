@@ -71,6 +71,8 @@ const BUNDLED_MODELS = Array.isArray(bundledModelSnapshot?.models)
   : []
 const UNTITLED_TITLE_PATTERN = /^Untitled(?:\s+(\d+))?(?:\.md)?$/i
 const FOOTER_ACTION_FEEDBACK_DURATION_MS = 1500
+const FIND_REPLACE_HISTORY_LIMIT = 20
+const EMPTY_SELECTION_RANGE = { start: 0, end: 0 }
 
 function createInitialScrollPosition() {
   return {
@@ -258,6 +260,7 @@ function App() {
   const [isFindCaseSensitive, setIsFindCaseSensitive] = useState(false)
   const [footerActionFeedback, setFooterActionFeedback] = useState(null)
   const [findStatusMessage, setFindStatusMessage] = useState('')
+  const [findReplaceHistoryByTab, setFindReplaceHistoryByTab] = useState({})
   const [editorFocusRequestId, setEditorFocusRequestId] = useState(0)
   const [streamingRangesByTab, setStreamingRangesByTab] = useState({})
   const [isColoredStreamingOutputEnabled, setIsColoredStreamingOutputEnabled] = useState(true)
@@ -313,7 +316,7 @@ function App() {
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
   const isPreviewOpen = Boolean(previewOpenByTab[activeTabId])
-  const selectionRange = selectionRangesByTab[activeTabId] ?? { start: 0, end: 0 }
+  const selectionRange = selectionRangesByTab[activeTabId] ?? EMPTY_SELECTION_RANGE
   const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null
   const activeContent = activeTab?.content ?? ''
   const shouldReplaceEmptyUntitledActiveTab = useMemo(() => {
@@ -527,6 +530,111 @@ function App() {
     setWindowsSelectionContext(null)
   }, [])
 
+  const clearFindReplaceHistoryForTab = useCallback((tabId) => {
+    if (!tabId) return
+    setFindReplaceHistoryByTab((current) => {
+      if (!current[tabId]) return current
+      const next = { ...current }
+      delete next[tabId]
+      return next
+    })
+  }, [])
+
+  const pushFindReplaceHistorySnapshot = useCallback((tabId, snapshot) => {
+    if (!tabId || !snapshot) return
+
+    setFindReplaceHistoryByTab((current) => {
+      const previous = current[tabId] ?? { undoStack: [], redoStack: [] }
+      const undoStack = [
+        ...previous.undoStack,
+        {
+          content: String(snapshot.content ?? ''),
+          selection: {
+            start: Math.max(0, Number(snapshot.selection?.start) || 0),
+            end: Math.max(0, Number(snapshot.selection?.end) || 0),
+          },
+        },
+      ].slice(-FIND_REPLACE_HISTORY_LIMIT)
+
+      return {
+        ...current,
+        [tabId]: {
+          undoStack,
+          redoStack: [],
+        },
+      }
+    })
+  }, [])
+
+  const applyFindReplaceSnapshot = useCallback(
+    (tabId, snapshot, direction) => {
+      if (!tabId || !snapshot) return false
+      const nextContent = String(snapshot.content ?? '')
+      const nextSelection = {
+        start: Math.max(0, Number(snapshot.selection?.start) || 0),
+        end: Math.max(0, Number(snapshot.selection?.end) || 0),
+      }
+
+      setTabContentById(tabId, nextContent)
+      setActiveSelectionRange(nextSelection, true)
+
+      setFindReplaceHistoryByTab((current) => {
+        const previous = current[tabId] ?? { undoStack: [], redoStack: [] }
+        const currentSnapshot = {
+          content: direction === 'undo' ? activeContent : activeContent,
+          selection: {
+            start: Math.max(0, Number(selectionRange.start) || 0),
+            end: Math.max(0, Number(selectionRange.end) || 0),
+          },
+        }
+        const limit = FIND_REPLACE_HISTORY_LIMIT
+        if (direction === 'undo') {
+          const undoStack = previous.undoStack.slice(0, -1)
+          const redoStack = [...previous.redoStack, currentSnapshot].slice(-limit)
+          return {
+            ...current,
+            [tabId]: {
+              undoStack,
+              redoStack,
+            },
+          }
+        }
+
+        const redoStack = previous.redoStack.slice(0, -1)
+        const undoStack = [...previous.undoStack, currentSnapshot].slice(-limit)
+        return {
+          ...current,
+          [tabId]: {
+            undoStack,
+            redoStack,
+          },
+        }
+      })
+
+      setFindStatusMessage('')
+      return true
+    },
+    [activeContent, selectionRange.end, selectionRange.start, setActiveSelectionRange, setTabContentById],
+  )
+
+  const handleFindReplaceUndo = useCallback(() => {
+    if (!activeTabId) return false
+    const history = findReplaceHistoryByTab[activeTabId]
+    if (!history?.undoStack?.length) return false
+
+    const nextSnapshot = history.undoStack[history.undoStack.length - 1]
+    return applyFindReplaceSnapshot(activeTabId, nextSnapshot, 'undo')
+  }, [activeTabId, applyFindReplaceSnapshot, findReplaceHistoryByTab])
+
+  const handleFindReplaceRedo = useCallback(() => {
+    if (!activeTabId) return false
+    const history = findReplaceHistoryByTab[activeTabId]
+    if (!history?.redoStack?.length) return false
+
+    const nextSnapshot = history.redoStack[history.redoStack.length - 1]
+    return applyFindReplaceSnapshot(activeTabId, nextSnapshot, 'redo')
+  }, [activeTabId, applyFindReplaceSnapshot, findReplaceHistoryByTab])
+
   const activateTab = useCallback((tabId) => {
     setWindowsSelectionContext(null)
     setActiveTabId(tabId)
@@ -642,6 +750,11 @@ function App() {
       matches[0]
     if (!selectedMatch) return
 
+    pushFindReplaceHistorySnapshot(activeTabId, {
+      content: activeContent,
+      selection: selectionRange,
+    })
+
     const nextContent =
       `${activeContent.slice(0, selectedMatch.start)}${replaceQuery}${activeContent.slice(selectedMatch.end)}`
     setTabContentById(activeTabId, nextContent)
@@ -659,15 +772,17 @@ function App() {
     setActiveSelectionRange(nextSelection, true)
     setFindStatusMessage('Replaced 1 match.')
   }, [
-    activeContent,
     activeSelectionEnd,
     activeSelectionStart,
     activeTabId,
+    activeContent,
     findMatchRanges,
     findQuery,
     replaceQuery,
+    pushFindReplaceHistorySnapshot,
     setActiveSelectionRange,
     setTabContentById,
+    selectionRange,
   ])
 
   const handleReplaceAll = useCallback(() => {
@@ -682,6 +797,11 @@ function App() {
       setFindStatusMessage('No matches found.')
       return
     }
+
+    pushFindReplaceHistorySnapshot(activeTabId, {
+      content: activeContent,
+      selection: selectionRange,
+    })
 
     let cursor = 0
     let result = ''
@@ -701,9 +821,11 @@ function App() {
     activeTabId,
     findMatchRanges,
     findQuery,
+    pushFindReplaceHistorySnapshot,
     replaceQuery,
     setActiveSelectionRange,
     setTabContentById,
+    selectionRange,
   ])
 
   const { models, selectedModel, setSelectedModel, isLoadingModels, modelLoadStatus, loadModels } =
@@ -2747,16 +2869,19 @@ ${escapeLatex(exportMarkdownSource)}
               )}
             </section>
           ) : (
-            <Editor
-              value={activeContent}
-              onChange={(nextValue) => {
-                if (!activeTabId) return
-                setTabContentById(activeTabId, nextValue)
-              }}
-              onPromptOpen={handlePromptOpen}
-              onSelectionChange={handleSelectionChange}
-              onScrollPositionChange={handleEditorScrollPositionChange}
-              selectionRange={selectionRange}
+          <Editor
+            value={activeContent}
+            onChange={(nextValue) => {
+              if (!activeTabId) return
+              clearFindReplaceHistoryForTab(activeTabId)
+              setTabContentById(activeTabId, nextValue)
+            }}
+            onPromptOpen={handlePromptOpen}
+            onSelectionChange={handleSelectionChange}
+            onSystemUndo={handleFindReplaceUndo}
+            onSystemRedo={handleFindReplaceRedo}
+            onScrollPositionChange={handleEditorScrollPositionChange}
+            selectionRange={selectionRange}
               showSelectionOverlay={isPromptFocused && !isWindows}
               spellCheckEnabled={isSpellCheckEnabled}
               textZoomPercent={editorTextZoomPercent}
