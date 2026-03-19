@@ -40,7 +40,7 @@ import {
   setAlwaysOnTop,
 } from './lib/desktopRuntime'
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
-import { printRenderedMarkdown } from './lib/print'
+import { exportRenderedMarkdownAsPdf, printRenderedMarkdown } from './lib/print'
 import { getMisspelledWordCounts, preloadSpellcheck, setCustomSpellcheckWords } from './lib/spellcheck'
 import {
   createNewTab,
@@ -2363,8 +2363,9 @@ ${body}
   }, [exportHtmlDocument, exportWithNativeDialog])
 
   const handleExportPdf = useCallback(async () => {
-    printRenderedMarkdown(exportMarkdownSource, isMdPromptsVisible)
-  }, [exportMarkdownSource, isMdPromptsVisible])
+    const suggestedName = `${getExportBaseName()}.pdf`
+    await exportRenderedMarkdownAsPdf(exportMarkdownSource, isMdPromptsVisible, suggestedName)
+  }, [exportMarkdownSource, getExportBaseName, isMdPromptsVisible])
 
   const handleExportRtf = useCallback(async () => {
     const rtfContent = `{\\rtf1\\ansi\\deff0\n${escapeRtf(exportMarkdownSource)}\n}`

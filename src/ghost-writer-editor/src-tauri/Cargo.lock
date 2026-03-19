@@ -1324,6 +1324,8 @@ dependencies = [
  "tauri",
  "tauri-build",
  "url",
+ "webview2-com",
+ "windows",
 ]
 
 [[package]]

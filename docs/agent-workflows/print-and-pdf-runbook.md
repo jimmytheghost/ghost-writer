@@ -16,8 +16,11 @@ This runbook documents how Ghost Writer printing works and where to make safe ch
    - `src/ghost-writer-editor/src/lib/desktopRuntime.js`
 3. Tauri command invokes native print API:
    - `src/ghost-writer-editor/src-tauri/src/main.rs` (`print_current_webview`)
+4. `Export PDF...` uses a separate desktop command:
+   - Windows: `export_pdf_current_webview` writes a PDF via WebView2 `PrintToPdf`
+   - macOS: `Export PDF...` still falls back to the print dialog path
 
-Both `Print` and `Export PDF...` use the same print pipeline.
+`Print` and `Export PDF...` share the frontend print preparation, but PDF export is no longer coupled to browser preview success.
 
 ## Critical Rules
 
@@ -27,6 +30,8 @@ Both `Print` and `Export PDF...` use the same print pipeline.
    - Keep print DOM active until `afterprint` (plus timeout fallback).
 3. Keep print content generation tied to preview markup.
    - Print container uses preview styling classes for visual consistency.
+4. Keep PDF export separate from preview rendering on Windows.
+   - The PDF command should only depend on the prepared print DOM, not on preview UI behavior.
 
 ## macOS Margin Source of Truth
 
@@ -51,6 +56,7 @@ Key behavior:
 - Defers cleanup with `afterprint` + timeout fallback.
 - Uses longer desktop fallback timeout to avoid style teardown during long native dialogs.
 - Guards against overlapping desktop print jobs.
+- Prepares the same print DOM for PDF export, but PDF export uses the dedicated desktop command on Windows.
 
 ## Known Failure Modes
 

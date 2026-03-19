@@ -273,6 +273,17 @@ export async function printCurrentWebview() {
   }
 }
 
+export async function exportPdfCurrentWebview(suggestedName) {
+  if (!isDesktopRuntime()) return false
+
+  try {
+    return await invoke('export_pdf_current_webview', { suggestedName })
+  } catch (error) {
+    warnDesktopRuntime('desktop.print.export_pdf.failed', 'Failed to export PDF.', error)
+    return null
+  }
+}
+
 export async function prepareMacosEditorInput() {
   if (!isMacDesktopRuntime()) return false
 
