@@ -20,6 +20,12 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('background: color-mix(in srgb, var(--color-gray-100)')
   })
 
+  it('adds bottom spacing to the selected-text prompt panel card', () => {
+    expect(appCss).toContain('.prompt-panel__selection {')
+    expect(appCss).toContain('padding: var(--space-3) var(--space-3) var(--space-4);')
+    expect(appCss).toContain('margin-bottom: var(--space-1);')
+  })
+
   it('renders tab close buttons as circular overlays above truncated labels', () => {
     expect(appCss).toContain('.tab-bar__close {')
     expect(appCss).toContain('border-radius: var(--radius-full);')
