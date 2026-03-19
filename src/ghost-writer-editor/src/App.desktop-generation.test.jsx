@@ -5,7 +5,7 @@ const invokeMock = vi.hoisted(() => vi.fn())
 const isTauriMock = vi.hoisted(() => vi.fn(() => true))
 const listenHandlers = vi.hoisted(() => new Map())
 const getNameMock = vi.hoisted(() => vi.fn(async () => 'Ghost Writer'))
-const getVersionMock = vi.hoisted(() => vi.fn(async () => '1.4.19'))
+const getVersionMock = vi.hoisted(() => vi.fn(async () => '1.4.20'))
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
