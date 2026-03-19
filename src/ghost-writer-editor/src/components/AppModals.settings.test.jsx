@@ -49,6 +49,10 @@ describe('AppModals settings', () => {
     expect(screen.getByLabelText('Auto save interval (seconds)')).toBeInTheDocument()
     expect(screen.getByLabelText('Default spell check in editor')).toBeInTheDocument()
     expect(screen.queryByLabelText('Auto save backup iterations')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Default model'))
+    fireEvent.click(screen.getByRole('option', { name: 'Use current model' }))
+    expect(updateSetting).toHaveBeenCalledWith('defaultModel', '')
+
     fireEvent.change(screen.getByLabelText('Default theme'), { target: { value: 'light' } })
     expect(updateSetting).toHaveBeenCalledWith('defaultTheme', 'light')
 

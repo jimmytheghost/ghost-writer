@@ -1309,7 +1309,6 @@
 }
 
 .prompt-panel__input,
-.footer-model__select,
 .modal__input {
   width: 100%;
   border-radius: var(--radius-lg);
@@ -1336,7 +1335,6 @@
 }
 
 .prompt-panel__input:focus,
-.footer-model__select:focus,
 .modal__input:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -1344,7 +1342,6 @@
 }
 
 .app--dark .prompt-panel__input,
-.app--dark .footer-model__select,
 .app--dark .modal__input {
   background: var(--color-gray-800);
   color: var(--color-gray-100);
@@ -1379,19 +1376,6 @@
 
 .app--dark .prompt-panel__selection-clear {
   color: color-mix(in srgb, var(--color-primary-light) 80%, var(--color-white));
-}
-
-.footer-model__select {
-  font-family: var(--font-family-mono);
-  width: 100%;
-  min-width: 0;
-  border: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right var(--space-3) center;
-  background-repeat: no-repeat;
-  background-size: 1.1rem;
-  padding-right: var(--space-10);
 }
 
 .footer-model {
@@ -1492,7 +1476,6 @@
 .doc-actions__button:hover,
 .theme-toggle:hover,
 .footer-pin:hover,
-.footer-model__select:hover,
 .footer-collapse:hover,
 .prompt-panel__button:hover,
 .modal__button:hover {
@@ -1514,7 +1497,6 @@
 .app--dark .doc-actions__button:hover,
 .app--dark .theme-toggle:hover,
 .app--dark .footer-pin:hover,
-.app--dark .footer-model__select:hover,
 .app--dark .footer-collapse:hover,
 .app--dark .prompt-panel__button:hover,
 .app--dark .modal__button:hover {
@@ -2214,14 +2196,13 @@
     position: relative;
   }
 
-  .footer-model__select {
+  .footer-model .model-dropdown__button {
     width: 36px;
     min-width: 36px;
     height: 36px;
+    padding: 0;
     font-size: 0;
     color: transparent;
-    background-image: none !important;
-    padding-right: 0;
   }
 
   .footer-model::after {
@@ -2249,16 +2230,6 @@
     background-color: #ffffff;
     -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
     mask-image: url("/ghost-writer-model-icon-dark.svg");
-  }
-
-  .footer-model__select option {
-    font-size: var(--font-size-sm);
-    color: var(--color-gray-900);
-  }
-
-  .app--dark .footer-model__select option {
-    color: var(--color-gray-100);
-    background: var(--color-gray-800);
   }
 
   .footer-model__status {
@@ -2314,7 +2285,7 @@
   .theme-toggle,
   .footer-pin,
   .footer-collapse,
-  .footer-model__select {
+  .footer-model .model-dropdown__button {
     width: 32px;
     height: 32px;
     min-width: 32px;
@@ -2327,11 +2298,9 @@
     position: relative;
   }
 
-  .footer-model__select {
+  .footer-model .model-dropdown__button {
     font-size: 0;
     color: transparent;
-    background-image: none !important;
-    padding-right: 0;
   }
 
   .footer-model::after {
@@ -2359,15 +2328,6 @@
     background-color: var(--color-gray-700);
   }
 
-  .footer-model__select option {
-    font-size: var(--font-size-sm);
-    color: var(--color-gray-900);
-  }
-
-  .app--dark .footer-model__select {
-    background-image: none !important;
-  }
-
   .app--dark .footer-model::after {
     background-color: #ffffff;
     -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
@@ -2376,11 +2336,6 @@
 
   .app--dark .footer-model:hover::after {
     background-color: #ffffff;
-  }
-
-  .app--dark .footer-model__select option {
-    color: var(--color-gray-100);
-    background: var(--color-gray-800);
   }
 
   .footer-model__status {
