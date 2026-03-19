@@ -336,8 +336,13 @@ describe('App inline prompts', () => {
     expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
   })
 
-  it('continues from the latest generated cursor after stop and send again', async () => {
+  it('repairs an unfinished tail and resumes with a continuation prompt after stop and send again', async () => {
+    const generateBodies = []
     let generateCallCount = 0
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 0
+    })
     const fetchMock = vi.fn(async (input, options = {}) => {
       const url = String(input ?? '')
       if (url.includes('/ollama-models.json')) {
@@ -349,13 +354,11 @@ describe('App inline prompts', () => {
 
       if (url.includes('/api/generate')) {
         generateCallCount += 1
+        generateBodies.push(JSON.parse(options.body))
         if (generateCallCount === 1) {
-          return createAbortableStreamingResponse('One', options.signal)
+          return createAbortableStreamingResponse('Once upon a time. The old mansion had been', options.signal)
         }
-        if (generateCallCount === 2) {
-          return createAbortableStreamingResponse('Two', options.signal)
-        }
-        return createStreamingResponse(['Three'])
+        return createStreamingResponse(['Once upon a time. The old mansion had been abandoned for years.'])
       }
 
       return {
@@ -370,12 +373,12 @@ describe('App inline prompts', () => {
     render(<App />)
 
     const editor = getEditor()
-    fireEvent.change(editor, { target: { value: 'Alpha' } })
+    fireEvent.change(editor, { target: { value: '' } })
     editor.focus()
-    editor.setSelectionRange(5, 5)
+    editor.setSelectionRange(0, 0)
     fireEvent.select(editor)
 
-    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'continue writing' } })
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea.' } })
     await waitFor(() => {
       expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
     })
@@ -385,7 +388,7 @@ describe('App inline prompts', () => {
     })
 
     await waitFor(() => {
-      expect(getEditor().value).toBe('AlphaOne')
+      expect(getEditor().value).toBe('Once upon a time. The old mansion had been')
     })
 
     await act(async () => {
@@ -394,8 +397,67 @@ describe('App inline prompts', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
-      expect(getEditor().selectionStart).toBe(8)
-      expect(getEditor().selectionEnd).toBe(8)
+    })
+
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea with Sophia.' } })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('Once upon a time. The old mansion had been abandoned for years.')
+    })
+
+    expect(generateBodies).toHaveLength(2)
+    expect(generateBodies[1]?.prompt).toContain('You are continuing a markdown draft that was interrupted mid-generation.')
+    expect(generateBodies[1]?.prompt).toContain('User request:\nWrite a story about the sea with Sophia.')
+    expect(generateBodies[1]?.prompt).toContain('Interrupted tail to replace:\nThe old mansion had been')
+    expect(generateBodies[1]?.prompt).not.toContain('Full document context:')
+  })
+
+  it('falls back to a fresh insertion prompt if the user edits the draft after stopping', async () => {
+    const generateBodies = []
+    let generateCallCount = 0
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 0
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input, options = {}) => {
+        const url = String(input ?? '')
+        if (url.includes('/ollama-models.json')) {
+          return {
+            ok: true,
+            json: async () => ({ models: ['devstral-small-2:24b'] }),
+          }
+        }
+
+        if (url.includes('/api/generate')) {
+          generateCallCount += 1
+          generateBodies.push(JSON.parse(options.body))
+          if (generateCallCount === 1) {
+            return createAbortableStreamingResponse('Once upon a time. A young girl named', options.signal)
+          }
+          return createStreamingResponse([' and she kept walking forward.'])
+        }
+
+        return {
+          ok: false,
+          body: null,
+          json: async () => ({}),
+        }
+      }),
+    )
+
+    render(<App />)
+
+    const editor = getEditor()
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story.' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
     })
 
     await act(async () => {
@@ -403,25 +465,28 @@ describe('App inline prompts', () => {
     })
 
     await waitFor(() => {
-      expect(getEditor().value).toBe('AlphaOneTwo')
+      expect(getEditor().value).toBe('Once upon a time. A young girl named')
     })
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText('Stop generation'))
     })
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
-      expect(getEditor().selectionStart).toBe(11)
-      expect(getEditor().selectionEnd).toBe(11)
-    })
+    fireEvent.change(editor, { target: { value: 'Once upon a time. A young girl named Maya' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText('Send prompt'))
     })
 
     await waitFor(() => {
-      expect(getEditor().value).toBe('AlphaOneTwoThree')
+      expect(getEditor().value).toBe('Once upon a time. A young girl named Maya and she kept walking forward.')
     })
+
+    expect(generateBodies).toHaveLength(2)
+    expect(generateBodies[1]?.prompt).not.toContain('You are continuing a markdown draft that was interrupted mid-generation.')
+    expect(generateBodies[1]?.prompt).toContain('You are adding content into an existing markdown document.')
   })
 })

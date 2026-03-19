@@ -65,7 +65,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 ## Active Investigation Notes
 
 - Bug 41 interrupted-generation follow-up is logged in [`docs/dev-logs/2026/2026-03-19.md`](docs/dev-logs/2026/2026-03-19.md).
-- Current conclusion: the stale-stream duplication is fixed, but stop/resume still needs a deeper continuation-prompt pass before merge.
+- Current conclusion: request-scoped stream/cancel handling is fixed and the normal stop/resume flow is materially improved, but semantic story restarts after repeated stop/send cycles remain a stretch-goal follow-up.
 
 ## Most Recent Verification
 

@@ -8,7 +8,7 @@ use std::io::{self, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -1951,13 +1951,36 @@ fn ensure_ollama_running_command(app: tauri::AppHandle) -> Result<(), String> {
     result
 }
 
-/// Shared flag so the frontend can cancel an in-flight Ollama stream.
-pub struct OllamaStreamCancel(pub Arc<AtomicBool>);
+/// Shared request-aware stream state so the frontend can cancel a specific in-flight Ollama stream.
+pub struct OllamaStreamCancel {
+    active_request_id: Arc<AtomicU64>,
+    cancelled_request_id: Arc<AtomicU64>,
+}
 
 #[derive(Debug, Default)]
 struct StreamChunkProcessResult {
     cancelled: bool,
     responses: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OllamaStreamChunkEvent {
+    request_id: u64,
+    response: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OllamaStreamStatusEvent {
+    request_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OllamaStreamErrorEvent {
+    request_id: u64,
+    error: String,
 }
 
 fn extract_ollama_response(line_bytes: &[u8]) -> Option<String> {
@@ -1977,11 +2000,14 @@ fn extract_ollama_response(line_bytes: &[u8]) -> Option<String> {
 }
 
 fn process_ollama_stream_chunk(
-    cancel: &AtomicBool,
+    cancel: &OllamaStreamCancel,
+    request_id: u64,
     buf: &mut Vec<u8>,
     chunk: &[u8],
 ) -> Result<StreamChunkProcessResult, String> {
-    if cancel.load(Ordering::SeqCst) {
+    if cancel.active_request_id.load(Ordering::SeqCst) != request_id
+        || cancel.cancelled_request_id.load(Ordering::SeqCst) == request_id
+    {
         return Ok(StreamChunkProcessResult {
             cancelled: true,
             responses: Vec::new(),
@@ -2025,6 +2051,7 @@ async fn ollama_generate_stream(
     app: tauri::AppHandle,
     model: String,
     prompt: String,
+    request_id: u64,
     cancel: tauri::State<'_, OllamaStreamCancel>,
 ) -> Result<(), String> {
     let model = model.trim().to_string();
@@ -2038,10 +2065,11 @@ async fn ollama_generate_stream(
         "info",
         "ollama.stream.start",
         "Starting Ollama stream generation",
-        serde_json::json!({ "model": &model }),
+        serde_json::json!({ "model": &model, "requestId": request_id }),
     );
 
-    cancel.0.store(false, Ordering::SeqCst);
+    cancel.active_request_id.store(request_id, Ordering::SeqCst);
+    cancel.cancelled_request_id.store(0, Ordering::SeqCst);
 
     let window = app
         .get_webview_window("main")
@@ -2073,13 +2101,19 @@ async fn ollama_generate_stream(
 
     if !res.status().is_success() {
         let msg = format!("Ollama request failed: {}", res.status());
-        let _ = window.emit("ollama-stream-error", &msg);
+        let _ = window.emit(
+            "ollama-stream-error",
+            OllamaStreamErrorEvent {
+                request_id,
+                error: msg.clone(),
+            },
+        );
         append_structured_log(
             &app,
             "error",
             "ollama.stream.http_error",
             "Ollama responded with non-success status",
-            serde_json::json!({ "model": &model, "status": res.status().as_u16() }),
+            serde_json::json!({ "model": &model, "requestId": request_id, "status": res.status().as_u16() }),
         );
         return Err(msg);
     }
@@ -2089,35 +2123,53 @@ async fn ollama_generate_stream(
 
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| e.to_string())?;
-        let processed = match process_ollama_stream_chunk(&cancel.0, &mut buf, &chunk) {
+        let processed = match process_ollama_stream_chunk(&cancel, request_id, &mut buf, &chunk) {
             Ok(processed) => processed,
             Err(error) => {
-                let _ = window.emit("ollama-stream-error", &error);
+                let _ = window.emit(
+                    "ollama-stream-error",
+                    OllamaStreamErrorEvent {
+                        request_id,
+                        error: error.clone(),
+                    },
+                );
                 append_structured_log(
                     &app,
                     "error",
                     "ollama.stream.buffer_overflow",
                     "Ollama stream buffer exceeded safe limit",
-                    serde_json::json!({ "model": &model, "limitBytes": MAX_OLLAMA_STREAM_BUFFER_BYTES, "error": &error }),
+                    serde_json::json!({ "model": &model, "requestId": request_id, "limitBytes": MAX_OLLAMA_STREAM_BUFFER_BYTES, "error": &error }),
                 );
                 return Err(error);
             }
         };
 
         if processed.cancelled {
-            let _ = window.emit("ollama-stream-cancelled", ());
+            let _ = window.emit(
+                "ollama-stream-cancelled",
+                OllamaStreamStatusEvent { request_id },
+            );
             append_structured_log(
                 &app,
                 "warn",
                 "ollama.stream.cancelled",
                 "Ollama stream cancelled by user",
-                serde_json::json!({ "model": &model }),
+                serde_json::json!({ "model": &model, "requestId": request_id }),
             );
             return Ok(());
         }
 
         for response in processed.responses {
-            if window.emit("ollama-stream-chunk", response).is_err() {
+            if window
+                .emit(
+                    "ollama-stream-chunk",
+                    OllamaStreamChunkEvent {
+                        request_id,
+                        response,
+                    },
+                )
+                .is_err()
+            {
                 return Ok(());
             }
         }
@@ -2125,24 +2177,32 @@ async fn ollama_generate_stream(
 
     if !buf.is_empty() {
         if let Some(response) = extract_ollama_response(&buf) {
-            let _ = window.emit("ollama-stream-chunk", response);
+            let _ = window.emit(
+                "ollama-stream-chunk",
+                OllamaStreamChunkEvent {
+                    request_id,
+                    response,
+                },
+            );
         }
     }
 
-    let _ = window.emit("ollama-stream-done", ());
+    let _ = window.emit("ollama-stream-done", OllamaStreamStatusEvent { request_id });
     append_structured_log(
         &app,
         "info",
         "ollama.stream.done",
         "Ollama stream completed",
-        serde_json::json!({ "model": &model }),
+        serde_json::json!({ "model": &model, "requestId": request_id }),
     );
     Ok(())
 }
 
 #[tauri::command]
-fn ollama_cancel_stream(cancel: tauri::State<'_, OllamaStreamCancel>) {
-    cancel.0.store(true, Ordering::SeqCst);
+fn ollama_cancel_stream(request_id: u64, cancel: tauri::State<'_, OllamaStreamCancel>) {
+    cancel
+        .cancelled_request_id
+        .store(request_id, Ordering::SeqCst);
 }
 
 #[tauri::command]
@@ -2264,12 +2324,15 @@ mod tests {
 
     #[test]
     fn processes_newline_delimited_stream_chunk() {
-        let cancel = AtomicBool::new(false);
+        let cancel = OllamaStreamCancel {
+            active_request_id: Arc::new(AtomicU64::new(1)),
+            cancelled_request_id: Arc::new(AtomicU64::new(0)),
+        };
         let mut buf: Vec<u8> = Vec::new();
         let chunk = b"{\"response\":\"Hello\"}\n{\"response\":\" world\"}\n";
 
-        let result =
-            process_ollama_stream_chunk(&cancel, &mut buf, chunk).expect("chunk should parse");
+        let result = process_ollama_stream_chunk(&cancel, 1, &mut buf, chunk)
+            .expect("chunk should parse");
         assert!(!result.cancelled);
         assert_eq!(
             result.responses,
@@ -2280,11 +2343,14 @@ mod tests {
 
     #[test]
     fn fails_fast_on_long_chunk_without_newline() {
-        let cancel = AtomicBool::new(false);
+        let cancel = OllamaStreamCancel {
+            active_request_id: Arc::new(AtomicU64::new(1)),
+            cancelled_request_id: Arc::new(AtomicU64::new(0)),
+        };
         let mut buf: Vec<u8> = Vec::new();
         let chunk = vec![b'x'; MAX_OLLAMA_STREAM_BUFFER_BYTES + 1];
 
-        let err = process_ollama_stream_chunk(&cancel, &mut buf, &chunk)
+        let err = process_ollama_stream_chunk(&cancel, 1, &mut buf, &chunk)
             .expect_err("oversized non-delimited chunk should fail");
         assert!(err.contains("without newline delimiter"));
         assert!(buf.is_empty());
@@ -2292,12 +2358,15 @@ mod tests {
 
     #[test]
     fn returns_cancelled_without_mutating_buffer() {
-        let cancel = AtomicBool::new(true);
+        let cancel = OllamaStreamCancel {
+            active_request_id: Arc::new(AtomicU64::new(1)),
+            cancelled_request_id: Arc::new(AtomicU64::new(1)),
+        };
         let mut buf: Vec<u8> = b"pending".to_vec();
         let chunk = b"{\"response\":\"ignored\"}\n";
 
-        let result =
-            process_ollama_stream_chunk(&cancel, &mut buf, chunk).expect("cancel should short-circuit");
+        let result = process_ollama_stream_chunk(&cancel, 1, &mut buf, chunk)
+            .expect("cancel should short-circuit");
         assert!(result.cancelled);
         assert!(result.responses.is_empty());
         assert_eq!(buf, b"pending".to_vec());
@@ -2417,7 +2486,10 @@ mod tests {
 }
 
 fn main() {
-    let ollama_cancel = OllamaStreamCancel(Arc::new(AtomicBool::new(false)));
+    let ollama_cancel = OllamaStreamCancel {
+        active_request_id: Arc::new(AtomicU64::new(0)),
+        cancelled_request_id: Arc::new(AtomicU64::new(0)),
+    };
     let colored_output_menu_state = ColoredOutputMenuState(Arc::new(AtomicBool::new(true)));
     let md_prompts_menu_state = MdPromptsMenuState(Arc::new(AtomicBool::new(default_show_md_prompts())));
     let tab_bar_menu_state = TabBarMenuState(Arc::new(AtomicBool::new(true)));

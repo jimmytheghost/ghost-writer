@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGenerationPrompt, buildInlineGenerationPrompt } from './prompting'
+import { buildContinuationPrompt, buildGenerationPrompt, buildInlineGenerationPrompt } from './prompting'
 
 describe('buildGenerationPrompt', () => {
   it('builds selection-edit prompt when selected text is present', () => {
@@ -76,5 +76,22 @@ describe('buildGenerationPrompt', () => {
 
     expect(prompt).not.toContain('Global request:')
     expect(prompt).toContain('Inline request:\nexpand this sentence')
+  })
+
+  it('builds continuation prompt with seamless continuation rules', () => {
+    const prompt = buildContinuationPrompt({
+      promptText: 'Write a story.',
+      approvedText: 'Once upon a time.',
+      replacedTailText: ' Sophia',
+    })
+
+    expect(prompt).toContain('You are continuing a markdown draft that was interrupted mid-generation.')
+    expect(prompt).toContain('Continue seamlessly from the exact point where the approved draft excerpt ends.')
+    expect(prompt).toContain('Do not restart the scene, repeat prior text, summarize, or add a new introduction.')
+    expect(prompt).toContain('Assume the approved draft excerpt is already on the page and must not be repeated.')
+    expect(prompt).toContain('User request:\nWrite a story.')
+    expect(prompt).toContain('Approved draft excerpt:\nOnce upon a time.')
+    expect(prompt).toContain('Interrupted tail to replace:\nSophia')
+    expect(prompt).not.toContain('Full document context:')
   })
 })
