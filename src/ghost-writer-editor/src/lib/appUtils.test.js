@@ -3,6 +3,7 @@ import {
   DEFAULT_OLLAMA_BASE_URL,
   FILE_TOO_LARGE_MESSAGE,
   MAX_LOAD_FILE_SIZE_BYTES,
+  buildPlainTextRtfDocument,
   exceedsLoadFileSizeLimit,
   normalizeOllamaBaseUrl,
 } from './appUtils'
@@ -41,5 +42,19 @@ describe('appUtils - ollama base url', () => {
     expect(normalizeOllamaBaseUrl('ws://localhost:11434')).toBe(DEFAULT_OLLAMA_BASE_URL)
     expect(normalizeOllamaBaseUrl('http://localhost:11434/api')).toBe(DEFAULT_OLLAMA_BASE_URL)
     expect(normalizeOllamaBaseUrl('http://user:pass@localhost:11434')).toBe(DEFAULT_OLLAMA_BASE_URL)
+  })
+})
+
+describe('appUtils - rtf export', () => {
+  it('wraps escaped plain text in a valid RTF document', () => {
+    const output = buildPlainTextRtfDocument('Line 1\n\nLine {2} \\ test')
+
+    expect(output).toBe(
+      '{\\rtf1\\ansi\\deff0\n' +
+        'Line 1\n' +
+        '\\par\n' +
+        'Line \\{2\\} \\\\ test\n' +
+        '}',
+    )
   })
 })

@@ -112,6 +112,16 @@ export function escapeRtf(value = '') {
     .replace(/\r?\n/g, '\\par\n')
 }
 
+export function buildPlainTextRtfDocument(value = '') {
+  const normalized = String(value ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const body = normalized
+    .split('\n')
+    .map((line) => (line.length > 0 ? escapeRtf(line) : '\\par'))
+    .join('\n')
+
+  return `{\\rtf1\\ansi\\deff0\n${body}\n}`
+}
+
 export function escapeLatex(value = '') {
   return value
     .replace(/\\/g, '\\textbackslash{}')
