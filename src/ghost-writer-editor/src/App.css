@@ -1238,7 +1238,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  margin-bottom: var(--space-1);
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-gray-300));
   background: color-mix(in srgb, var(--color-primary-light) 36%, var(--color-white));
