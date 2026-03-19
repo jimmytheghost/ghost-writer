@@ -22,6 +22,10 @@ url = "2"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSPrintInfo", "NSPrintOperation", "NSResponder", "NSTextView", "NSWindow"] }
 objc2-web-kit = { version = "0.3.2", default-features = false, features = ["WKWebView"] }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+webview2-com = "0.38.2"
+windows = "0.61.3"
+
 [profile.release]
 opt-level = "s"
 lto = true
