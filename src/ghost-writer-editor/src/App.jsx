@@ -252,7 +252,6 @@ function App() {
     normalizeTextZoom(DEFAULT_SETTINGS.defaultTextZoom),
   )
   const [windowsSelectionContext, setWindowsSelectionContext] = useState(null)
-  const [windowsSelectionContextHistoryByTab, setWindowsSelectionContextHistoryByTab] = useState({})
   const [hasLoadedDesktopSettings, setHasLoadedDesktopSettings] = useState(() => !isDesktopRuntime())
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false)
   const [findQuery, setFindQuery] = useState('')
@@ -652,28 +651,8 @@ function App() {
 
   const rememberWindowsSelectionContext = useCallback((tabId, context) => {
     if (!tabId || !context) return
-    setWindowsSelectionContextHistoryByTab((current) => ({
-      ...current,
-      [tabId]: {
-        tabId,
-        start: context.start,
-        end: context.end,
-        text: context.text,
-        contentSnapshot: context.contentSnapshot,
-      },
-    }))
     setWindowsSelectionContext(null)
   }, [])
-
-  const restoreWindowsSelectionContext = useCallback(
-    (tabId) => {
-      if (!isWindows || !tabId) return
-      const rememberedContext = windowsSelectionContextHistoryByTab[tabId]
-      if (!rememberedContext) return
-      setWindowsSelectionContext(rememberedContext)
-    },
-    [isWindows, windowsSelectionContextHistoryByTab],
-  )
 
   const hideWindowsSelectionContext = useCallback((tabId) => {
     if (!isWindows || !tabId) return
@@ -924,7 +903,7 @@ function App() {
       })
     },
     onSelectionTargetConsumed: rememberWindowsSelectionContext,
-    onSelectionTargetUndo: restoreWindowsSelectionContext,
+    onSelectionTargetUndo: hideWindowsSelectionContext,
     onSelectionTargetRedo: hideWindowsSelectionContext,
     selectedModel,
     selectionRange,
@@ -1295,11 +1274,6 @@ function App() {
       [nextTab.id]: false,
     }))
     setWindowsSelectionContext(null)
-    setWindowsSelectionContextHistoryByTab((current) => {
-      const next = { ...current }
-      delete next[nextTab.id]
-      return next
-    })
     activateTab(nextTab.id)
     return nextTab
   }, [activateTab, activeTabId, isPreviewOpen, nextUntitledIndexFromTabs])
@@ -1363,11 +1337,6 @@ function App() {
       [duplicateTab.id]: isPreviewOpen,
     }))
     setWindowsSelectionContext(null)
-    setWindowsSelectionContextHistoryByTab((current) => {
-      const next = { ...current }
-      delete next[duplicateTab.id]
-      return next
-    })
   }, [activeTab, activateTab, isPreviewOpen])
 
   const handleRename = useCallback(async () => {
@@ -1435,13 +1404,6 @@ function App() {
         })
         return nextPositions
       })
-      setWindowsSelectionContextHistoryByTab((current) => {
-        const nextHistory = { ...current }
-        tabIdsToClose.forEach((tabId) => {
-          delete nextHistory[tabId]
-        })
-        return nextHistory
-      })
       setPreviewOpenByTab((currentStates) => {
         const nextStates = { ...currentStates }
         tabIdsToClose.forEach((tabId) => {
@@ -1467,7 +1429,6 @@ function App() {
           [replacementTab.id]: false,
         })
         setWindowsSelectionContext(null)
-        setWindowsSelectionContextHistoryByTab({})
         setActiveTabId(replacementTab.id)
         return
       }
