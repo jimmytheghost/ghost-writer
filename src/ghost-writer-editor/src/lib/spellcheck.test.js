@@ -39,6 +39,12 @@ describe('spellcheck', () => {
     expect(getMisspelledRanges('ghostwriter ')).toEqual([])
   })
 
+  it('ignores dashed words when checking ranges and counts', () => {
+    expect(getMisspelledRanges('bug-name ')).toEqual([])
+    expect(getMisspelledRanges('non-destructive ')).toEqual([])
+    expect(getMisspelledWordCounts('bug-name non-destructive dirty-close wierd')).toEqual([{ word: 'wierd', count: 1 }])
+  })
+
   it('treats extension-style words in custom list as valid tokens', () => {
     setCustomSpellcheckWords(['.png'])
     expect(getMisspelledRanges('Use image.png here ')).toEqual([])

@@ -153,6 +153,7 @@ export function isSpellcheckReady() {
 function shouldSkipWord(word) {
   if (word.length <= 1) return true
   if (/^[A-Z]+$/.test(word)) return true
+  if (word.includes('-')) return true
   return false
 }
 
