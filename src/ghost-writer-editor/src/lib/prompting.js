@@ -41,6 +41,28 @@ export function buildGenerationPrompt({ promptText, documentText, selectedText }
   ].join('\n\n')
 }
 
+export function buildContinuationPrompt({ promptText, approvedText, replacedTailText }) {
+  const request = promptText.trim()
+  const approvedExcerpt = approvedText.trim()
+  const replacedTail = replacedTailText.trim()
+
+  return [
+    'You are continuing a markdown draft that was interrupted mid-generation.',
+    ...SHARED_RULES,
+    'Return only the replacement text for the unfinished tail and the continuation that follows it.',
+    'Continue seamlessly from the exact point where the approved draft excerpt ends.',
+    'Do not restart the scene, repeat prior text, summarize, or add a new introduction.',
+    'Assume the approved draft excerpt is already on the page and must not be repeated.',
+    'If the unfinished tail is incomplete, rewrite it cleanly before continuing.',
+    'Do not return the full document.',
+    `User request:\n${request}`,
+    `Approved draft excerpt:\n${approvedExcerpt}`,
+    replacedTail ? `Interrupted tail to replace:\n${replacedTail}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 export function buildInlineGenerationPrompt({ globalPromptText, inlinePromptText, documentText }) {
   const sharedPrompt = globalPromptText.trim()
   const inlinePrompt = inlinePromptText.trim()

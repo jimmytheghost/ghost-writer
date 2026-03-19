@@ -34,6 +34,52 @@ function createStreamingResponse(chunks) {
   }
 }
 
+function createAbortableStreamingResponse(chunk, signal) {
+  const encoder = new TextEncoder()
+  const payload = `${JSON.stringify({ response: chunk })}\n`
+  let emittedChunk = false
+  let aborted = Boolean(signal?.aborted)
+
+  const waitForAbort = () =>
+    new Promise((resolve) => {
+      if (aborted) {
+        resolve({ done: true })
+        return
+      }
+
+      signal?.addEventListener(
+        'abort',
+        () => {
+          aborted = true
+          resolve({ done: true })
+        },
+        { once: true },
+      )
+    })
+
+  return {
+    ok: true,
+    body: {
+      getReader() {
+        return {
+          read: async () => {
+            if (!emittedChunk) {
+              emittedChunk = true
+              return { done: false, value: encoder.encode(payload) }
+            }
+
+            return waitForAbort()
+          },
+          releaseLock() {},
+          cancel: async () => {
+            aborted = true
+          },
+        }
+      },
+    },
+  }
+}
+
 function getEditor() {
   const editor = document.querySelector('textarea.editor__textarea')
   expect(editor).not.toBeNull()
@@ -360,5 +406,159 @@ describe('App inline prompts', () => {
     } finally {
       restorePlatform()
     }
+  })
+
+  it('repairs an unfinished tail and resumes with a continuation prompt after stop and send again', async () => {
+    const generateBodies = []
+    let generateCallCount = 0
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 0
+    })
+    const fetchMock = vi.fn(async (input, options = {}) => {
+      const url = String(input ?? '')
+      if (url.includes('/ollama-models.json')) {
+        return {
+          ok: true,
+          json: async () => ({ models: ['devstral-small-2:24b'] }),
+        }
+      }
+
+      if (url.includes('/api/generate')) {
+        generateCallCount += 1
+        generateBodies.push(JSON.parse(options.body))
+        if (generateCallCount === 1) {
+          return createAbortableStreamingResponse('Once upon a time. The old mansion had been', options.signal)
+        }
+        return createStreamingResponse(['Once upon a time. The old mansion had been abandoned for years.'])
+      }
+
+      return {
+        ok: false,
+        body: null,
+        json: async () => ({}),
+      }
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const editor = getEditor()
+    fireEvent.change(editor, { target: { value: '' } })
+    editor.focus()
+    editor.setSelectionRange(0, 0)
+    fireEvent.select(editor)
+
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea.' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('Once upon a time. The old mansion had been')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Stop generation'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea with Sophia.' } })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('Once upon a time. The old mansion had been abandoned for years.')
+    })
+
+    expect(generateBodies).toHaveLength(2)
+    expect(generateBodies[1]?.prompt).toContain('You are continuing a markdown draft that was interrupted mid-generation.')
+    expect(generateBodies[1]?.prompt).toContain('User request:\nWrite a story about the sea with Sophia.')
+    expect(generateBodies[1]?.prompt).toContain('Interrupted tail to replace:\nThe old mansion had been')
+    expect(generateBodies[1]?.prompt).not.toContain('Full document context:')
+  })
+
+  it('falls back to a fresh insertion prompt if the user edits the draft after stopping', async () => {
+    const generateBodies = []
+    let generateCallCount = 0
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 0
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input, options = {}) => {
+        const url = String(input ?? '')
+        if (url.includes('/ollama-models.json')) {
+          return {
+            ok: true,
+            json: async () => ({ models: ['devstral-small-2:24b'] }),
+          }
+        }
+
+        if (url.includes('/api/generate')) {
+          generateCallCount += 1
+          generateBodies.push(JSON.parse(options.body))
+          if (generateCallCount === 1) {
+            return createAbortableStreamingResponse('Once upon a time. A young girl named', options.signal)
+          }
+          return createStreamingResponse([' and she kept walking forward.'])
+        }
+
+        return {
+          ok: false,
+          body: null,
+          json: async () => ({}),
+        }
+      }),
+    )
+
+    render(<App />)
+
+    const editor = getEditor()
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story.' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('Once upon a time. A young girl named')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Stop generation'))
+    })
+
+    fireEvent.change(editor, { target: { value: 'Once upon a time. A young girl named Maya' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('Once upon a time. A young girl named Maya and she kept walking forward.')
+    })
+
+    expect(generateBodies).toHaveLength(2)
+    expect(generateBodies[1]?.prompt).not.toContain('You are continuing a markdown draft that was interrupted mid-generation.')
+    expect(generateBodies[1]?.prompt).toContain('You are adding content into an existing markdown document.')
   })
 })

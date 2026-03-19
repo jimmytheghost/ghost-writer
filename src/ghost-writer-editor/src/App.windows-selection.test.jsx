@@ -133,8 +133,8 @@ describe('App Windows selection integration', () => {
     fireEvent.click(screen.getByLabelText('Undo generation'))
 
     await waitFor(() => {
-      expect(screen.getByText('Selected text')).toBeInTheDocument()
-      expect(screen.getByText('beta')).toBeInTheDocument()
+      expect(screen.queryByText('Selected text')).toBeNull()
+      expect(screen.queryByText('Selected text changed')).toBeNull()
     })
   })
 
