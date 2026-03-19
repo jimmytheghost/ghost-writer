@@ -418,6 +418,30 @@ describe('App UI behaviors', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Replaced 2 matches.')
   })
 
+  it('undoes and redoes find and replace changes from the editor shortcuts', () => {
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'alpha beta alpha' } })
+
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+
+    const findInput = screen.getByLabelText('Find')
+    const replaceInput = screen.getByLabelText('Replace')
+    fireEvent.change(findInput, { target: { value: 'alpha' } })
+    fireEvent.change(replaceInput, { target: { value: 'omega' } })
+
+    fireEvent.click(screen.getByLabelText('Replace all matches'))
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('omega beta omega')
+
+    fireEvent.keyDown(editor, { key: 'z', ctrlKey: true })
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('alpha beta alpha')
+
+    fireEvent.keyDown(editor, { key: 'y', ctrlKey: true })
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('omega beta omega')
+  })
+
   it('find and replace supports multi-word phrases', () => {
     render(<App />)
 

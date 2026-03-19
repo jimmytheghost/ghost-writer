@@ -241,6 +241,8 @@ function Editor({
   onChange,
   onPromptOpen,
   onSelectionChange,
+  onSystemUndo,
+  onSystemRedo,
   onScrollPositionChange,
   selectionRange,
   externalSelectionRange,
@@ -781,6 +783,25 @@ function Editor({
       const key = event.key.toLowerCase()
       const isSystemEditShortcut = isMod2 && !event.altKey && ['c', 'v', 'x', 'z'].includes(key)
 
+      if (isMod2 && !event.altKey && !event.shiftKey && key === 'z') {
+        if (onSystemUndo?.()) {
+          event.preventDefault()
+          return
+        }
+      }
+
+      const isRedoShortcut =
+        isMod2 &&
+        !event.altKey &&
+        ((isMacPlatform() && event.shiftKey && key === 'z') || (!isMacPlatform() && key === 'y'))
+
+      if (isRedoShortcut) {
+        if (onSystemRedo?.()) {
+          event.preventDefault()
+          return
+        }
+      }
+
       if (isSystemEditShortcut) {
         return
       }
@@ -853,7 +874,7 @@ function Editor({
         textarea.removeEventListener(eventName, handleSelectionUpdate)
       }
     }
-  }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, value])
+  }, [applyInlineFormat, onChange, onPromptOpen, onSelectionChange, onSystemRedo, onSystemUndo, value])
 
   useEffect(
     () => () => {
