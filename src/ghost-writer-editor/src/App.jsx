@@ -56,7 +56,7 @@ import {
   ensureMarkdownFileName,
   escapeHtml,
   escapeLatex,
-  escapeRtf,
+  buildPlainTextRtfDocument,
   exceedsLoadFileSizeLimit,
   fileNameFromPath,
   normalizeTextZoom,
@@ -2490,7 +2490,7 @@ ${body}
   }, [exportMarkdownSource, getExportBaseName, isMdPromptsVisible])
 
   const handleExportRtf = useCallback(async () => {
-    const rtfContent = `{\\rtf1\\ansi\\deff0\n${escapeRtf(exportMarkdownSource)}\n}`
+    const rtfContent = buildPlainTextRtfDocument(exportMarkdownSource)
     await exportWithNativeDialog({
       content: rtfContent,
       extension: 'rtf',
