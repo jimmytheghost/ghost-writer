@@ -429,11 +429,11 @@ fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(
         app,
         &[
-            &ghost_writer_menu,
             &file_menu,
             &edit_menu,
             &view_menu,
             &settings_menu,
+            &ghost_writer_menu,
         ],
     )
 }
