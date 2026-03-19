@@ -248,6 +248,24 @@ Notes:
 - A local merge into `main` does not mean `origin/main` has the change. Verify with `git log origin/main..<branch-name>` if there is any doubt.
 - For this repo, the successful pattern on March 11, 2026 was: fix `gh auth`, confirm no existing PR with `gh pr status`, then run `gh pr create --base main --head <branch-name> ...`.
 
+### Safe PR Triage, Merge, and Closure
+
+When a user asks an agent to process multiple PRs, use the runbook:
+
+- `docs/agent-workflows/pr-triage-and-merge.md`
+
+Required guardrails:
+
+- Never close a non-merged PR unless the user explicitly approves closing that exact PR.
+- Never bulk-close PRs based only on age, overlap, or branch naming.
+- Build and present an evidence-backed recommendation set first, then stop for confirmation.
+- For every PR considered for closure as superseded, include concrete evidence (superseding PR link and/or commit SHA).
+- Prefer leaving a PR open when classification is ambiguous.
+- Support two operator modes:
+  - one-by-one processing with per-PR confirmation
+  - full-batch recommendations followed by user confirmation/notes
+- Do not merge or close anything until the user confirms execution instructions.
+
 ## Environment Variables
 
 - `VITE_OLLAMA_BASE_URL` - Ollama server URL (default: `http://127.0.0.1:11434`)
