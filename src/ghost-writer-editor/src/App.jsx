@@ -529,6 +529,16 @@ function App() {
     setWindowsSelectionContext(null)
   }, [])
 
+  const clearVisibleSelectionRange = useCallback((tabId) => {
+    if (!tabId) return
+    setSelectionRangesByTab((currentRanges) => {
+      if (!currentRanges[tabId]) return currentRanges
+      const next = { ...currentRanges }
+      delete next[tabId]
+      return next
+    })
+  }, [])
+
   const clearFindReplaceHistoryForTab = useCallback((tabId) => {
     if (!tabId) return
     setFindReplaceHistoryByTab((current) => {
@@ -872,6 +882,22 @@ function App() {
 
         return {
           ...current,
+          [tabId]: nextRange,
+        }
+      })
+    },
+    onSelectionRangeConsumed: clearVisibleSelectionRange,
+    onGenerationCursorChange: (tabId, nextCursorPosition) => {
+      if (!tabId || !Number.isFinite(Number(nextCursorPosition))) return
+      const safePosition = Math.max(0, Number(nextCursorPosition))
+      setSelectionRangesByTab((currentRanges) => {
+        const previousRange = currentRanges[tabId]
+        const nextRange = { start: safePosition, end: safePosition }
+        if (previousRange && previousRange.start === nextRange.start && previousRange.end === nextRange.end) {
+          return currentRanges
+        }
+        return {
+          ...currentRanges,
           [tabId]: nextRange,
         }
       })

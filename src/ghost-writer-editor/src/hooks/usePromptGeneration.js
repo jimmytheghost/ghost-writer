@@ -9,7 +9,7 @@ import {
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { ensureOllamaRunning, isDesktopRuntime, ollamaCancelStream } from '../lib/desktopRuntime'
-import { buildGenerationPrompt, buildInlineGenerationPrompt } from '../lib/prompting'
+import { buildContinuationPrompt, buildGenerationPrompt, buildInlineGenerationPrompt } from '../lib/prompting'
 
 const EMPTY_HISTORY = Object.freeze({
   undoSnapshot: '',
@@ -19,12 +19,80 @@ const EMPTY_HISTORY = Object.freeze({
   undoToggleState: 'undo',
 })
 
+const CONTINUATION_CONTEXT_MAX_CHARS = 600
+const CONTINUATION_TAIL_REPAIR_WINDOW_CHARS = 200
+const CONTINUATION_TAIL_FALLBACK_CHARS = 80
+const CONTINUATION_OVERLAP_MIN_CHARS = 12
+
+function getTrimmedContinuationContext(text) {
+  if (!text) return ''
+  return text.length <= CONTINUATION_CONTEXT_MAX_CHARS ? text : text.slice(-CONTINUATION_CONTEXT_MAX_CHARS)
+}
+
+function stripOverlappingContinuationPrefix(text, priorContext) {
+  if (!text || !priorContext) return text
+
+  const safeText = String(text)
+  const safePriorContext = String(priorContext)
+  const maxOverlap = Math.min(safeText.length, safePriorContext.length)
+
+  for (let size = maxOverlap; size >= CONTINUATION_OVERLAP_MIN_CHARS; size -= 1) {
+    if (safePriorContext.slice(-size) === safeText.slice(0, size)) {
+      return safeText.slice(size)
+    }
+  }
+
+  return safeText
+}
+
+function findLastBoundaryEnd(text, pattern) {
+  let match = pattern.exec(text)
+  let lastEnd = -1
+
+  while (match) {
+    lastEnd = match.index + match[0].length
+    match = pattern.exec(text)
+  }
+
+  pattern.lastIndex = 0
+  return lastEnd
+}
+
+function getContinuationRepairStart(generatedText) {
+  if (!generatedText) return 0
+
+  const windowStart = Math.max(0, generatedText.length - CONTINUATION_TAIL_REPAIR_WINDOW_CHARS)
+  const recentText = generatedText.slice(windowStart)
+
+  const sentenceEnd = findLastBoundaryEnd(recentText, /[.!?]["')\]]*(?:\s+|\n+|$)/g)
+  if (sentenceEnd >= 0) {
+    return Math.min(generatedText.length, windowStart + sentenceEnd)
+  }
+
+  const paragraphEnd = findLastBoundaryEnd(recentText, /\n\s*\n/g)
+  if (paragraphEnd >= 0) {
+    return Math.min(generatedText.length, windowStart + paragraphEnd)
+  }
+
+  const fallbackStart = Math.max(0, generatedText.length - CONTINUATION_TAIL_FALLBACK_CHARS)
+  let nextBoundary = fallbackStart
+  while (nextBoundary < generatedText.length && /\S/.test(generatedText.charAt(nextBoundary))) {
+    nextBoundary += 1
+  }
+  while (nextBoundary < generatedText.length && /\s/.test(generatedText.charAt(nextBoundary))) {
+    nextBoundary += 1
+  }
+
+  return nextBoundary < generatedText.length ? nextBoundary : fallbackStart
+}
+
 export function usePromptGeneration({
   activeTabId,
   getActiveTab,
   getTabById,
   onStreamingRangeChange,
   onSelectionTargetConsumed,
+  onGenerationCursorChange,
   onSelectionTargetUndo,
   onSelectionTargetRedo,
   selectedModel,
@@ -37,11 +105,9 @@ export function usePromptGeneration({
   const [historyByTab, setHistoryByTab] = useState({})
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [showStoppedToast, setShowStoppedToast] = useState(false)
-  const streamTabIdRef = useRef('')
-  const streamBaseRef = useRef('')
-  const streamSelectionRef = useRef({ start: 0, end: 0 })
-  const streamBufferRef = useRef('')
   const streamHighlightRangeRef = useRef({ start: 0, end: 0 })
+  const generationRequestIdRef = useRef(0)
+  const resumeSessionByTabRef = useRef({})
   const abortControllerRef = useRef(null)
   const streamHighlightResetTimeoutRef = useRef(null)
 
@@ -104,15 +170,54 @@ export function usePromptGeneration({
     })
   }, [])
 
+  const clearResumeSession = useCallback((tabId = activeTabId) => {
+    if (!tabId) return
+    delete resumeSessionByTabRef.current[tabId]
+  }, [activeTabId])
+
+  const setResumeSession = useCallback((tabId, session) => {
+    if (!tabId) return
+    resumeSessionByTabRef.current[tabId] = session
+  }, [])
+
+  const getValidResumeSession = useCallback(
+    ({ tabId, tabContent, selectionTarget: currentSelectionTarget, selectionRange: currentSelectionRange }) => {
+      if (!tabId) return null
+      const session = resumeSessionByTabRef.current[tabId]
+      if (!session) return null
+
+      if (currentSelectionTarget && !currentSelectionTarget.isInvalid) {
+        clearResumeSession(tabId)
+        return null
+      }
+
+      const currentStart = currentSelectionRange?.start ?? 0
+      const currentEnd = currentSelectionRange?.end ?? 0
+      if (currentStart !== currentEnd || currentStart !== session.expectedCursorPosition) {
+        clearResumeSession(tabId)
+        return null
+      }
+
+      if (tabContent !== session.expectedContent) {
+        clearResumeSession(tabId)
+        return null
+      }
+
+      return session
+    },
+    [clearResumeSession],
+  )
+
   const resetGenerationState = useCallback(
     ({ clearPromptError = true, tabId = activeTabId } = {}) => {
       if (!tabId) return
       patchHistory(tabId, EMPTY_HISTORY)
+      clearResumeSession(tabId)
       if (clearPromptError) {
         setPromptError('', tabId)
       }
     },
-    [activeTabId, patchHistory, setPromptError],
+    [activeTabId, clearResumeSession, patchHistory, setPromptError],
   )
 
   const handleUndoGeneration = useCallback(() => {
@@ -126,6 +231,7 @@ export function usePromptGeneration({
       abortControllerRef.current.abort()
     }
 
+    clearResumeSession(activeTabId)
     setTabContentById(activeTabId, tabHistory.undoSnapshot)
     onSelectionTargetUndo?.(activeTabId)
     patchHistory(activeTabId, {
@@ -136,13 +242,14 @@ export function usePromptGeneration({
       undoToggleState: 'redo',
     })
     setPromptError('', activeTabId)
-  }, [activeTabId, getTabById, historyByTab, onSelectionTargetUndo, patchHistory, setPromptError, setTabContentById])
+  }, [activeTabId, clearResumeSession, getTabById, historyByTab, onSelectionTargetUndo, patchHistory, setPromptError, setTabContentById])
 
   const handleRedoGeneration = useCallback(() => {
     if (!activeTabId) return
     const tabHistory = historyByTab[activeTabId] ?? EMPTY_HISTORY
     if (!tabHistory.canRedoGeneration) return
 
+    clearResumeSession(activeTabId)
     setTabContentById(activeTabId, tabHistory.redoSnapshot)
     onSelectionTargetRedo?.(activeTabId)
     patchHistory(activeTabId, {
@@ -151,7 +258,7 @@ export function usePromptGeneration({
       canUndoGeneration: true,
       undoToggleState: 'undo',
     })
-  }, [activeTabId, historyByTab, onSelectionTargetRedo, patchHistory, setTabContentById])
+  }, [activeTabId, clearResumeSession, historyByTab, onSelectionTargetRedo, patchHistory, setTabContentById])
 
   const handleUndoToggle = useCallback(() => {
     const tabHistory = historyForActiveTab
@@ -163,42 +270,89 @@ export function usePromptGeneration({
   }, [handleRedoGeneration, handleUndoGeneration, historyForActiveTab])
 
   const abortGeneration = useCallback(() => {
+    const currentRequestId = generationRequestIdRef.current
+    generationRequestIdRef.current += 1
+
+    if (streamHighlightResetTimeoutRef.current) {
+      clearTimeout(streamHighlightResetTimeoutRef.current)
+      streamHighlightResetTimeoutRef.current = null
+    }
+
+    const finalHighlightStart = streamHighlightRangeRef.current.start ?? 0
+    const finalHighlightEnd = streamHighlightRangeRef.current.end ?? 0
+    if (finalHighlightEnd > finalHighlightStart) {
+      onStreamingRangeChange?.({
+        tabId: activeTabId,
+        start: finalHighlightStart,
+        end: finalHighlightEnd,
+        isActive: false,
+        isFading: true,
+      })
+
+      streamHighlightResetTimeoutRef.current = setTimeout(() => {
+        onStreamingRangeChange?.({
+          tabId: activeTabId,
+          start: 0,
+          end: 0,
+          isActive: false,
+          isFading: false,
+        })
+        streamHighlightResetTimeoutRef.current = null
+      }, 1000)
+    }
+
     if (isDesktopRuntime()) {
-      ollamaCancelStream()
+      ollamaCancelStream(currentRequestId)
     } else {
       abortControllerRef.current?.abort()
     }
-  }, [])
+    abortControllerRef.current = null
+    setIsLoadingPrompt(false)
+    setShowStoppedToast(false)
+    requestAnimationFrame(() => setShowStoppedToast(true))
+  }, [activeTabId, onStreamingRangeChange])
 
   const streamPromptIntoRange = useCallback(
-    async ({ tabId, baseContent, range, refinedPrompt }) => {
-      streamTabIdRef.current = tabId
-      streamBaseRef.current = baseContent
-      streamSelectionRef.current = range
-      streamBufferRef.current = ''
-      streamHighlightRangeRef.current = { start: 0, end: 0 }
+    async ({ tabId, baseContent, range, refinedPrompt, requestId, trackedSession = null }) => {
+      const hasRangeSelection = range.end > range.start
+      let streamBuffer = ''
+
+      const isCurrentRequest = () => generationRequestIdRef.current === requestId
 
       const applyStreamChunk = (chunk) => {
-        if (!chunk) return
-        const streamTabId = streamTabIdRef.current
-        if (!streamTabId || !getTabById(streamTabId)) return
-        streamBufferRef.current += chunk
-        const cleanedStreamText = stripAssistantLeadIn(streamBufferRef.current)
-        const streamBase = streamBaseRef.current
-        const { start, end } = streamSelectionRef.current
-        const safeStart = Math.min(start, streamBase.length)
-        const safeEnd = Math.min(end, streamBase.length)
-        setTabContentById(streamTabId, `${streamBase.slice(0, safeStart)}${cleanedStreamText}${streamBase.slice(safeEnd)}`)
-        const highlightEnd = safeStart + cleanedStreamText.length
+        if (!chunk || !isCurrentRequest() || !getTabById(tabId)) return
+        streamBuffer += chunk
+        const cleanedStreamText = stripAssistantLeadIn(streamBuffer)
+        const nextInsertText = trackedSession?.overlapSource
+          ? stripOverlappingContinuationPrefix(cleanedStreamText, trackedSession.overlapSource)
+          : cleanedStreamText
+        const safeStart = Math.min(range.start, baseContent.length)
+        const safeEnd = Math.min(range.end, baseContent.length)
+        setTabContentById(tabId, `${baseContent.slice(0, safeStart)}${nextInsertText}${baseContent.slice(safeEnd)}`)
+        const highlightEnd = safeStart + nextInsertText.length
         streamHighlightRangeRef.current = {
           start: safeStart,
           end: highlightEnd,
         }
+        if (trackedSession) {
+          const nextGeneratedText = `${trackedSession.generatedPrefix}${nextInsertText}`
+          setResumeSession(tabId, {
+            anchorStart: trackedSession.anchorStart,
+            expectedContent: `${trackedSession.prefixText}${nextGeneratedText}${trackedSession.suffixText}`,
+            expectedCursorPosition: trackedSession.anchorStart + nextGeneratedText.length,
+            generatedText: nextGeneratedText,
+            prefixText: trackedSession.prefixText,
+            suffixText: trackedSession.suffixText,
+          })
+        }
+        if (!hasRangeSelection) {
+          onGenerationCursorChange?.(tabId, highlightEnd)
+        }
         onStreamingRangeChange?.({
-          tabId: streamTabId,
+          tabId,
           start: safeStart,
           end: highlightEnd,
-          isActive: cleanedStreamText.length > 0,
+          isActive: nextInsertText.length > 0,
           isFading: false,
         })
       }
@@ -206,13 +360,22 @@ export function usePromptGeneration({
       if (isDesktopRuntime()) {
         const cancelledRef = { current: false }
         const unlistenChunk = await listen('ollama-stream-chunk', (e) => {
-          applyStreamChunk(e.payload)
+          const payload = e.payload ?? {}
+          if (Number(payload.requestId) !== requestId) return
+          applyStreamChunk(payload.response ?? '')
         })
-        const unlistenDone = await listen('ollama-stream-done', () => {})
+        const unlistenDone = await listen('ollama-stream-done', (e) => {
+          if (Number(e.payload?.requestId) !== requestId) return
+        })
         const unlistenError = await listen('ollama-stream-error', (e) => {
-          setPromptError(e.payload ?? 'Ollama error', tabId)
+          const payload = e.payload ?? {}
+          if (Number(payload.requestId) !== requestId) return
+          if (isCurrentRequest()) {
+            setPromptError(payload.error ?? 'Ollama error', tabId)
+          }
         })
-        const unlistenCancelled = await listen('ollama-stream-cancelled', () => {
+        const unlistenCancelled = await listen('ollama-stream-cancelled', (e) => {
+          if (Number(e.payload?.requestId) !== requestId) return
           cancelledRef.current = true
         })
 
@@ -227,6 +390,7 @@ export function usePromptGeneration({
           await invoke('ollama_generate_stream', {
             model: selectedModel,
             prompt: refinedPrompt,
+            requestId,
           })
         } catch (err) {
           unlistenAll()
@@ -234,22 +398,31 @@ export function usePromptGeneration({
         }
         unlistenAll()
 
+        if (!isCurrentRequest()) {
+          return { generatedText: '', nextContent: baseContent }
+        }
+
         if (cancelledRef.current) {
           const abortErr = new Error('Generation stopped.')
           abortErr.name = 'AbortError'
           throw abortErr
         }
 
-        const generatedText = stripAssistantLeadIn(streamBufferRef.current)
-        const { start, end } = range
-        const safeStart = Math.min(start, baseContent.length)
-        const safeEnd = Math.min(end, baseContent.length)
+        const generatedText = trackedSession?.overlapSource
+          ? stripOverlappingContinuationPrefix(stripAssistantLeadIn(streamBuffer), trackedSession.overlapSource)
+          : stripAssistantLeadIn(streamBuffer)
+        const safeStart = Math.min(range.start, baseContent.length)
+        const safeEnd = Math.min(range.end, baseContent.length)
         const nextContent = `${baseContent.slice(0, safeStart)}${generatedText}${baseContent.slice(safeEnd)}`
         setTabContentById(tabId, nextContent)
+        if (!hasRangeSelection) {
+          onGenerationCursorChange?.(tabId, safeStart + generatedText.length)
+        }
         return { generatedText, nextContent }
       }
 
-      abortControllerRef.current = new AbortController()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
       const response = await fetchWithTimeout(
         buildOllamaUrl('/api/generate'),
         {
@@ -257,7 +430,7 @@ export function usePromptGeneration({
           headers: {
             'Content-Type': 'application/json',
           },
-          signal: abortControllerRef.current.signal,
+          signal: controller.signal,
           body: JSON.stringify({
             model: selectedModel,
             prompt: refinedPrompt,
@@ -315,15 +488,23 @@ export function usePromptGeneration({
         }
       }
 
-      const generatedText = stripAssistantLeadIn(streamBufferRef.current)
-      const { start, end } = range
-      const safeStart = Math.min(start, baseContent.length)
-      const safeEnd = Math.min(end, baseContent.length)
+      if (!isCurrentRequest()) {
+        return { generatedText: '', nextContent: baseContent }
+      }
+
+      const generatedText = trackedSession?.overlapSource
+        ? stripOverlappingContinuationPrefix(stripAssistantLeadIn(streamBuffer), trackedSession.overlapSource)
+        : stripAssistantLeadIn(streamBuffer)
+      const safeStart = Math.min(range.start, baseContent.length)
+      const safeEnd = Math.min(range.end, baseContent.length)
       const nextContent = `${baseContent.slice(0, safeStart)}${generatedText}${baseContent.slice(safeEnd)}`
       setTabContentById(tabId, nextContent)
+      if (!hasRangeSelection) {
+        onGenerationCursorChange?.(tabId, safeStart + generatedText.length)
+      }
       return { generatedText, nextContent }
     },
-    [getTabById, onStreamingRangeChange, selectedModel, setPromptError, setTabContentById],
+    [getTabById, onGenerationCursorChange, onStreamingRangeChange, selectedModel, setPromptError, setResumeSession, setTabContentById],
   )
 
   const handlePromptSubmit = useCallback(
@@ -339,6 +520,8 @@ export function usePromptGeneration({
 
       const submittingTabId = tab.id
       const tabContent = tab.content
+      const requestId = generationRequestIdRef.current + 1
+      generationRequestIdRef.current = requestId
 
       if (streamHighlightResetTimeoutRef.current) {
         clearTimeout(streamHighlightResetTimeoutRef.current)
@@ -373,6 +556,7 @@ export function usePromptGeneration({
         }
 
         if (hasTabInlinePrompts) {
+          clearResumeSession(submittingTabId)
           let currentContent = tabContent
           let offsetDelta = 0
 
@@ -390,6 +574,7 @@ export function usePromptGeneration({
               baseContent: currentContent,
               range: { start, end },
               refinedPrompt,
+              requestId,
             })
 
             offsetDelta += result.generatedText.length - (end - start)
@@ -402,23 +587,82 @@ export function usePromptGeneration({
           }
 
           const hasSavedSelectionTarget = selectionTarget && !selectionTarget.isInvalid
-          const rangeStart = hasSavedSelectionTarget ? selectionTarget.start ?? 0 : selectionRange.start ?? 0
-          const rangeEnd = hasSavedSelectionTarget ? selectionTarget.end ?? rangeStart : selectionRange.end ?? 0
-          const hasRangeSelection = hasSavedSelectionTarget || rangeStart !== rangeEnd
-          const selectedText = hasSavedSelectionTarget
-            ? selectionTarget.text ?? ''
-            : hasRangeSelection
-              ? tabContent.slice(rangeStart, rangeEnd)
-            : ''
-          const cursorPosition = Math.max(0, Math.min(rangeStart, tabContent.length))
-          const range = hasRangeSelection
-            ? { start: rangeStart, end: rangeEnd }
-            : { start: cursorPosition, end: cursorPosition }
-          const refinedPrompt = buildGenerationPrompt({
-            promptText: tab.promptText,
-            documentText: tabContent,
-            selectedText,
-          })
+          const continuationSession = hasSavedSelectionTarget
+            ? null
+            : getValidResumeSession({
+                tabId: submittingTabId,
+                tabContent,
+                selectionTarget,
+                selectionRange: {
+                  start: selectionRange.start ?? 0,
+                  end: selectionRange.end ?? 0,
+                },
+              })
+
+          let baseContent = tabContent
+          let range
+          let refinedPrompt
+          let trackedSession = null
+
+          if (continuationSession) {
+            const repairStart = getContinuationRepairStart(continuationSession.generatedText)
+            const preservedGeneratedText = continuationSession.generatedText.slice(0, repairStart)
+            const replacedTailText = continuationSession.generatedText.slice(repairStart)
+            const replacementStart = continuationSession.anchorStart + repairStart
+            const replacementEnd = continuationSession.anchorStart + continuationSession.generatedText.length
+            baseContent = `${continuationSession.prefixText}${preservedGeneratedText}${continuationSession.suffixText}`
+            const approvedExcerpt = getTrimmedContinuationContext(baseContent.slice(0, replacementStart))
+            range = { start: replacementStart, end: replacementEnd }
+            refinedPrompt = buildContinuationPrompt({
+              promptText: tab.promptText,
+              approvedText: approvedExcerpt,
+              replacedTailText,
+            })
+            trackedSession = {
+              anchorStart: continuationSession.anchorStart,
+              generatedPrefix: preservedGeneratedText,
+              overlapSource: approvedExcerpt,
+              prefixText: continuationSession.prefixText,
+              suffixText: continuationSession.suffixText,
+            }
+          } else {
+            const rangeStart = hasSavedSelectionTarget ? selectionTarget.start ?? 0 : selectionRange.start ?? 0
+            const rangeEnd = hasSavedSelectionTarget ? selectionTarget.end ?? rangeStart : selectionRange.end ?? 0
+            const hasRangeSelection = hasSavedSelectionTarget || rangeStart !== rangeEnd
+            const selectedText = hasSavedSelectionTarget
+              ? selectionTarget.text ?? ''
+              : hasRangeSelection
+                ? tabContent.slice(rangeStart, rangeEnd)
+                : ''
+            const cursorPosition = Math.max(0, Math.min(rangeStart, tabContent.length))
+            range = hasRangeSelection
+              ? { start: rangeStart, end: rangeEnd }
+              : { start: cursorPosition, end: cursorPosition }
+            refinedPrompt = buildGenerationPrompt({
+              promptText: tab.promptText,
+              documentText: tabContent,
+              selectedText,
+            })
+
+            if (!hasRangeSelection) {
+              trackedSession = {
+                anchorStart: range.start,
+                generatedPrefix: '',
+                prefixText: tabContent.slice(0, range.start),
+                suffixText: tabContent.slice(range.end),
+              }
+              setResumeSession(submittingTabId, {
+                anchorStart: range.start,
+                expectedContent: tabContent,
+                expectedCursorPosition: range.start,
+                generatedText: '',
+                prefixText: trackedSession.prefixText,
+                suffixText: trackedSession.suffixText,
+              })
+            } else {
+              clearResumeSession(submittingTabId)
+            }
+          }
 
           if (hasSavedSelectionTarget) {
             onSelectionTargetConsumed?.(submittingTabId, selectionTarget)
@@ -426,17 +670,29 @@ export function usePromptGeneration({
 
           await streamPromptIntoRange({
             tabId: submittingTabId,
-            baseContent: tabContent,
+            baseContent,
             range,
             refinedPrompt,
+            requestId,
+            trackedSession,
           })
+
+          clearResumeSession(submittingTabId)
         }
       } catch (error) {
+        if (requestId !== generationRequestIdRef.current) {
+          return
+        }
         if (error?.name === 'AbortError') {
+          const resumeSession = resumeSessionByTabRef.current[submittingTabId]
+          if (!resumeSession?.generatedText?.trim()) {
+            clearResumeSession(submittingTabId)
+          }
           setShowStoppedToast(false)
           requestAnimationFrame(() => setShowStoppedToast(true))
           return
         }
+        clearResumeSession(submittingTabId)
         const rawMessage = error?.message ?? ''
         const friendlyMessage =
           rawMessage === 'Failed to fetch'
@@ -444,36 +700,40 @@ export function usePromptGeneration({
             : rawMessage || 'Unable to reach Ollama.'
         setPromptError(friendlyMessage, submittingTabId)
       } finally {
-        setIsLoadingPrompt(false)
-        abortControllerRef.current = null
-        streamTabIdRef.current = ''
-        const finalHighlightStart = streamHighlightRangeRef.current.start ?? 0
-        const finalHighlightEnd = streamHighlightRangeRef.current.end ?? 0
+        if (requestId === generationRequestIdRef.current) {
+          setIsLoadingPrompt(false)
+          if (abortControllerRef.current) {
+            abortControllerRef.current = null
+          }
+          const finalHighlightStart = streamHighlightRangeRef.current.start ?? 0
+          const finalHighlightEnd = streamHighlightRangeRef.current.end ?? 0
 
-        if (finalHighlightEnd > finalHighlightStart) {
-          onStreamingRangeChange?.({
-            tabId: submittingTabId,
-            start: finalHighlightStart,
-            end: finalHighlightEnd,
-            isActive: false,
-            isFading: true,
-          })
+          if (finalHighlightEnd > finalHighlightStart) {
+            onStreamingRangeChange?.({
+              tabId: submittingTabId,
+              start: finalHighlightStart,
+              end: finalHighlightEnd,
+              isActive: false,
+              isFading: true,
+            })
+          }
+
+          streamHighlightResetTimeoutRef.current = setTimeout(() => {
+            onStreamingRangeChange?.({
+              tabId: submittingTabId,
+              start: 0,
+              end: 0,
+              isActive: false,
+              isFading: false,
+            })
+            streamHighlightResetTimeoutRef.current = null
+          }, 1000)
         }
-
-        streamHighlightResetTimeoutRef.current = setTimeout(() => {
-          onStreamingRangeChange?.({
-            tabId: submittingTabId,
-            start: 0,
-            end: 0,
-            isActive: false,
-            isFading: false,
-          })
-          streamHighlightResetTimeoutRef.current = null
-        }, 1000)
       }
     },
     [
       getActiveTab,
+      getValidResumeSession,
       onStreamingRangeChange,
       onSelectionTargetConsumed,
       patchHistory,
@@ -481,7 +741,9 @@ export function usePromptGeneration({
       selectionRange.end,
       selectionRange.start,
       selectionTarget,
+      clearResumeSession,
       setPromptError,
+      setResumeSession,
       streamPromptIntoRange,
     ],
   )

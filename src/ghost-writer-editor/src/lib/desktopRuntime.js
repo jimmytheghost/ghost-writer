@@ -431,9 +431,10 @@ export async function loadDesktopOllamaModels() {
 }
 
 /**
- * Ask the host to cancel the current Ollama stream. Desktop/Tauri only.
+ * Ask the host to cancel a specific Ollama stream request. Desktop/Tauri only.
  */
-export function ollamaCancelStream() {
+export function ollamaCancelStream(requestId) {
   if (!isDesktopRuntime()) return
-  invoke('ollama_cancel_stream').catch(() => {})
+  if (!Number.isFinite(Number(requestId)) || Number(requestId) <= 0) return
+  invoke('ollama_cancel_stream', { requestId: Number(requestId) }).catch(() => {})
 }
