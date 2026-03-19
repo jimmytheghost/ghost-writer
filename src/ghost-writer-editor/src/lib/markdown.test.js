@@ -180,7 +180,7 @@ describe('renderMarkdownToSafeHtml', () => {
 ### Release Blockers
 
 - [ ] Fix the Windows cursor/input desync that still reproduces in longer documents.
-  - Current status: cursor handling was hardened in the current \`1.4.19\` track, but further testing confirmed the bug still remains.
+  - Current status: cursor handling was hardened in the current \`1.4.20\` track, but further testing confirmed the bug still remains.
   - Observed behavior:
     \`\`\`text
     Cursor issues remain    |
