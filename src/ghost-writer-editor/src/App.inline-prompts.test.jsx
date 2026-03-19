@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -14,6 +14,52 @@ function createStreamingResponse(chunks) {
         controller.close()
       },
     }),
+  }
+}
+
+function createAbortableStreamingResponse(chunk, signal) {
+  const encoder = new TextEncoder()
+  const payload = `${JSON.stringify({ response: chunk })}\n`
+  let emittedChunk = false
+  let aborted = Boolean(signal?.aborted)
+
+  const waitForAbort = () =>
+    new Promise((resolve) => {
+      if (aborted) {
+        resolve({ done: true })
+        return
+      }
+
+      signal?.addEventListener(
+        'abort',
+        () => {
+          aborted = true
+          resolve({ done: true })
+        },
+        { once: true },
+      )
+    })
+
+  return {
+    ok: true,
+    body: {
+      getReader() {
+        return {
+          read: async () => {
+            if (!emittedChunk) {
+              emittedChunk = true
+              return { done: false, value: encoder.encode(payload) }
+            }
+
+            return waitForAbort()
+          },
+          releaseLock() {},
+          cancel: async () => {
+            aborted = true
+          },
+        }
+      },
+    },
   }
 }
 
@@ -288,5 +334,94 @@ describe('App inline prompts', () => {
       expect(screen.getByText('Stopped')).toBeInTheDocument()
     })
     expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+  })
+
+  it('continues from the latest generated cursor after stop and send again', async () => {
+    let generateCallCount = 0
+    const fetchMock = vi.fn(async (input, options = {}) => {
+      const url = String(input ?? '')
+      if (url.includes('/ollama-models.json')) {
+        return {
+          ok: true,
+          json: async () => ({ models: ['devstral-small-2:24b'] }),
+        }
+      }
+
+      if (url.includes('/api/generate')) {
+        generateCallCount += 1
+        if (generateCallCount === 1) {
+          return createAbortableStreamingResponse('One', options.signal)
+        }
+        if (generateCallCount === 2) {
+          return createAbortableStreamingResponse('Two', options.signal)
+        }
+        return createStreamingResponse(['Three'])
+      }
+
+      return {
+        ok: false,
+        body: null,
+        json: async () => ({}),
+      }
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    const editor = getEditor()
+    fireEvent.change(editor, { target: { value: 'Alpha' } })
+    editor.focus()
+    editor.setSelectionRange(5, 5)
+    fireEvent.select(editor)
+
+    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'continue writing' } })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('AlphaOne')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Stop generation'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+      expect(getEditor().selectionStart).toBe(8)
+      expect(getEditor().selectionEnd).toBe(8)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('AlphaOneTwo')
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Stop generation'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
+      expect(getEditor().selectionStart).toBe(11)
+      expect(getEditor().selectionEnd).toBe(11)
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toBe('AlphaOneTwoThree')
+    })
   })
 })
