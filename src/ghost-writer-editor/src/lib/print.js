@@ -1,5 +1,10 @@
 import { stripInlinePromptTokensForPresentation } from './contentTransforms'
-import { isDesktopRuntime, printCurrentWebview } from './desktopRuntime'
+import {
+  exportPdfCurrentWebview,
+  isDesktopRuntime,
+  isMacDesktopRuntime,
+  printCurrentWebview,
+} from './desktopRuntime'
 import { renderMarkdownToSafeHtml } from './markdown'
 
 const PRINT_ROOT_ID = 'ghost-writer-print-root'
@@ -10,7 +15,7 @@ let desktopPrintInFlight = false
 
 function buildPrintContentHtml({ bodyHtml }) {
   const sectionedBody = buildSectionAwarePrintBody(bodyHtml)
-  return `<article class="ghost-writer-print-main preview__content" aria-label="Print content">${sectionedBody}</article>`
+  return `<article class="ghost-writer-print-main" aria-label="Print content">${sectionedBody}</article>`
 }
 
 function buildSectionAwarePrintBody(bodyHtml = '') {
@@ -81,6 +86,15 @@ function ensurePrintStyle() {
       padding: 0;
       overflow-wrap: anywhere;
       word-break: break-word;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+      font-size: 12pt;
+      line-height: 1.5;
       color: #111827 !important;
       background: #fff !important;
     }
@@ -199,12 +213,7 @@ function createDeferredCleanup(cleanup, fallbackDelayMs = 15000) {
   return cleanupOnce
 }
 
-// Renders markdown for print/export. If showMdPrompts is true, keep inline prompts in the
-// rendered output; otherwise strip them for presentation.
-export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return false
-  if (desktopPrintInFlight && isDesktopRuntime()) return false
-
+function preparePrintDocument(markdown = '', showMdPrompts = false) {
   const preparedMarkdown = showMdPrompts
     ? markdown
     : stripInlinePromptTokensForPresentation(markdown)
@@ -220,10 +229,25 @@ export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
     cleanupPrintNodes(rootNode, styleNode)
   }
 
+  return {
+    cleanup,
+    preparedMarkdown,
+    rootNode,
+  }
+}
+
+// Renders markdown for print/export. If showMdPrompts is true, keep inline prompts in the
+// rendered output; otherwise strip them for presentation.
+export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false
+  if (desktopPrintInFlight && isDesktopRuntime()) return false
+
+  const { cleanup, rootNode } = preparePrintDocument(markdown, showMdPrompts)
+
   // Flush layout before printing so print CSS is fully applied.
   void rootNode.offsetHeight
 
-  if (isDesktopRuntime()) {
+  if (isDesktopRuntime() && isMacDesktopRuntime()) {
     desktopPrintInFlight = true
     const cleanupOnce = createDeferredCleanup(() => {
       cleanup()
@@ -257,4 +281,22 @@ export function printRenderedMarkdown(markdown = '', showMdPrompts = false) {
   }
 
   return true
+}
+
+export async function exportRenderedMarkdownAsPdf(markdown = '', showMdPrompts = false, suggestedName = 'untitled.pdf') {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false
+  if (!isDesktopRuntime()) return false
+
+  if (isMacDesktopRuntime()) {
+    return printRenderedMarkdown(markdown, showMdPrompts)
+  }
+
+  const { cleanup, rootNode } = preparePrintDocument(markdown, showMdPrompts)
+  void rootNode.offsetHeight
+
+  try {
+    return await exportPdfCurrentWebview(suggestedName)
+  } finally {
+    cleanup()
+  }
 }

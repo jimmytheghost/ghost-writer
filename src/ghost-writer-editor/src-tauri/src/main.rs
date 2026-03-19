@@ -9,7 +9,7 @@ use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 // removed duplicate Arc import
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -885,10 +885,132 @@ fn print_current_webview(window: tauri::WebviewWindow) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn export_pdf_current_webview(
+    app: tauri::AppHandle,
+    suggested_name: String,
+) -> Result<Option<String>, String> {
+    ensure_max_bytes("suggestedName", suggested_name.trim(), MAX_SUGGESTED_NAME_BYTES)?;
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        let _ = suggested_name;
+        return Err("PDF export is only supported on Windows in this build.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let safe_name = if suggested_name.trim().is_empty() {
+            "untitled.pdf".to_string()
+        } else if suggested_name.to_lowercase().ends_with(".pdf") {
+            suggested_name
+        } else {
+            format!("{suggested_name}.pdf")
+        };
+
+        let selected_path: Option<PathBuf> = with_native_dialog_window_state(&app, || {
+            rfd::FileDialog::new()
+                .set_file_name(&safe_name)
+                .add_filter("PDF", &["pdf"])
+                .save_file()
+        })?;
+
+        let Some(path) = selected_path else {
+            append_structured_log(
+                &app,
+                "info",
+                "file.export.pdf.dialog.cancelled",
+                "User cancelled PDF export dialog",
+                serde_json::json!({}),
+            );
+            return Ok(None);
+        };
+
+        let destination = canonicalize_destination_path("path", &path)?;
+        if !has_pdf_extension(&destination) {
+            return Err("ERR_INVALID_PATH:path must use a .pdf extension".to_string());
+        }
+
+        let Some(window) = app.get_webview_window("main") else {
+            return Err("ERR_PDF_EXPORT_MAIN_WINDOW_NOT_FOUND".to_string());
+        };
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let tx_for_print = tx.clone();
+        let tx_for_setup = tx.clone();
+        let destination_for_print = destination.clone();
+        let with_webview_result = window.with_webview(move |webview| unsafe {
+            let next_result = (|| {
+                let controller = webview.controller();
+                let core_webview = controller
+                    .CoreWebView2()
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_CORE:{error}"))?;
+                let core_webview_7: ICoreWebView2_7 = core_webview
+                    .cast()
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_CAST:{error}"))?;
+                let environment = webview.environment();
+                let environment6: ICoreWebView2Environment6 = environment
+                    .cast()
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_ENV_CAST:{error}"))?;
+                let print_settings = environment6
+                    .CreatePrintSettings()
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_SETTINGS:{error}"))?;
+                print_settings
+                    .SetShouldPrintBackgrounds(true)
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_SETTINGS_BG:{error}"))?;
+
+                let handler = webview2_com::PrintToPdfCompletedHandler::create(Box::new(
+                    move |error_code: windows::core::Result<()>, result: bool| {
+                    let completion = if error_code.is_ok() && result {
+                        Ok(())
+                    } else {
+                        Err(format!("ERR_WINDOWS_PDF_COMPLETED:{error_code:?}:{result}"))
+                    };
+                    let _ = tx_for_print.send(completion);
+                    Ok(())
+                },
+                ));
+
+                let wide_path: Vec<u16> = destination_for_print
+                    .to_string_lossy()
+                    .encode_utf16()
+                    .chain(std::iter::once(0))
+                    .collect();
+                let pcwstr = PCWSTR(wide_path.as_ptr());
+
+                core_webview_7
+                    .PrintToPdf(pcwstr, &print_settings, &handler)
+                    .map_err(|error| format!("ERR_WINDOWS_PDF_START:{error}"))?;
+                Ok(())
+            })();
+
+            if let Err(error) = next_result {
+                let _ = tx_for_setup.send(Err(error));
+            }
+        });
+        if let Err(error) = with_webview_result {
+            let _ = tx.send(Err(error.to_string()));
+        }
+
+        let completion = webview2_com::wait_with_pump(rx).map_err(|error| error.to_string())?;
+        completion?;
+
+        append_structured_log(
+            &app,
+            "info",
+            "file.export.pdf.success",
+            "Saved PDF via WebView2",
+            serde_json::json!({ "path": destination.to_string_lossy() }),
+        );
+        Ok(Some(destination.to_string_lossy().into_owned()))
+    }
+}
+
+#[tauri::command]
 fn prepare_macos_editor_input(window: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        let command_result = Arc::new(Mutex::new(Ok(())));
+        let command_result = Arc::new(std::sync::Mutex::new(Ok(())));
         let command_result_handle = Arc::clone(&command_result);
         window
             .with_webview(move |webview| unsafe {
@@ -1414,6 +1536,14 @@ fn has_markdown_extension(path: &Path) -> bool {
         .extension()
         .and_then(|value| value.to_str())
         .map(|value| value.eq_ignore_ascii_case("md"))
+        .unwrap_or(false)
+}
+
+fn has_pdf_extension(path: &Path) -> bool {
+    path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.eq_ignore_ascii_case("pdf"))
         .unwrap_or(false)
 }
 
@@ -2314,6 +2444,7 @@ fn main() {
             load_markdown_files_by_paths,
             open_external_url,
             print_current_webview,
+            export_pdf_current_webview,
             prepare_macos_editor_input,
             load_settings,
             save_settings,
@@ -2494,3 +2625,9 @@ fn main() {
 use objc2_app_kit::{NSPrintInfo, NSTextView, NSWindow};
 #[cfg(target_os = "macos")]
 use objc2_web_kit::WKWebView;
+#[cfg(target_os = "windows")]
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    ICoreWebView2_7, ICoreWebView2Environment6,
+};
+#[cfg(target_os = "windows")]
+use windows::core::{Interface, PCWSTR};
