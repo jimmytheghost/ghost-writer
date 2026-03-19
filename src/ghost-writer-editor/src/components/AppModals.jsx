@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { isDesktopRuntime, openExternalUrl } from '../lib/desktopRuntime'
 import { normalizeOllamaBaseUrl } from '../lib/appUtils'
+import ModelDropdown from './ModelDropdown'
 
 function uniqueWords(values = []) {
   const seen = new Set()
@@ -379,19 +380,16 @@ function AppModals({
             <label className="modal__label" htmlFor="settings-model">
               Default model
             </label>
-            <select
+            <ModelDropdown
               id="settings-model"
-              className="modal__input modal__select"
+              ariaLabel="Default model"
               value={settings.defaultModel}
-              onChange={(event) => updateSetting('defaultModel', event.target.value)}
-            >
-              <option value="">Use current model</option>
-              {models.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
+              options={models}
+              onChange={(nextValue) => updateSetting('defaultModel', nextValue)}
+              includeEmptyOption
+              emptyOptionLabel="Use current model"
+              placement="bottom"
+            />
 
             <label className="modal__label" htmlFor="settings-theme">
               Default theme

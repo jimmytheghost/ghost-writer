@@ -1,3 +1,5 @@
+import ModelDropdown from './ModelDropdown'
+
 function FooterBar({
   footerRef,
   isFooterCollapsed,
@@ -13,7 +15,6 @@ function FooterBar({
   setSelectedModel,
   models,
   loadModels,
-  isLoadingModels,
   modelLoadStatus,
   footerActionFeedback,
   isDark,
@@ -114,30 +115,22 @@ function FooterBar({
         {!isFooterCollapsed && (
           <div className="footer-controls">
             <div className="footer-model">
-              <select
+              <ModelDropdown
                 id="modelSelect"
-                className="footer-model__select"
-                aria-label="Ollama model"
+                ariaLabel="Ollama model"
                 title={selectedModel || 'No models available'}
                 value={selectedModel}
-                onChange={(event) => setSelectedModel(event.target.value)}
-                onFocus={() => {
+                options={models}
+                onChange={setSelectedModel}
+                onOpen={() => {
                   if (!models.length) {
                     void loadModels()
                   }
                 }}
-                disabled={isLoadingModels}
-              >
-                {models.length === 0 ? (
-                  <option value="">No models available</option>
-                ) : (
-                  models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))
-                )}
-              </select>
+                emptyStateLabel="No models available"
+                placement="top"
+                align="end"
+              />
               {models.length === 0 && (
                 <div className="footer-model__status">{modelLoadStatus}</div>
               )}
