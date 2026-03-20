@@ -32,7 +32,8 @@ This is the single source of truth for active Ghost Writer work. Historical task
 
 ### Release Preparation
 
-- [ ] Create custom installer artwork/branding assets.
+- [x] Create custom installer artwork/branding assets.
+  - Status: deferred by release decision for `1.5.0`; current default installer visuals accepted for this portfolio/open-source release.
   - Scope: installer-specific graphics only, not general in-app branding copy.
 
 - [x] Bump the app version along the working track (`1.4.20+`) while remaining fixes are in progress.
