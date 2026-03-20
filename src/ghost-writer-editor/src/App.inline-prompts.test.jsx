@@ -382,26 +382,38 @@ describe('App inline prompts', () => {
 
       render(<App />)
 
-      fireEvent.change(getEditor(), { target: { value: 'alpha beta gamma' } })
+      await act(async () => {
+        fireEvent.change(getEditor(), { target: { value: 'alpha beta gamma' } })
+      })
 
       const editor = getEditor()
-      editor.focus()
-      editor.setSelectionRange(6, 10)
-      fireEvent.select(editor)
+      await act(async () => {
+        editor.focus()
+        editor.setSelectionRange(6, 10)
+        fireEvent.select(editor)
+      })
 
-      fireEvent.focus(screen.getByLabelText('Prompt input'))
+      await act(async () => {
+        fireEvent.focus(screen.getByLabelText('Prompt input'))
+      })
 
       await waitFor(() => {
         expect(document.querySelector('.editor__selection-overlay')).not.toBeNull()
       })
 
-      fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'tighten this' } })
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'tighten this' } })
+      })
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Send prompt'))
       })
 
       await waitFor(() => {
         expect(document.querySelector('.editor__selection-overlay')).toBeNull()
+      })
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
       })
     } finally {
       restorePlatform()
@@ -445,12 +457,16 @@ describe('App inline prompts', () => {
     render(<App />)
 
     const editor = getEditor()
-    fireEvent.change(editor, { target: { value: '' } })
-    editor.focus()
-    editor.setSelectionRange(0, 0)
-    fireEvent.select(editor)
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: '' } })
+      editor.focus()
+      editor.setSelectionRange(0, 0)
+      fireEvent.select(editor)
+    })
 
-    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea.' } })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea.' } })
+    })
     await waitFor(() => {
       expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
     })
@@ -471,7 +487,9 @@ describe('App inline prompts', () => {
       expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
     })
 
-    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea with Sophia.' } })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story about the sea with Sophia.' } })
+    })
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText('Send prompt'))
@@ -479,6 +497,9 @@ describe('App inline prompts', () => {
 
     await waitFor(() => {
       expect(getEditor().value).toBe('Once upon a time. The old mansion had been abandoned for years.')
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
     })
 
     expect(generateBodies).toHaveLength(2)
@@ -527,7 +548,9 @@ describe('App inline prompts', () => {
     render(<App />)
 
     const editor = getEditor()
-    fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story.' } })
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Prompt input'), { target: { value: 'Write a story.' } })
+    })
     await waitFor(() => {
       expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
     })
@@ -544,10 +567,12 @@ describe('App inline prompts', () => {
       fireEvent.click(screen.getByLabelText('Stop generation'))
     })
 
-    fireEvent.change(editor, { target: { value: 'Once upon a time. A young girl named Maya' } })
-    editor.focus()
-    editor.setSelectionRange(editor.value.length, editor.value.length)
-    fireEvent.select(editor)
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: 'Once upon a time. A young girl named Maya' } })
+      editor.focus()
+      editor.setSelectionRange(editor.value.length, editor.value.length)
+      fireEvent.select(editor)
+    })
 
     await act(async () => {
       fireEvent.click(screen.getByLabelText('Send prompt'))
@@ -555,6 +580,9 @@ describe('App inline prompts', () => {
 
     await waitFor(() => {
       expect(getEditor().value).toBe('Once upon a time. A young girl named Maya and she kept walking forward.')
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).toBeInTheDocument()
     })
 
     expect(generateBodies).toHaveLength(2)

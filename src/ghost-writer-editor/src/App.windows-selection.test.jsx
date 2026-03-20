@@ -1,6 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+
+const useModelLoaderMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    isLoadingModels: false,
+    loadModels: vi.fn(async () => {}),
+    modelLoadStatus: 'Loaded 1 model(s) from cached snapshot.',
+    models: ['devstral-small-2:24b'],
+    selectedModel: 'devstral-small-2:24b',
+    setSelectedModel: vi.fn(),
+  })),
+)
+
+vi.mock('./hooks/useModelLoader', () => ({
+  useModelLoader: useModelLoaderMock,
+}))
 
 function mockNavigatorPlatform(platform) {
   const originalDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'platform')
@@ -40,13 +55,21 @@ function getEditor() {
 
 describe('App Windows selection integration', () => {
   let restorePlatform
+  let consoleErrorSpy
 
   beforeEach(() => {
     restorePlatform = mockNavigatorPlatform('Win32')
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      const payload = args
+        .map((entry) => (typeof entry === 'string' ? entry : String(entry ?? '')))
+        .join(' ')
+      if (payload.includes('not wrapped in act')) return
+    })
   })
 
   afterEach(() => {
     restorePlatform?.()
+    consoleErrorSpy?.mockRestore()
     vi.unstubAllGlobals()
   })
 
@@ -68,7 +91,9 @@ describe('App Windows selection integration', () => {
     editor.setSelectionRange(6, 10)
     fireEvent.select(editor)
 
-    fireEvent.focus(screen.getByLabelText('Prompt input'))
+    await act(async () => {
+      fireEvent.focus(screen.getByLabelText('Prompt input'))
+    })
 
     await waitFor(() => {
       expect(screen.getByText('Selected text')).toBeInTheDocument()
@@ -112,15 +137,19 @@ describe('App Windows selection integration', () => {
     fireEvent.select(editor)
 
     const promptInput = screen.getByLabelText('Prompt input')
-    fireEvent.focus(promptInput)
-    fireEvent.change(promptInput, { target: { value: 'tighten this' } })
+    await act(async () => {
+      fireEvent.focus(promptInput)
+      fireEvent.change(promptInput, { target: { value: 'tighten this' } })
+    })
 
     const sendButton = screen.getByLabelText('Send prompt')
     await waitFor(() => {
       expect(sendButton).not.toBeDisabled()
     })
 
-    fireEvent.click(sendButton)
+    await act(async () => {
+      fireEvent.click(sendButton)
+    })
 
     await waitFor(() => {
       expect(getEditor().value).toBe('alpha BETA gamma')
@@ -130,7 +159,9 @@ describe('App Windows selection integration', () => {
       expect(screen.queryByText('Selected text')).toBeNull()
     })
 
-    fireEvent.click(screen.getByLabelText('Undo generation'))
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Undo generation'))
+    })
 
     await waitFor(() => {
       expect(screen.queryByText('Selected text')).toBeNull()
@@ -161,17 +192,23 @@ describe('App Windows selection integration', () => {
     fireEvent.select(editor)
 
     const promptInput = screen.getByLabelText('Prompt input')
-    fireEvent.focus(promptInput)
-    fireEvent.change(promptInput, { target: { value: 'tighten this' } })
+    await act(async () => {
+      fireEvent.focus(promptInput)
+      fireEvent.change(promptInput, { target: { value: 'tighten this' } })
+    })
 
-    fireEvent.change(editor, { target: { value: 'alpha beta gamma delta' } })
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: 'alpha beta gamma delta' } })
+    })
 
     await waitFor(() => {
       expect(screen.getByText('Selected text changed')).toBeInTheDocument()
       expect(screen.getByText('Selection changed. Reselect text and try again.')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByLabelText('Send prompt'))
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
 
     await waitFor(() => {
       expect(screen.getAllByText('Selection changed. Reselect text and try again.')).toHaveLength(2)

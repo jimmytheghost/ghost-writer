@@ -41,15 +41,19 @@ function mockNavigatorPlatform(platform) {
 }
 
 describe('desktopRuntime diagnostics', () => {
+  let consoleWarnSpy
+
   beforeEach(() => {
     resetFrontendDiagnosticsForTests()
     invokeMock.mockReset()
     isTauriMock.mockReset()
     isTauriMock.mockReturnValue(true)
     listenMock.mockReset()
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
   afterEach(() => {
+    consoleWarnSpy?.mockRestore()
     vi.restoreAllMocks()
   })
 
