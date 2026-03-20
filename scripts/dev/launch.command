@@ -2,7 +2,7 @@
 
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 APP_DIR="$PROJECT_ROOT/src/ghost-writer-editor"
 DEV_PORT=5174
 OLLAMA_PORT=11434

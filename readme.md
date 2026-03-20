@@ -64,13 +64,13 @@ Inline placeholder behavior:
 
 ## Run Locally
 
-### Option 1: Launch scripts (project root, Tauri)
+### Option 1: Launch scripts (Tauri helpers)
 
-- Windows: `launch-dev.bat`
-- macOS: `launch.command`
-- Shell: `launch-dev.sh`
+- Windows: `scripts/dev/launch-dev.bat`
+- macOS: `scripts/dev/launch.command`
+- Shell: `scripts/dev/launch-dev.sh`
 
-Stop script (macOS): `stop.command`
+Stop script (macOS): `scripts/dev/stop.command`
 
 ### Option 2: Manual
 

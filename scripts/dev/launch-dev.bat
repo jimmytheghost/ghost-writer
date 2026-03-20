@@ -32,7 +32,7 @@ if errorlevel 1 (
   )
 )
 
-cd /d "%~dp0src\ghost-writer-editor" || (
+cd /d "%~dp0..\..\src\ghost-writer-editor" || (
   echo Failed to change directory to src\ghost-writer-editor
   pause
   exit /b 1
