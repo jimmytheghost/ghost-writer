@@ -18,7 +18,7 @@ Use the platform-specific checklists below when validating packaged Ghost Writer
 ## Core Release Checks
 
 - [ ] Windows text selection -> prompt -> replace flow
-- [ ] Ollama available vs unavailable startup behavior
+- [ ] Ollama startup behavior: auto-start when stopped, and clear fallback when truly unavailable
 - [ ] open/save/save-as/reopen/recent-files tab behavior
 - [ ] print/PDF/export flows
 - [ ] preview checkbox syncing and markdown rendering edge cases
