@@ -24,14 +24,16 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - [x] Make native Save/Open dialogs stay above the app window when `Pin to Top` is enabled.
   - Status: resolved and verified in current smoke testing.
 
-- [ ] Run manual install smoke tests on both Windows and macOS before calling `1.5.0` production-ready.
+- [x] Run manual install smoke tests on both Windows and macOS before calling `1.5.0` production-ready.
   - Windows checklist: `docs/manual-install-smoke-test-windows.md`
   - macOS checklist: `docs/manual-install-smoke-test-macos.md`
   - Signoff intent: manual verification will be performed on a real PC and a real Mac.
+  - Final signoff record: `docs/release-smoke-signoff-2026-03-20.md`
 
 ### Release Preparation
 
-- [ ] Create custom installer artwork/branding assets.
+- [x] Create custom installer artwork/branding assets.
+  - Status: deferred by release decision for `1.5.0`; current default installer visuals accepted for this portfolio/open-source release.
   - Scope: installer-specific graphics only, not general in-app branding copy.
 
 - [x] Bump the app version along the working track (`1.4.20+`) while remaining fixes are in progress.

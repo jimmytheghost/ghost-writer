@@ -1,6 +1,6 @@
 # Ghost Writer Manual Install Smoke Test (macOS)
 
-Last updated: 2026-03-06
+Last updated: 2026-03-20
 
 Use this checklist after producing a macOS app bundle, DMG, or installer build for Ghost Writer. The goal is to validate the packaged app on a real machine outside the dev workspace before calling a release production-ready.
 
@@ -8,7 +8,7 @@ Use this checklist after producing a macOS app bundle, DMG, or installer build f
 
 - [ ] Use a clean macOS machine or VM if possible.
 - [ ] Prefer a machine that does not already have a Ghost Writer dev build installed.
-- [ ] If Ollama-dependent flows are part of the release scope, test once with Ollama available and once with Ollama unavailable.
+- [ ] If Ollama-dependent flows are in scope, test both: (1) app startup with Ollama initially stopped (auto-start expected), and (2) a truly unavailable Ollama case (error fallback expected).
 - [ ] Keep a simple test notes file and record pass/fail results with screenshots for anything unexpected.
 
 ## Before You Start
@@ -52,7 +52,7 @@ Use this checklist after producing a macOS app bundle, DMG, or installer build f
 
 ## Core Release Checks:
 - [ ] Windows text selection -> prompt -> replace flow
-- [ ] Ollama available vs unavailable startup behavior
+- [ ] Ollama startup behavior: auto-start when stopped, and clear fallback when truly unavailable
 - [ ] open/save/save-as/reopen/recent-files tab behavior
 - [ ] print/PDF/export flows
 - [ ] preview checkbox syncing and markdown rendering edge cases
@@ -165,6 +165,8 @@ Run this section only if the release includes prompt-generation functionality.
 
 ### With Ollama Available
 
+- [ ] Fully quit both Ghost Writer and Ollama before launch.
+- [ ] Launch Ghost Writer and confirm Ollama becomes reachable during startup.
 - [ ] Select text in the editor before opening the prompt input.
 - [ ] Confirm the persistent in-editor selection highlight still clearly shows the intended edit target.
 - [ ] Confirm the model list loads automatically at app launch.
@@ -176,9 +178,9 @@ Run this section only if the release includes prompt-generation functionality.
 - [ ] Confirm undo/redo generation controls work if enabled.
 - [ ] Confirm switching tabs during or after generation does not corrupt content.
 
-### With Ollama Unavailable
+### With Ollama Truly Unavailable
 
-- [ ] Launch the app while Ollama is stopped.
+- [ ] Launch the app in a true unavailable state (for example: Ollama not installed, blocked, or configured to an unreachable endpoint).
 - [ ] Confirm the app does not crash.
 - [ ] Confirm the user sees a clear error state.
 - [ ] Confirm the model dropdown shows no stale or cached models.
@@ -208,7 +210,7 @@ Do not call the release production-ready until all of the following are true:
 - [ ] App launches from Applications, Launchpad, Finder, or Spotlight as intended.
 - [ ] Core editing, save/open, preview, close protection, and session restore all pass.
 - [ ] Export/print flows pass at least one smoke test each.
-- [ ] Prompt/Ollama flows pass for both available and unavailable cases if they are in scope.
+- [ ] Prompt/Ollama flows pass for auto-start and truly unavailable fallback cases if they are in scope.
 - [ ] No user-facing crashes, corrupted text, or obvious UI regressions were observed.
 - [ ] Any failures are either fixed or explicitly accepted and documented before release.
 - [ ] macOS persistent in-editor selection highlight remains visually correct during editor-to-prompt transitions.
