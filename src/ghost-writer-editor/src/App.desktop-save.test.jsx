@@ -600,6 +600,7 @@ describe('App desktop save flow', () => {
 
     const modelSelect = screen.getByLabelText('Ollama model')
     expect(modelSelect).toHaveValue('')
+    fireEvent.click(modelSelect)
     expect(screen.getByRole('option', { name: 'No models available' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'devstral-small-2:24b' })).not.toBeInTheDocument()
   })
