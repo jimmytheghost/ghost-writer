@@ -60,7 +60,7 @@ Inline placeholder behavior:
 
 - Node.js `20.19+` or `22.12+`
 - npm
-- Ollama running locally with at least one installed model
+- Ollama installed locally with at least one installed model
 
 ## Run Locally
 
@@ -118,8 +118,9 @@ Default desktop window sizing:
 Model dropdown behavior:
 
 - On desktop (macOS and Windows), Ghost Writer loads the user's installed Ollama models live when the app starts.
+- On desktop startup, Ghost Writer attempts to auto-start Ollama for local endpoints when Ollama is not already running.
 - The desktop app uses the Tauri backend to query Ollama at runtime, so each machine sees its own currently installed models.
-- If Ollama is unavailable at launch, the model picker should stay empty and show a clear error instead of listing stale models.
+- If Ollama is truly unavailable (not installed, blocked, or unreachable), the model picker stays empty and shows a clear error instead of listing stale models.
 - `npm run sync:models` still writes:
   - `src/ghost-writer-editor/public/ollama-models.json`
   - `src/ghost-writer-editor/src/generated/ollama-models.json`
@@ -142,21 +143,21 @@ ollama pull llama3.1:8b
 ollama list
 ```
 
-3. Start Ollama on that machine if it is not already running.
-
-```bash
-ollama serve
-```
-
-4. Launch/relaunch Tauri:
+3. Start Tauri (Ghost Writer will auto-start Ollama when possible):
 
 ```bash
 cd src/ghost-writer-editor
 npm run dev:tauri
 ```
 
+4. Optional manual check/troubleshooting:
+
+```bash
+ollama serve
+```
+
 After launch, the footer model dropdown should show the models currently installed on that machine.
-If Ollama is down, the dropdown should show no models and an error state.
+If Ollama is truly unavailable, the dropdown should show no models and an error state.
 
 For full setup, failure recovery, and cross-machine behavior, use:
 - `docs/agent-workflows/local-models-runbook.md`
