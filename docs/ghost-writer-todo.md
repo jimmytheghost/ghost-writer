@@ -24,10 +24,11 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - [x] Make native Save/Open dialogs stay above the app window when `Pin to Top` is enabled.
   - Status: resolved and verified in current smoke testing.
 
-- [ ] Run manual install smoke tests on both Windows and macOS before calling `1.5.0` production-ready.
+- [x] Run manual install smoke tests on both Windows and macOS before calling `1.5.0` production-ready.
   - Windows checklist: `docs/manual-install-smoke-test-windows.md`
   - macOS checklist: `docs/manual-install-smoke-test-macos.md`
   - Signoff intent: manual verification will be performed on a real PC and a real Mac.
+  - Final signoff record: `docs/release-smoke-signoff-2026-03-20.md`
 
 ### Release Preparation
 
