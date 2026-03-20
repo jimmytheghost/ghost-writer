@@ -6,8 +6,8 @@ This is the single source of truth for active Ghost Writer work. Historical task
 
 ## Release Track
 
-- Current shipped baseline: `1.4.20`
-- Next working version: `1.4.20+`
+- Current shipped baseline: `1.5.0`
+- Next working version: `1.5.0+`
 - Production release target: `1.5.0`
 
 ## Active Work
@@ -15,7 +15,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 ### Release Blockers
 
 - [x] Fix the Windows cursor/input desync that reproduced in longer documents.
-  - Status: resolved in the `1.4.20` track and verified in current smoke testing.
+  - Status: resolved in the `1.5.0` track and verified in current smoke testing.
   - Shipping behavior:
     - On Windows, Ghost Writer avoids persistent blurred in-editor selection overlays after blur.
     - Selection intent is preserved in app state and shown near the prompt when needed.
@@ -36,13 +36,13 @@ This is the single source of truth for active Ghost Writer work. Historical task
   - Status: deferred by release decision for `1.5.0`; current default installer visuals accepted for this portfolio/open-source release.
   - Scope: installer-specific graphics only, not general in-app branding copy.
 
-- [x] Bump the app version along the working track (`1.4.20+`) while remaining fixes are in progress.
-  - `1.5.0` is reserved for the production release once blockers and smoke tests are complete.
+- [x] Bump the app version along the working track (`1.5.0+`) while remaining fixes are in progress.
+  - `1.5.0` is now the production release baseline.
 
 ## Current Baseline
 
-- `1.4.20` is the current repo/app version.
-- Completed before shipping `1.4.20`:
+- `1.5.0` is the current repo/app version.
+- Completed before shipping `1.5.0`:
   - Default desktop window size updated to `600 x 900`.
   - Branding copy updated to `Vibe Coded by JimmyTheGhost (www.JimmyWeber.com)`.
   - Markdown preview/editor scroll sync behavior adjusted to remove visible shake/blur looping.
@@ -65,7 +65,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - `npm run lint` passed.
 - `npm run build` passed.
 - `cargo check` passed.
-- `npm run build:tauri:mac` is the current packaging target for `1.4.20`.
+- `npm run build:tauri:mac` is the current packaging target for `1.5.0`.
 - `npm run check` passed on `2026-03-20` in the release hardening worktree.
 
 ## Current UX Direction

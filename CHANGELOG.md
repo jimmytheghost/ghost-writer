@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.0] - 2026-03-20
+
+### Changed
+
+- Promoted release version to `1.5.0`.
+- Finalized release-hardening updates (manual smoke signoff, checklist alignment, and release readiness docs).
+
 ## [1.4.20] - 2026-03-19
 
 ### Changed
