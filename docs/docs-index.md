@@ -31,5 +31,6 @@
 - `docs/_old/README.md` explains how to treat archived material.
 - Keep runbooks, references, feature notes, and dev logs in place unless they are clearly obsolete.
 - Do not use archived docs as the source of truth for current work.
+- Treat local QA/release artifact paths (for example `docs/diagnostics/`, `docs/bug-reports/`, and `docs/RTF-export/`) as local-only workflow outputs, not canonical docs.
 
 Actionable items now live in `ghost-writer-todo.md`.

@@ -8,3 +8,8 @@ build
 coverage
 _backups/
 build-artifacts/
+.worktrees/
+docs/diagnostics/
+docs/bug-reports/
+docs/RTF-export/
+docs/agent-workflows/bugfix-pr-runbook.md

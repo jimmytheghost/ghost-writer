@@ -24,6 +24,16 @@ Two backup directories may exist in this repository:
   - Local scratch backups for manual edits/recovery.
   - Explicitly gitignored and local-only.
 
+## Local-Only QA/Release Artifacts
+
+The following paths are local workflow artifacts and are gitignored:
+
+- `.worktrees/`
+- `docs/diagnostics/`
+- `docs/bug-reports/`
+- `docs/RTF-export/`
+- `docs/agent-workflows/bugfix-pr-runbook.md`
+
 ## Shipping And Release Policy
 
 - Backup directories are local workflow artifacts and must not be shipped as release content.
