@@ -600,8 +600,8 @@ describe('App desktop save flow', () => {
 
     const modelSelect = screen.getByLabelText('Ollama model')
     expect(modelSelect).toHaveValue('')
-    expect(screen.getByRole('option', { name: 'No models available' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'devstral-small-2:24b' })).not.toBeInTheDocument()
+    expect(modelSelect).toHaveTextContent('No models available')
+    expect(modelSelect).not.toHaveTextContent('devstral-small-2:24b')
   })
 
   it('auto-saves dirty saved tabs to their existing path when enabled', async () => {

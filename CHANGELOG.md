@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.20] - 2026-03-19
+
+### Changed
+
+- Bumped app version to `1.4.20`.
+- Updated Windows selection + prompt behavior to preserve selection intent without relying on blurred in-editor overlays.
+- Kept desktop Ollama model loading as live runtime behavior and continued showing explicit empty/error state when Ollama is unavailable.
+- Hardened close/save/session-restore and prompt stream/cancel behavior through regression and smoke-test follow-up fixes.
+
 ## [1.4.7] - 2026-03-05
 
 ### Changed

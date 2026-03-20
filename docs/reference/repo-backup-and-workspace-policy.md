@@ -1,13 +1,13 @@
 # Repo Backup And Workspace Policy
 
-Last reviewed: 2026-03-06
+Last reviewed: 2026-03-20
 
 ## Workspace Ownership
 
 Ghost Writer uses two `package.json` files with different roles:
 
 - `src/ghost-writer-editor/package.json` is the app workspace manifest.
-  - Owns app versioning (`1.4.18` current app version), scripts, and dependencies for development/build/test/release.
+  - Owns app versioning (`1.4.20` current app version), scripts, and dependencies for development/build/test/release.
   - All contributor commands should run from `src/ghost-writer-editor/`.
 - `package.json` at repo root is not the app workspace manifest.
   - Treat it as repository-level support only.
