@@ -30,6 +30,7 @@ describe('AppModals settings', () => {
           defaultStartupPreview: false,
           defaultSpellCheck: false,
           defaultShowMdPrompts: true,
+          promptHoverBorderEnabled: true,
           autoSaveEnabled: false,
           autoSaveIntervalSeconds: 60,
           ollamaBaseUrl: 'http://127.0.0.1:11434',
@@ -62,6 +63,9 @@ describe('AppModals settings', () => {
     fireEvent.click(screen.getByLabelText('Show MD prompts in preview/export by default'))
     expect(updateSetting).toHaveBeenCalledWith('defaultShowMdPrompts', false)
 
+    fireEvent.click(screen.getByLabelText('Show contrasting hover border on prompt input'))
+    expect(updateSetting).toHaveBeenCalledWith('promptHoverBorderEnabled', false)
+
     fireEvent.change(screen.getByLabelText('Auto save interval (seconds)'), { target: { value: '30' } })
     expect(updateSetting).toHaveBeenCalledWith('autoSaveIntervalSeconds', 30)
 
@@ -93,6 +97,7 @@ describe('AppModals settings', () => {
           defaultStartupPreview: false,
           defaultSpellCheck: false,
           defaultShowMdPrompts: true,
+          promptHoverBorderEnabled: true,
           autoSaveEnabled: false,
           autoSaveIntervalSeconds: 60,
           ollamaBaseUrl: 'http://127.0.0.1:11434',

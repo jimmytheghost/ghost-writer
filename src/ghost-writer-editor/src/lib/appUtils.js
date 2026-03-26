@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   defaultSpellCheck: false,
   // Whether to show inline Markdown prompts ({{...}}) in previews/exports
   defaultShowMdPrompts: true,
+  promptHoverBorderEnabled: true,
   customWordList: [...DEFAULT_CUSTOM_WORD_LIST],
   customWordListDisabled: [],
   autoSaveEnabled: false,

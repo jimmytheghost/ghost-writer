@@ -447,6 +447,14 @@ function AppModals({
             <label className="modal__checkbox">
               <input
                 type="checkbox"
+                checked={Boolean(settings.promptHoverBorderEnabled)}
+                onChange={(event) => updateSetting('promptHoverBorderEnabled', event.target.checked)}
+              />
+              Show contrasting hover border on prompt input
+            </label>
+            <label className="modal__checkbox">
+              <input
+                type="checkbox"
                 checked={Boolean(settings.autoSaveEnabled)}
                 onChange={(event) => updateSetting('autoSaveEnabled', event.target.checked)}
               />
