@@ -2242,6 +2242,21 @@ function App() {
     [switchActiveTab]
   )
 
+  const handleTabReorder = useCallback((draggedTabId, targetTabId) => {
+    if (!draggedTabId || !targetTabId || draggedTabId === targetTabId) return
+
+    setTabs((currentTabs) => {
+      const draggedIndex = currentTabs.findIndex((tab) => tab.id === draggedTabId)
+      const targetIndex = currentTabs.findIndex((tab) => tab.id === targetTabId)
+      if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) return currentTabs
+
+      const nextTabs = [...currentTabs]
+      const [draggedTab] = nextTabs.splice(draggedIndex, 1)
+      nextTabs.splice(targetIndex, 0, draggedTab)
+      return nextTabs
+    })
+  }, [])
+
   const handleConfirmAlreadyOpen = useCallback(() => {
     if (!alreadyOpenTab) return
     switchActiveTab(alreadyOpenTab.id, { clearWindowsSelection: true })
@@ -2845,6 +2860,7 @@ ${escapeLatex(exportMarkdownSource)}
           onSelectTab={handleTabSelect}
           onCreateTab={handleNew}
           onCloseTab={handleCloseTab}
+          onReorderTabs={handleTabReorder}
         />
       )}
       <main className={`app__main${isPromptPanelHidden ? ' app__main--focus-editor' : ''}`}>

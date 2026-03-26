@@ -123,4 +123,48 @@ describe('App tabs', () => {
     expect(screen.getByLabelText('Toggle markdown preview')).toHaveAttribute('aria-pressed', 'false')
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
+
+  it('reorders tabs live when dragging over another tab', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
+    const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
+
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => tabOne)
+
+    fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 240, clientY: 13 })
+    fireEvent.mouseUp(window)
+
+    document.elementFromPoint = originalElementFromPoint
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled 3', 'Untitled', 'Untitled 2'])
+  })
+
+  it('ignores vertical-dominant drag movement for tab reorder', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
+    const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
+
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => tabOne)
+
+    fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 295, clientY: 48 })
+    fireEvent.mouseUp(window)
+
+    document.elementFromPoint = originalElementFromPoint
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled', 'Untitled 2', 'Untitled 3'])
+  })
 })
