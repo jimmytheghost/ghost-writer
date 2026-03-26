@@ -891,9 +891,10 @@ function App() {
       })
     },
     onSelectionRangeConsumed: clearVisibleSelectionRange,
-    onGenerationCursorChange: (tabId, nextCursorPosition) => {
+    onGenerationCursorChange: (tabId, nextCursorPosition, options = {}) => {
       if (!tabId || !Number.isFinite(Number(nextCursorPosition))) return
       const safePosition = Math.max(0, Number(nextCursorPosition))
+      const shouldRequestFocus = options.requestFocus !== false
       setSelectionRangesByTab((currentRanges) => {
         const previousRange = currentRanges[tabId]
         const nextRange = { start: safePosition, end: safePosition }
@@ -905,6 +906,9 @@ function App() {
           [tabId]: nextRange,
         }
       })
+      if (tabId === activeTabId && shouldRequestFocus) {
+        setEditorFocusRequestId((current) => current + 1)
+      }
     },
     onSelectionTargetConsumed: rememberWindowsSelectionContext,
     onSelectionTargetUndo: hideWindowsSelectionContext,
