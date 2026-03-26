@@ -8,18 +8,9 @@ function formatTabLabel(title = '') {
 function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab, onReorderTabs }) {
   const pointerDragRef = useRef(null)
   const isTrackingPointerRef = useRef(false)
-
-  const stopPointerTracking = useCallback(() => {
-    if (!isTrackingPointerRef.current) return
-    window.removeEventListener('mousemove', handlePointerMove)
-    window.removeEventListener('mouseup', handlePointerUp)
-    isTrackingPointerRef.current = false
-  }, [])
-
-  const resetPointerDrag = useCallback(() => {
-    pointerDragRef.current = null
-    stopPointerTracking()
-  }, [stopPointerTracking])
+  const stopPointerTrackingRef = useRef(() => {})
+  const previousBodyUserSelectRef = useRef('')
+  const previousBodyWebkitUserSelectRef = useRef('')
 
   const handlePointerMove = useCallback(
     (event) => {
@@ -37,27 +28,41 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab, onReo
         dragState.hasHorizontalIntent = true
       }
 
-      const targetElement = document.elementFromPoint?.(event.clientX, event.clientY)
-      if (!(targetElement instanceof Element)) return
+      const tabWidth = Math.max(dragState.estimatedTabWidth ?? 0, 1)
+      const movedSlots = Math.round(deltaX / tabWidth)
+      const targetIndex = Math.max(0, Math.min(tabs.length - 1, dragState.initialIndex + movedSlots))
+      if (targetIndex === dragState.lastTargetIndex) return
 
-      const targetTab = targetElement.closest('[data-tab-id]')
-      const targetTabId = targetTab?.getAttribute('data-tab-id')
-      if (!targetTabId || targetTabId === dragState.draggedTabId) return
-      if (targetTabId === dragState.lastTargetTabId) return
-
-      onReorderTabs?.(dragState.draggedTabId, targetTabId)
-      dragState.lastTargetTabId = targetTabId
+      onReorderTabs?.(dragState.draggedTabId, targetIndex)
+      dragState.lastTargetIndex = targetIndex
     },
-    [onReorderTabs],
+    [onReorderTabs, tabs.length],
   )
 
   const handlePointerUp = useCallback(() => {
-    resetPointerDrag()
-  }, [resetPointerDrag])
+    pointerDragRef.current = null
+    const bodyStyle = document.body?.style
+    if (bodyStyle) {
+      bodyStyle.userSelect = previousBodyUserSelectRef.current || ''
+      bodyStyle.webkitUserSelect = previousBodyWebkitUserSelectRef.current || ''
+    }
+    stopPointerTrackingRef.current()
+  }, [])
+
+  const stopPointerTracking = useCallback(() => {
+    if (!isTrackingPointerRef.current) return
+    window.removeEventListener('mousemove', handlePointerMove)
+    window.removeEventListener('mouseup', handlePointerUp)
+    isTrackingPointerRef.current = false
+  }, [handlePointerMove, handlePointerUp])
+
+  useEffect(() => {
+    stopPointerTrackingRef.current = stopPointerTracking
+  }, [stopPointerTracking])
 
   useEffect(() => () => {
-    stopPointerTracking()
-  }, [stopPointerTracking])
+    stopPointerTrackingRef.current()
+  }, [])
 
   return (
     <div className="tab-bar" role="tablist" aria-label="Document tabs">
@@ -79,13 +84,24 @@ function TabBar({ tabs, activeTabId, onSelectTab, onCreateTab, onCloseTab, onReo
               onMouseDown={(event) => {
                 if (event.button !== 0) return
                 if (event.target instanceof Element && event.target.closest('.tab-bar__close')) return
-                stopPointerTracking()
+                stopPointerTrackingRef.current()
+                const bodyStyle = document.body?.style
+                if (bodyStyle) {
+                  previousBodyUserSelectRef.current = bodyStyle.userSelect
+                  previousBodyWebkitUserSelectRef.current = bodyStyle.webkitUserSelect
+                  bodyStyle.userSelect = 'none'
+                  bodyStyle.webkitUserSelect = 'none'
+                }
+                const tabWidth = event.currentTarget.getBoundingClientRect().width || 120
+                const initialIndex = tabs.findIndex((candidate) => candidate.id === tab.id)
                 pointerDragRef.current = {
                   draggedTabId: tab.id,
                   startX: event.clientX,
                   startY: event.clientY,
+                  initialIndex: Math.max(0, initialIndex),
+                  estimatedTabWidth: tabWidth,
                   hasHorizontalIntent: false,
-                  lastTargetTabId: null,
+                  lastTargetIndex: Math.max(0, initialIndex),
                 }
                 window.addEventListener('mousemove', handlePointerMove)
                 window.addEventListener('mouseup', handlePointerUp)

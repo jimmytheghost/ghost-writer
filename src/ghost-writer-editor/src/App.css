@@ -76,6 +76,8 @@
   font-size: 12px;
   font-weight: var(--font-weight-medium);
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 

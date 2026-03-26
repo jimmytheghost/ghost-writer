@@ -2242,17 +2242,19 @@ function App() {
     [switchActiveTab]
   )
 
-  const handleTabReorder = useCallback((draggedTabId, targetTabId) => {
-    if (!draggedTabId || !targetTabId || draggedTabId === targetTabId) return
+  const handleTabReorder = useCallback((draggedTabId, targetIndex) => {
+    if (!draggedTabId || !Number.isInteger(targetIndex)) return
 
     setTabs((currentTabs) => {
       const draggedIndex = currentTabs.findIndex((tab) => tab.id === draggedTabId)
-      const targetIndex = currentTabs.findIndex((tab) => tab.id === targetTabId)
-      if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) return currentTabs
+      if (draggedIndex < 0) return currentTabs
+
+      const safeTargetIndex = Math.max(0, Math.min(currentTabs.length - 1, targetIndex))
+      if (draggedIndex === safeTargetIndex) return currentTabs
 
       const nextTabs = [...currentTabs]
       const [draggedTab] = nextTabs.splice(draggedIndex, 1)
-      nextTabs.splice(targetIndex, 0, draggedTab)
+      nextTabs.splice(safeTargetIndex, 0, draggedTab)
       return nextTabs
     })
   }, [])

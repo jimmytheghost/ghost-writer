@@ -133,14 +133,9 @@ describe('App tabs', () => {
     const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
-    const originalElementFromPoint = document.elementFromPoint
-    document.elementFromPoint = vi.fn(() => tabOne)
-
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
-    fireEvent.mouseMove(window, { clientX: 240, clientY: 13 })
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 13 })
     fireEvent.mouseUp(window)
-
-    document.elementFromPoint = originalElementFromPoint
 
     const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
     expect(tabLabels).toEqual(['Untitled 3', 'Untitled', 'Untitled 2'])
@@ -155,16 +150,28 @@ describe('App tabs', () => {
     const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
-    const originalElementFromPoint = document.elementFromPoint
-    document.elementFromPoint = vi.fn(() => tabOne)
-
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
     fireEvent.mouseMove(window, { clientX: 295, clientY: 48 })
     fireEvent.mouseUp(window)
 
-    document.elementFromPoint = originalElementFromPoint
-
     const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
     expect(tabLabels).toEqual(['Untitled', 'Untitled 2', 'Untitled 3'])
+  })
+
+  it('moves multiple tab slots during one long horizontal drag', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabFour = screen.getByRole('tab', { name: 'Switch to Untitled 4' })
+
+    fireEvent.mouseDown(tabFour, { button: 0, clientX: 480, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 60, clientY: 12 })
+    fireEvent.mouseUp(window)
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled 4', 'Untitled', 'Untitled 2', 'Untitled 3'])
   })
 })

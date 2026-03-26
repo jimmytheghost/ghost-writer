@@ -82,12 +82,9 @@ describe('App desktop tab reorder persistence', () => {
     const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
-    const originalElementFromPoint = document.elementFromPoint
-    document.elementFromPoint = vi.fn(() => tabOne)
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
-    fireEvent.mouseMove(window, { clientX: 240, clientY: 13 })
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 13 })
     fireEvent.mouseUp(window)
-    document.elementFromPoint = originalElementFromPoint
 
     await waitFor(() => {
       expect(desktopRuntimeMocks.saveSettings).toHaveBeenCalled()
