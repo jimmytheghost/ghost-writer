@@ -42,6 +42,7 @@ import {
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import { exportRenderedMarkdownAsPdf, printRenderedMarkdown } from './lib/print'
 import { getMisspelledWordCounts, preloadSpellcheck, setCustomSpellcheckWords } from './lib/spellcheck'
+import { checkForAppUpdate } from './lib/updateChecker'
 import {
   createNewTab,
   replaceActiveTab,
@@ -241,6 +242,8 @@ function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [appName, setAppName] = useState(DEFAULT_APP_NAME)
   const [appVersion, setAppVersion] = useState(DEFAULT_APP_VERSION)
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false)
+  const [updateCheckStatus, setUpdateCheckStatus] = useState('')
   const [isPromptFocused, setIsPromptFocused] = useState(false)
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(() => readInitialAlwaysOnTop())
   const [isPromptPanelHidden, setIsPromptPanelHidden] = useState(false)
@@ -291,6 +294,7 @@ function App() {
   const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
   const dirtyCloseConfirmResolverRef = useRef(null)
   const activeTabIdRef = useRef(activeTabId)
+  const hasCheckedForUpdatesOnLaunchRef = useRef(false)
 
   const escapeFindQueryForRegex = useCallback((query) => {
     return query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -959,6 +963,50 @@ function App() {
   }, [setPromptError])
 
   useDesktopAppMetadata({ setAppName, setAppVersion })
+
+  const handleCheckForUpdates = useCallback(async ({ isStartupCheck = false } = {}) => {
+    if (isCheckingForUpdates) return
+    if (isStartupCheck && typeof navigator !== 'undefined' && navigator.onLine === false) return
+
+    setIsCheckingForUpdates(true)
+    setUpdateCheckStatus('Checking for updates...')
+
+    const result = await checkForAppUpdate({ currentVersion: appVersion })
+
+    if (!result.ok) {
+      if (!isStartupCheck) {
+        setUpdateCheckStatus('Could not check for updates. Please try again.')
+      } else {
+        setUpdateCheckStatus('')
+      }
+      setIsCheckingForUpdates(false)
+      return
+    }
+
+    if (result.updateAvailable) {
+      const message = `Update available: Version ${result.latestVersion}.`
+      setUpdateCheckStatus(message)
+      setFooterActionFeedback({ action: 'update', message })
+      setIsCheckingForUpdates(false)
+      return
+    }
+
+    if (isStartupCheck) {
+      setUpdateCheckStatus('')
+    } else {
+      setUpdateCheckStatus(`You're up to date (Version ${appVersion}).`)
+    }
+
+    setIsCheckingForUpdates(false)
+  }, [appVersion, isCheckingForUpdates])
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return
+    if (hasCheckedForUpdatesOnLaunchRef.current) return
+
+    hasCheckedForUpdatesOnLaunchRef.current = true
+    void handleCheckForUpdates({ isStartupCheck: true })
+  }, [handleCheckForUpdates])
 
   const applySettings = useCallback((nextSettings) => {
     setTheme(nextSettings.defaultTheme === 'light' ? 'light' : 'dark')
@@ -3075,6 +3123,11 @@ ${escapeLatex(exportMarkdownSource)}
         onExportDiagnostics={() => {
           void handleExportDiagnostics()
         }}
+        onCheckForUpdates={() => {
+          void handleCheckForUpdates()
+        }}
+        isCheckingForUpdates={isCheckingForUpdates}
+        updateCheckStatus={updateCheckStatus}
       />
     </div>
   )

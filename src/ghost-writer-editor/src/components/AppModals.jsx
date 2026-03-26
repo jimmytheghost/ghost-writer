@@ -260,6 +260,9 @@ function AppModals({
   onConfirmDirtyCloseDiscard = () => {},
   onCancelDirtyCloseConfirm = () => {},
   onExportDiagnostics = () => {},
+  onCheckForUpdates = () => {},
+  isCheckingForUpdates = false,
+  updateCheckStatus = '',
 }) {
   const normalizedWordList = Array.isArray(settings.customWordList) ? settings.customWordList : []
   const normalizedDisabledWordList = Array.isArray(settings.customWordListDisabled)
@@ -628,8 +631,21 @@ function AppModals({
               <p>Quick start to download a model:</p>
               <pre className="about-modal__code">ollama pull llama3.1:8b</pre>
               <p>Then restart Ghost Writer and you’re ready to write.</p>
+              {updateCheckStatus ? (
+                <p className="about-modal__meta" role="status" aria-live="polite">
+                  {updateCheckStatus}
+                </p>
+              ) : null}
             </div>
             <div className="modal__actions">
+              <button
+                type="button"
+                className="modal__button"
+                onClick={onCheckForUpdates}
+                disabled={isCheckingForUpdates}
+              >
+                {isCheckingForUpdates ? 'Checking for updates...' : 'Check for update'}
+              </button>
               <button type="button" className="modal__button" onClick={onExportDiagnostics}>
                 Export diagnostics
               </button>
