@@ -116,4 +116,90 @@ describe('AppModals settings', () => {
     fireEvent.change(screen.getByLabelText('Editor text zoom'), { target: { value: '4' } })
     expect(updateSetting).toHaveBeenCalledWith('defaultTextZoom', '150%')
   })
+
+  it('shows check-for-update controls in About Ghost Writer', () => {
+    const onCheckForUpdates = vi.fn()
+
+    render(
+      <AppModals
+        isAboutOpen
+        setIsAboutOpen={() => {}}
+        isSettingsOpen={false}
+        setIsSettingsOpen={() => {}}
+        isWordListOpen={false}
+        setIsWordListOpen={() => {}}
+        isTextZoomOpen={false}
+        setIsTextZoomOpen={() => {}}
+        settings={{
+          defaultModel: '',
+          defaultTheme: 'dark',
+          defaultTextZoom: '100%',
+          defaultAlwaysOnTop: false,
+          defaultFooterCollapsed: true,
+          defaultStartupPreview: false,
+          defaultSpellCheck: false,
+          defaultShowMdPrompts: true,
+          autoSaveEnabled: false,
+          autoSaveIntervalSeconds: 60,
+          ollamaBaseUrl: 'http://127.0.0.1:11434',
+          customWordList: [],
+          customWordListDisabled: [],
+        }}
+        updateSetting={() => {}}
+        saveWordListSettings={() => {}}
+        textZoomOptions={['50%', '75%', '100%', '125%', '150%']}
+        models={[]}
+        appName="Ghost Writer"
+        appVersion="1.5.1"
+        onCheckForUpdates={onCheckForUpdates}
+        updateCheckStatus="Update available: Version 1.5.2."
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check for update' }))
+    expect(onCheckForUpdates).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Update available: Version 1.5.2.')).toBeInTheDocument()
+  })
+
+  it('disables check-for-update button while checking', () => {
+    render(
+      <AppModals
+        isAboutOpen
+        setIsAboutOpen={() => {}}
+        isSettingsOpen={false}
+        setIsSettingsOpen={() => {}}
+        isWordListOpen={false}
+        setIsWordListOpen={() => {}}
+        isTextZoomOpen={false}
+        setIsTextZoomOpen={() => {}}
+        settings={{
+          defaultModel: '',
+          defaultTheme: 'dark',
+          defaultTextZoom: '100%',
+          defaultAlwaysOnTop: false,
+          defaultFooterCollapsed: true,
+          defaultStartupPreview: false,
+          defaultSpellCheck: false,
+          defaultShowMdPrompts: true,
+          autoSaveEnabled: false,
+          autoSaveIntervalSeconds: 60,
+          ollamaBaseUrl: 'http://127.0.0.1:11434',
+          customWordList: [],
+          customWordListDisabled: [],
+        }}
+        updateSetting={() => {}}
+        saveWordListSettings={() => {}}
+        textZoomOptions={['50%', '75%', '100%', '125%', '150%']}
+        models={[]}
+        appName="Ghost Writer"
+        appVersion="1.5.1"
+        onCheckForUpdates={() => {}}
+        isCheckingForUpdates
+        updateCheckStatus="Checking for updates..."
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Checking for updates...' })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Checking for updates...')
+  })
 })
