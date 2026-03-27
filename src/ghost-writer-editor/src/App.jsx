@@ -3012,6 +3012,7 @@ ${escapeLatex(exportMarkdownSource)}
             promptError={promptError}
             selectionContext={activeWindowsSelectionContext}
             handleClearSelectionContext={clearWindowsSelectionContext}
+            isHoverBorderEnabled={Boolean(settings.promptHoverBorderEnabled)}
           />
         )}
       </main>

@@ -22,6 +22,7 @@ function PromptPanel({
   onPromptBlur,
   selectionContext = null,
   handleClearSelectionContext,
+  isHoverBorderEnabled = true,
 }) {
   const promptInputRef = useRef(null)
 
@@ -33,7 +34,11 @@ function PromptPanel({
   }, [showStoppedToast])
 
   return (
-    <section className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}`}>
+    <section
+      className={`prompt-panel${isDark ? ' prompt-panel--dark' : ''}${
+        isHoverBorderEnabled ? ' prompt-panel--hover-border-enabled' : ''
+      }`}
+    >
       <form ref={promptFormRef} className="prompt-panel__form" onSubmit={handlePromptSubmit}>
         {selectionContext && (
           <div

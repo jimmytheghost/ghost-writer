@@ -83,6 +83,8 @@ struct AppSettings {
     default_spell_check: bool,
     #[serde(default = "default_show_md_prompts")]
     default_show_md_prompts: bool,
+    #[serde(default = "default_prompt_hover_border_enabled")]
+    prompt_hover_border_enabled: bool,
     #[serde(default)]
     auto_save_enabled: bool,
     #[serde(default = "default_auto_save_interval_seconds")]
@@ -129,6 +131,10 @@ fn default_show_md_prompts() -> bool {
     true
 }
 
+fn default_prompt_hover_border_enabled() -> bool {
+    true
+}
+
 fn default_session_next_untitled_index() -> u32 {
     2
 }
@@ -152,6 +158,7 @@ impl Default for AppSettings {
             default_startup_preview: false,
             default_spell_check: false,
             default_show_md_prompts: default_show_md_prompts(),
+            prompt_hover_border_enabled: default_prompt_hover_border_enabled(),
             auto_save_enabled: false,
             auto_save_interval_seconds: default_auto_save_interval_seconds(),
             ollama_base_url: default_ollama_base_url(),

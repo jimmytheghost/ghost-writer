@@ -26,6 +26,16 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('margin-bottom: var(--space-1);')
   })
 
+  it('animates contrasting prompt input hover border with a 1s fade for light and dark themes', () => {
+    expect(appCss).toContain('.prompt-panel--hover-border-enabled .prompt-panel__form::after {')
+    expect(appCss).toContain('opacity: 0;')
+    expect(appCss).toContain('transition: opacity 1s ease;')
+    expect(appCss).toContain('.prompt-panel--hover-border-enabled .prompt-panel__form:hover::after,')
+    expect(appCss).toContain('.prompt-panel--hover-border-enabled .prompt-panel__form:focus-within::after {')
+    expect(appCss).toContain('opacity: 1;')
+    expect(appCss).toContain('.app--dark .prompt-panel--hover-border-enabled .prompt-panel__form::after {')
+  })
+
   it('renders tab close buttons as circular overlays above truncated labels', () => {
     expect(appCss).toContain('.tab-bar__close {')
     expect(appCss).toContain('border-radius: var(--radius-full);')
