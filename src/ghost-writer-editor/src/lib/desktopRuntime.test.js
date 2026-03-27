@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const invokeMock = vi.hoisted(() => vi.fn())
 const isTauriMock = vi.hoisted(() => vi.fn(() => true))
 const listenMock = vi.hoisted(() => vi.fn())
+const setTitleMock = vi.hoisted(() => vi.fn())
+const getCurrentWindowMock = vi.hoisted(() => vi.fn(() => ({ setTitle: setTitleMock })))
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
@@ -11,6 +13,10 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 vi.mock('@tauri-apps/api/event', () => ({
   listen: listenMock,
+}))
+
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: getCurrentWindowMock,
 }))
 
 vi.mock('./errorReporting', () => ({
@@ -23,6 +29,7 @@ import {
   prepareMacosEditorInput,
   recordEditorDiagnostic,
   resetFrontendDiagnosticsForTests,
+  setCurrentWindowTitle,
 } from './desktopRuntime'
 
 function mockNavigatorPlatform(platform) {
@@ -49,6 +56,9 @@ describe('desktopRuntime diagnostics', () => {
     isTauriMock.mockReset()
     isTauriMock.mockReturnValue(true)
     listenMock.mockReset()
+    getCurrentWindowMock.mockReset()
+    getCurrentWindowMock.mockReturnValue({ setTitle: setTitleMock })
+    setTitleMock.mockReset()
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
@@ -150,5 +160,14 @@ describe('desktopRuntime diagnostics', () => {
     } finally {
       restorePlatform()
     }
+  })
+
+  it('sets the native desktop window title when runtime is desktop', async () => {
+    setTitleMock.mockResolvedValue(undefined)
+
+    await expect(setCurrentWindowTitle('Tab title')).resolves.toBe(true)
+
+    expect(getCurrentWindowMock).toHaveBeenCalledTimes(1)
+    expect(setTitleMock).toHaveBeenCalledWith('Tab title')
   })
 })
