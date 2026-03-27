@@ -123,4 +123,55 @@ describe('App tabs', () => {
     expect(screen.getByLabelText('Toggle markdown preview')).toHaveAttribute('aria-pressed', 'false')
     expect(document.querySelector('textarea.editor__textarea')).not.toBeNull()
   })
+
+  it('reorders tabs live when dragging over another tab', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
+    const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
+
+    fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 50, clientY: 13 })
+    fireEvent.mouseUp(window)
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled 3', 'Untitled', 'Untitled 2'])
+  })
+
+  it('ignores vertical-dominant drag movement for tab reorder', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
+    const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
+
+    fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 295, clientY: 48 })
+    fireEvent.mouseUp(window)
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled', 'Untitled 2', 'Untitled 3'])
+  })
+
+  it('moves multiple tab slots during one long horizontal drag', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const tabFour = screen.getByRole('tab', { name: 'Switch to Untitled 4' })
+
+    fireEvent.mouseDown(tabFour, { button: 0, clientX: 480, clientY: 12 })
+    fireEvent.mouseMove(window, { clientX: 60, clientY: 12 })
+    fireEvent.mouseUp(window)
+
+    const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
+    expect(tabLabels).toEqual(['Untitled 4', 'Untitled', 'Untitled 2', 'Untitled 3'])
+  })
 })

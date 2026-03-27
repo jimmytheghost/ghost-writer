@@ -487,4 +487,23 @@ describe('Editor input behavior', () => {
     expect(textarea).toHaveValue('1. first\n  - ')
   })
 
+  it('requests focus on typing so the caret scrolls back into view', () => {
+    render(<InteractiveEditor initialValue={`line 1\nline 2\nline 3\nline 4\nline 5`} />)
+    const textarea = screen.getByRole('textbox')
+    textarea.focus()
+    textarea.scrollTop = 120
+    const focusSpy = vi.spyOn(textarea, 'focus')
+    focusSpy.mockClear()
+
+    fireEvent.change(textarea, {
+      target: {
+        value: `line 1\nline 2\nline 3\nline 4\nline 5x`,
+        selectionStart: `line 1\nline 2\nline 3\nline 4\nline 5x`.length,
+        selectionEnd: `line 1\nline 2\nline 3\nline 4\nline 5x`.length,
+      },
+    })
+
+    expect(focusSpy).toHaveBeenCalled()
+  })
+
 })

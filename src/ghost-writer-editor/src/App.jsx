@@ -895,9 +895,10 @@ function App() {
       })
     },
     onSelectionRangeConsumed: clearVisibleSelectionRange,
-    onGenerationCursorChange: (tabId, nextCursorPosition) => {
+    onGenerationCursorChange: (tabId, nextCursorPosition, options = {}) => {
       if (!tabId || !Number.isFinite(Number(nextCursorPosition))) return
       const safePosition = Math.max(0, Number(nextCursorPosition))
+      const shouldRequestFocus = options.requestFocus !== false
       setSelectionRangesByTab((currentRanges) => {
         const previousRange = currentRanges[tabId]
         const nextRange = { start: safePosition, end: safePosition }
@@ -909,6 +910,9 @@ function App() {
           [tabId]: nextRange,
         }
       })
+      if (tabId === activeTabId && shouldRequestFocus) {
+        setEditorFocusRequestId((current) => current + 1)
+      }
     },
     onSelectionTargetConsumed: rememberWindowsSelectionContext,
     onSelectionTargetUndo: hideWindowsSelectionContext,
@@ -2286,6 +2290,23 @@ function App() {
     [switchActiveTab]
   )
 
+  const handleTabReorder = useCallback((draggedTabId, targetIndex) => {
+    if (!draggedTabId || !Number.isInteger(targetIndex)) return
+
+    setTabs((currentTabs) => {
+      const draggedIndex = currentTabs.findIndex((tab) => tab.id === draggedTabId)
+      if (draggedIndex < 0) return currentTabs
+
+      const safeTargetIndex = Math.max(0, Math.min(currentTabs.length - 1, targetIndex))
+      if (draggedIndex === safeTargetIndex) return currentTabs
+
+      const nextTabs = [...currentTabs]
+      const [draggedTab] = nextTabs.splice(draggedIndex, 1)
+      nextTabs.splice(safeTargetIndex, 0, draggedTab)
+      return nextTabs
+    })
+  }, [])
+
   const handleConfirmAlreadyOpen = useCallback(() => {
     if (!alreadyOpenTab) return
     switchActiveTab(alreadyOpenTab.id, { clearWindowsSelection: true })
@@ -2889,6 +2910,7 @@ ${escapeLatex(exportMarkdownSource)}
           onSelectTab={handleTabSelect}
           onCreateTab={handleNew}
           onCloseTab={handleCloseTab}
+          onReorderTabs={handleTabReorder}
         />
       )}
       <main className={`app__main${isPromptPanelHidden ? ' app__main--focus-editor' : ''}`}>

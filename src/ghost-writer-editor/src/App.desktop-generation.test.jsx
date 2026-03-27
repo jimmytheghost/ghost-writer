@@ -226,4 +226,52 @@ describe('App desktop generation', () => {
       expect(getEditor().value).toBe('Once upon a time. The old mansion had been abandoned for years.')
     })
   })
+
+  it('refocuses the editor after generation finishes inserting new text', async () => {
+    render(<App />)
+
+    const promptInput = screen.getByLabelText('Prompt input')
+    fireEvent.change(promptInput, { target: { value: 'Finish this sentence' } })
+
+    const editor = getEditor()
+    const focusSpy = vi.spyOn(editor, 'focus')
+    focusSpy.mockClear()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Send prompt')).not.toBeDisabled()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Send prompt'))
+    })
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'ollama_generate_stream',
+        expect.objectContaining({ requestId: 1 }),
+      )
+    })
+
+    await act(async () => {
+      emitDesktopEvent('ollama-stream-chunk', {
+        requestId: 1,
+        response: 'generated text',
+      })
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toContain('generated text')
+    })
+    expect(focusSpy).not.toHaveBeenCalled()
+
+    await act(async () => {
+      emitDesktopEvent('ollama-stream-done', { requestId: 1 })
+      pendingStreams.get(1)?.resolve()
+    })
+
+    await waitFor(() => {
+      expect(getEditor().value).toContain('generated text')
+      expect(focusSpy).toHaveBeenCalled()
+    })
+  })
 })

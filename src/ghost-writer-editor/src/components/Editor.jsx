@@ -276,6 +276,14 @@ function Editor({
   const effectiveScrollTop = Number.isFinite(Number(externalScrollTop))
     ? Math.max(0, Number(externalScrollTop))
     : 0
+  const requestCaretVisibility = useCallback((textarea) => {
+    if (!textarea) return
+    try {
+      textarea.focus({ preventScroll: false })
+    } catch {
+      textarea.focus()
+    }
+  }, [])
 
   const inlinePromptOverlay = useMemo(() => {
     if (useLightweightOverlays || isWindows) return null
@@ -438,18 +446,21 @@ function Editor({
 
     if (textarea.selectionStart === nextStart && textarea.selectionEnd === nextEnd) return
     textarea.setSelectionRange(nextStart, nextEnd)
+    if (shouldForceSelectionWhileFocused) {
+      requestCaretVisibility(textarea)
+    }
 
     if (shouldForceSelectionWhileFocused) {
       lastAppliedExternalSelectionFocusRequestIdRef.current = focusRequestId
     }
-  }, [externalSelectionRange, focusRequestId, value])
+  }, [externalSelectionRange, focusRequestId, requestCaretVisibility, value])
 
   useEffect(() => {
     if (!focusRequestId) return
     const textarea = textareaRef.current
     if (!textarea) return
-    textarea.focus()
-  }, [focusRequestId])
+    requestCaretVisibility(textarea)
+  }, [focusRequestId, requestCaretVisibility])
 
   const handleTextareaFocus = useCallback(() => {
     const textarea = textareaRef.current
@@ -1000,6 +1011,7 @@ function Editor({
         onChange(nextValue)
 
         scheduleDashSelectionRestore(target, nextPosition, nextValue)
+        requestCaretVisibility(target)
         return
       }
     }
@@ -1010,6 +1022,7 @@ function Editor({
       valueLength: inputValue.length,
     }
     onChange(inputValue)
+    requestCaretVisibility(target)
   }
 
   const editorTextStyle = useMemo(() => {

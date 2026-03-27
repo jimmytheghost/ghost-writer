@@ -347,7 +347,7 @@ export function usePromptGeneration({
           })
         }
         if (!hasRangeSelection) {
-          onGenerationCursorChange?.(tabId, highlightEnd)
+          onGenerationCursorChange?.(tabId, highlightEnd, { requestFocus: false })
         }
         onStreamingRangeChange?.({
           tabId,
