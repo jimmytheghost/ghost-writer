@@ -45,4 +45,10 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('.app--dark .tab-bar__tab:hover .tab-bar__close,')
     expect(appCss).toContain('background: color-mix(in srgb, var(--color-gray-600) 38%, #383737);')
   })
+
+  it('hides the model dropdown chevron when the footer model control is icon-only', () => {
+    expect(appCss).toContain('@media (max-width: 525px) {')
+    expect(appCss).toContain('.footer-model .model-dropdown__chevron {')
+    expect(appCss).toContain('display: none;')
+  })
 })
