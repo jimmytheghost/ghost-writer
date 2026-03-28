@@ -224,4 +224,46 @@ describe('App keyboard shortcuts', () => {
     })
     vi.useRealTimers()
   })
+
+  it('copies the full editor document with Ctrl+C when no editor text is selected', async () => {
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    render(<App />)
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'entire document content' } })
+    editor.focus()
+    editor.setSelectionRange(4, 4)
+
+    fireEvent.keyDown(editor, { key: 'c', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('entire document content')
+    })
+  })
+
+  it('copies only selected editor text with Ctrl+C', async () => {
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    render(<App />)
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'copy this selected chunk' } })
+    editor.focus()
+    editor.setSelectionRange(5, 9)
+
+    fireEvent.keyDown(editor, { key: 'c', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(writeText).not.toHaveBeenCalled()
+    })
+  })
 })

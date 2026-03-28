@@ -111,6 +111,7 @@ describe('App UI behaviors', () => {
 
     fireEvent.click(screen.getByLabelText('Expand footer controls'))
     const copyButton = screen.getByLabelText('Copy to clipboard')
+    expect(copyButton).toHaveAttribute('title', expect.stringMatching(/^Copy \((Ctrl|Cmd)\+C\)$/))
     fireEvent.click(copyButton)
 
     await waitFor(() => {

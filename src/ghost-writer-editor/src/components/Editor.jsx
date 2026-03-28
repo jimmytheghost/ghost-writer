@@ -674,6 +674,15 @@ function Editor({
       const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
       const lineText = text.slice(lineStart, lineEnd)
       const listMatch = lineText.match(LIST_ITEM_PATTERN)
+      const normalizedKey = event.key.toLowerCase()
+
+      if (isMod && !event.altKey && !event.shiftKey && normalizedKey === 'c' && !hasRangeSelection) {
+        if (typeof navigator?.clipboard?.writeText === 'function') {
+          event.preventDefault()
+          void navigator.clipboard.writeText(text)
+        }
+        return
+      }
 
       if (event.key === 'Enter' && !hasRangeSelection && listMatch) {
         event.preventDefault()
