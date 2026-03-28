@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { report } from './errorReporting'
 
 const FRONTEND_DIAGNOSTIC_TRACE_LIMIT = 120
@@ -357,6 +358,20 @@ export async function closeCurrentWindow() {
     return true
   } catch (error) {
     warnDesktopRuntime('desktop.window.close.failed', 'Failed to close application window.', error)
+    return false
+  }
+}
+
+export async function setCurrentWindowTitle(title) {
+  if (!isDesktopRuntime()) return false
+  const normalizedTitle = String(title ?? '').trim()
+  if (!normalizedTitle) return false
+
+  try {
+    await getCurrentWindow().setTitle(normalizedTitle)
+    return true
+  } catch (error) {
+    warnDesktopRuntime('desktop.window.set_title.failed', 'Failed to set application window title.', error)
     return false
   }
 }

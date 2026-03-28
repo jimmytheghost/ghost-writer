@@ -38,6 +38,7 @@ import {
   saveTextFileWithNativeDialog,
   saveSettings,
   setAlwaysOnTop,
+  setCurrentWindowTitle,
 } from './lib/desktopRuntime'
 import { isSafeMarkdownUrl, renderMarkdownToSafeHtml } from './lib/markdown'
 import { exportRenderedMarkdownAsPdf, printRenderedMarkdown } from './lib/print'
@@ -114,6 +115,35 @@ function mapScrollTopBetweenRanges({
 
 function isWindowsPlatform() {
   return /Win/i.test(navigator.platform)
+}
+
+function getTextRenderWidth(element, text) {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return 0
+  if (!(element instanceof HTMLElement)) return 0
+  const normalizedText = String(text ?? '')
+  if (!normalizedText) return 0
+  if (/jsdom/i.test(window.navigator?.userAgent ?? '')) return 0
+  const computedStyle = window.getComputedStyle(element)
+  const measurementCanvas = document.createElement('canvas')
+  let context = null
+  try {
+    context = measurementCanvas.getContext('2d')
+  } catch {
+    context = null
+  }
+  if (!context) return 0
+  context.font = computedStyle.font
+  return context.measureText(normalizedText).width
+}
+
+function isElementHorizontallyTruncated(element) {
+  if (!(element instanceof HTMLElement)) return false
+  if (element.scrollWidth > element.clientWidth) return true
+
+  const measuredTextWidth = getTextRenderWidth(element, element.textContent)
+  const renderedWidth = element.getBoundingClientRect().width || element.clientWidth
+  if (!Number.isFinite(renderedWidth) || renderedWidth <= 0) return false
+  return measuredTextWidth > renderedWidth + 0.5
 }
 
 function getUntitledIndexFromTitle(title = '') {
@@ -318,6 +348,38 @@ function App() {
   }, [])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) ?? null, [tabs, activeTabId])
+  const syncWindowTitleForTabTruncation = useCallback(() => {
+    if (typeof document === 'undefined') return
+
+    const applyWindowTitle = (title) => {
+      document.title = title
+      void setCurrentWindowTitle(title)
+    }
+
+    const tabLabels = [...document.querySelectorAll('.tab-bar__label')]
+    const hasAnyTruncatedLabel = tabLabels.some((label) => isElementHorizontallyTruncated(label))
+
+    if (!hasAnyTruncatedLabel) {
+      applyWindowTitle(DEFAULT_APP_NAME)
+      return
+    }
+
+    const activeTabTitle = stripExtension(activeTab?.title || '').trim() || 'Untitled'
+    applyWindowTitle(activeTabTitle)
+  }, [activeTab?.title])
+
+  useLayoutEffect(() => {
+    syncWindowTitleForTabTruncation()
+  }, [syncWindowTitleForTabTruncation, tabs, activeTabId, isTabBarVisible])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const handleResize = () => {
+      syncWindowTitleForTabTruncation()
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [syncWindowTitleForTabTruncation])
   const isPreviewOpen = Boolean(previewOpenByTab[activeTabId])
   const selectionRange = selectionRangesByTab[activeTabId] ?? EMPTY_SELECTION_RANGE
   const activeStreamingRange = streamingRangesByTab[activeTabId] ?? null

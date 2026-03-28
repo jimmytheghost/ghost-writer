@@ -174,4 +174,36 @@ describe('App tabs', () => {
     const tabLabels = screen.getAllByRole('tab').map((tab) => tab.textContent?.replace('×', '').trim())
     expect(tabLabels).toEqual(['Untitled 4', 'Untitled', 'Untitled 2', 'Untitled 3'])
   })
+
+  it('uses active tab title as window title when any tab label is truncated', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByLabelText('New tab'))
+
+    const labels = [...document.querySelectorAll('.tab-bar__label')]
+    expect(labels.length).toBeGreaterThan(0)
+
+    labels.forEach((label, index) => {
+      Object.defineProperty(label, 'clientWidth', {
+        configurable: true,
+        get: () => 100,
+      })
+      Object.defineProperty(label, 'scrollWidth', {
+        configurable: true,
+        get: () => (index === 0 ? 200 : 100),
+      })
+    })
+
+    fireEvent(window, new Event('resize'))
+    expect(document.title).toBe('Untitled 2')
+
+    labels.forEach((label) => {
+      Object.defineProperty(label, 'scrollWidth', {
+        configurable: true,
+        get: () => 100,
+      })
+    })
+    fireEvent(window, new Event('resize'))
+    expect(document.title).toBe('Ghost Writer')
+  })
 })
