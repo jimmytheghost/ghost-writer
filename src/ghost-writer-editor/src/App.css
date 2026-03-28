@@ -2229,39 +2229,50 @@
     min-width: 36px;
     height: 36px;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    grid-template-columns: 1fr;
     font-size: 0;
     color: transparent;
+    background-image: url("/ghost-writer-model-icon-light.svg");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 13px 13px;
+  }
+
+  .app--dark .footer-model .model-dropdown__button {
+    background-image: url("/ghost-writer-model-icon-dark.svg");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 12px 12px;
+  }
+
+  .footer-model .model-dropdown__button:hover,
+  .footer-model .model-dropdown__button:focus-visible,
+  .footer-model .model-dropdown.model-dropdown--open .model-dropdown__button {
+    background-image: url("/ghost-writer-model-icon-light.svg");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 13px 13px;
+  }
+
+  .app--dark .footer-model .model-dropdown__button:hover,
+  .app--dark .footer-model .model-dropdown__button:focus-visible,
+  .app--dark .footer-model .model-dropdown.model-dropdown--open .model-dropdown__button {
+    background-image: url("/ghost-writer-model-icon-dark.svg");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 12px 12px;
   }
 
   .footer-model .model-dropdown__chevron {
     display: none;
   }
 
-  .footer-model::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 15px;
-    height: 15px;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    background-color: var(--color-gray-700);
-    -webkit-mask-image: url("/ghost-writer-model-icon-light.svg");
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    -webkit-mask-size: contain;
-    mask-image: url("/ghost-writer-model-icon-light.svg");
-    mask-repeat: no-repeat;
-    mask-position: center;
-    mask-size: contain;
-    transition: background-color var(--transition-fast);
-  }
-
-  .app--dark .footer-model::after {
-    background-color: #ffffff;
-    -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
-    mask-image: url("/ghost-writer-model-icon-dark.svg");
+  .footer-model .model-dropdown__value {
+    display: none;
   }
 
   .footer-model__status {
@@ -2333,45 +2344,21 @@
   .footer-model .model-dropdown__button {
     font-size: 0;
     color: transparent;
+    background-image: url("/ghost-writer-model-icon-light.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 13px 13px;
+  }
+
+  .app--dark .footer-model .model-dropdown__button {
+    background-image: url("/ghost-writer-model-icon-dark.svg");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 12px 12px;
   }
 
   .footer-model .model-dropdown__chevron {
     display: none;
-  }
-
-  .footer-model::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 15px;
-    height: 15px;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    background-color: var(--color-gray-700);
-    -webkit-mask-image: url("/ghost-writer-model-icon-light.svg");
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    -webkit-mask-size: contain;
-    mask-image: url("/ghost-writer-model-icon-light.svg");
-    mask-repeat: no-repeat;
-    mask-position: center;
-    mask-size: contain;
-    transition: background-color var(--transition-fast);
-  }
-
-  .footer-model:hover::after {
-    background-color: var(--color-gray-700);
-  }
-
-  .app--dark .footer-model::after {
-    background-color: #ffffff;
-    -webkit-mask-image: url("/ghost-writer-model-icon-dark.svg");
-    mask-image: url("/ghost-writer-model-icon-dark.svg");
-  }
-
-  .app--dark .footer-model:hover::after {
-    background-color: #ffffff;
   }
 
   .footer-model__status {
