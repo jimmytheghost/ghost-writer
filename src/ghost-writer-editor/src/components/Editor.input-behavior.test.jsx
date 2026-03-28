@@ -76,6 +76,42 @@ function dispatchTextareaInput(textarea, { value, selectionStart, selectionEnd =
   fireEvent(textarea, event)
 }
 
+function mockExecCommandDelete() {
+  const originalExecCommand = document.execCommand
+  const execSpy = vi.fn((commandId) => {
+    if (commandId !== 'delete') return false
+    const textarea = document.activeElement
+    if (!(textarea instanceof HTMLTextAreaElement)) return false
+    const start = textarea.selectionStart ?? 0
+    const end = textarea.selectionEnd ?? start
+    const currentValue = textarea.value ?? ''
+    textarea.value = `${currentValue.slice(0, start)}${currentValue.slice(end)}`
+    textarea.setSelectionRange(start, start)
+
+    let inputEvent
+    if (typeof InputEvent === 'function') {
+      inputEvent = new InputEvent('input', {
+        bubbles: true,
+        inputType: 'deleteContentBackward',
+        data: null,
+      })
+    } else {
+      inputEvent = new Event('input', { bubbles: true })
+      Object.defineProperty(inputEvent, 'inputType', { configurable: true, value: 'deleteContentBackward' })
+      Object.defineProperty(inputEvent, 'data', { configurable: true, value: null })
+    }
+    textarea.dispatchEvent(inputEvent)
+    return true
+  })
+  document.execCommand = execSpy
+  return {
+    execSpy,
+    restore: () => {
+      document.execCommand = originalExecCommand
+    },
+  }
+}
+
 describe('Editor input behavior', () => {
   it('preserves double hyphen typing without auto-converting to triple hyphen', () => {
     const { textarea, onChange } = renderEditor()
@@ -471,6 +507,117 @@ describe('Editor input behavior', () => {
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     fireEvent.keyDown(textarea, { key: 'Backspace' })
     expect(textarea).toHaveValue('  - child\n- ')
+  })
+
+  it('deletes to start of line for Cmd+Backspace on macOS and keeps undo-tracked input', () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+    const { execSpy, restore } = mockExecCommandDelete()
+
+    try {
+      render(<InteractiveEditor initialValue="    indented" />)
+      const textarea = screen.getByRole('textbox')
+      const inputSpy = vi.fn()
+      textarea.addEventListener('input', inputSpy)
+
+      textarea.focus()
+      textarea.setSelectionRange('    indented'.length, '    indented'.length)
+      fireEvent.keyDown(textarea, { key: 'Backspace', metaKey: true })
+
+      expect(textarea).toHaveValue('')
+      expect(execSpy).toHaveBeenCalledWith('delete')
+      expect(inputSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      restore()
+      restorePlatform()
+    }
+  })
+
+  it('deletes the next word for Ctrl+Delete on non-mac and keeps undo-tracked input', () => {
+    const restorePlatform = mockNavigatorPlatform('Win32')
+    const { execSpy, restore } = mockExecCommandDelete()
+
+    try {
+      render(<InteractiveEditor initialValue="    indented" />)
+      const textarea = screen.getByRole('textbox')
+      const inputSpy = vi.fn()
+      textarea.addEventListener('input', inputSpy)
+
+      textarea.focus()
+      textarea.setSelectionRange(4, 4)
+      fireEvent.keyDown(textarea, { key: 'Delete', ctrlKey: true })
+
+      expect(textarea).toHaveValue('    ')
+      expect(execSpy).toHaveBeenCalledWith('delete')
+      expect(inputSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      restore()
+      restorePlatform()
+    }
+  })
+
+  it('emits an input event for Cmd+Backspace line delete so undo can track it on macOS', () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+    const { execSpy, restore } = mockExecCommandDelete()
+
+    try {
+      render(<InteractiveEditor initialValue={'alpha beta\ngamma delta'} />)
+      const textarea = screen.getByRole('textbox')
+      const inputSpy = vi.fn()
+      textarea.addEventListener('input', inputSpy)
+
+      textarea.focus()
+      textarea.setSelectionRange('alpha beta\ngamma delta'.length, 'alpha beta\ngamma delta'.length)
+      fireEvent.keyDown(textarea, { key: 'Backspace', metaKey: true })
+
+      expect(textarea).toHaveValue('alpha beta\n')
+      expect(execSpy).toHaveBeenCalledWith('delete')
+      expect(inputSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      restore()
+      restorePlatform()
+    }
+  })
+
+  it('emits an input event for Ctrl+Backspace word delete so undo can track it on non-mac', () => {
+    const restorePlatform = mockNavigatorPlatform('Win32')
+
+    try {
+      render(<InteractiveEditor initialValue={'alpha beta gamma'} />)
+      const textarea = screen.getByRole('textbox')
+      const inputSpy = vi.fn()
+      textarea.addEventListener('input', inputSpy)
+
+      textarea.focus()
+      textarea.setSelectionRange('alpha beta gamma'.length, 'alpha beta gamma'.length)
+      fireEvent.keyDown(textarea, { key: 'Backspace', ctrlKey: true })
+
+      expect(textarea).toHaveValue('alpha beta ')
+      expect(inputSpy).toHaveBeenCalledTimes(1)
+      expect(inputSpy.mock.calls[0]?.[0]?.inputType).toBe('deleteContentBackward')
+    } finally {
+      restorePlatform()
+    }
+  })
+
+  it('emits an input event for Ctrl+Delete word delete so undo can track it on non-mac', () => {
+    const restorePlatform = mockNavigatorPlatform('Linux x86_64')
+
+    try {
+      render(<InteractiveEditor initialValue={'alpha beta gamma'} />)
+      const textarea = screen.getByRole('textbox')
+      const inputSpy = vi.fn()
+      textarea.addEventListener('input', inputSpy)
+
+      textarea.focus()
+      textarea.setSelectionRange('alpha '.length, 'alpha '.length)
+      fireEvent.keyDown(textarea, { key: 'Delete', ctrlKey: true })
+
+      expect(textarea).toHaveValue('alpha  gamma')
+      expect(inputSpy).toHaveBeenCalledTimes(1)
+      expect(inputSpy.mock.calls[0]?.[0]?.inputType).toBe('deleteContentForward')
+    } finally {
+      restorePlatform()
+    }
   })
 
   it('converts ordered list continuation to indented bullet when pressing Tab', () => {

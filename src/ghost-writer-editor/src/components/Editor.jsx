@@ -590,37 +590,85 @@ function Editor({
       const textarea = textareaRef.current
       if (!textarea) return
 
+      const applyShortcutEdit = ({
+        nextValue,
+        selectionStart,
+        selectionEnd = selectionStart,
+        inputType = 'insertReplacementText',
+      }) => {
+        const currentValue = textarea.value ?? ''
+        if (typeof textarea.setRangeText === 'function') {
+          textarea.setRangeText(nextValue, 0, currentValue.length, 'end')
+        } else {
+          textarea.value = nextValue
+        }
+        textarea.setSelectionRange(selectionStart, selectionEnd)
+
+        let inputEvent
+        if (typeof InputEvent === 'function') {
+          inputEvent = new InputEvent('input', {
+            bubbles: true,
+            inputType,
+            data: null,
+          })
+        } else {
+          inputEvent = new Event('input', { bubbles: true })
+          Object.defineProperty(inputEvent, 'inputType', { configurable: true, value: inputType })
+          Object.defineProperty(inputEvent, 'data', { configurable: true, value: null })
+        }
+
+        textarea.dispatchEvent(inputEvent)
+
+        requestAnimationFrame(() => {
+          textarea.focus()
+          textarea.setSelectionRange(selectionStart, selectionEnd)
+          onSelectionChange?.({ selectionStart, selectionEnd })
+        })
+      }
+
+      const applyShortcutDeleteRange = ({
+        deleteStart,
+        deleteEnd,
+        inputType = 'deleteContentBackward',
+      }) => {
+        if (deleteEnd <= deleteStart) return
+
+        const currentValue = textarea.value ?? ''
+        const fallbackValue = `${currentValue.slice(0, deleteStart)}${currentValue.slice(deleteEnd)}`
+
+        textarea.focus()
+        textarea.setSelectionRange(deleteStart, deleteEnd)
+
+        let nativeHandled = false
+        if (typeof document?.execCommand === 'function') {
+          try {
+            nativeHandled = document.execCommand('delete') === true
+          } catch {
+            nativeHandled = false
+          }
+        }
+
+        if (nativeHandled || textarea.value !== currentValue) {
+          requestAnimationFrame(() => {
+            const selectionStart = textarea.selectionStart ?? deleteStart
+            const selectionEnd = textarea.selectionEnd ?? selectionStart
+            onSelectionChange?.({ selectionStart, selectionEnd })
+          })
+          return
+        }
+
+        applyShortcutEdit({
+          nextValue: fallbackValue,
+          selectionStart: deleteStart,
+          inputType,
+        })
+      }
+
       const text = value ?? ''
       const start = textarea.selectionStart ?? 0
       const end = textarea.selectionEnd ?? start
       const hasRangeSelection = start !== end
-      // Cmd/Ctrl + Backspace or Delete: delete leading indentation to line start
-      // This makes indentation (spaces) act like a dedicated indentation block that
-      // can be cleared quickly when the user wants to unindent to the start of the line.
       const isMod = isModShortcut(event)
-      const modDeleteOrBackspace = isMod && (event.key === 'Backspace' || event.key === 'Delete')
-      if (modDeleteOrBackspace) {
-        const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
-        const lineEndBoundary = text.indexOf('\n', start)
-        const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
-        const lineText = text.slice(lineStart, lineEnd)
-        const leadingWhitespace = lineText.match(/^\s+/)
-        const indentLen = leadingWhitespace?.[0]?.length ?? 0
-        const isListItem = LIST_ITEM_PATTERN.test(lineText)
-        if (indentLen > 0 && !isListItem) {
-          event.preventDefault()
-          const newLineText = lineText.slice(indentLen)
-          const nextValue = `${text.slice(0, lineStart)}${newLineText}${text.slice(lineEnd)}`
-          onChange?.(nextValue)
-          const nextPosition = lineStart
-          requestAnimationFrame(() => {
-            textarea.focus()
-            textarea.setSelectionRange(nextPosition, nextPosition)
-            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
-          })
-          return
-        }
-      }
       const lineStart = text.lastIndexOf('\n', Math.max(start - 1, 0)) + 1
       const lineEndBoundary = text.indexOf('\n', start)
       const lineEnd = lineEndBoundary === -1 ? text.length : lineEndBoundary
@@ -668,13 +716,10 @@ function Editor({
         const isEmptyListItem = itemText.trim().length === 0
         if (isMod) {
           event.preventDefault()
-          const nextValue = `${text.slice(0, lineStart)}${text.slice(lineEnd)}`
-          const nextPosition = lineStart
-          onChange?.(nextValue)
-          requestAnimationFrame(() => {
-            textarea.focus()
-            textarea.setSelectionRange(nextPosition, nextPosition)
-            onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
+          applyShortcutDeleteRange({
+            deleteStart: lineStart,
+            deleteEnd: lineEnd,
+            inputType: event.key === 'Delete' ? 'deleteContentForward' : 'deleteContentBackward',
           })
           return
         }
@@ -696,6 +741,67 @@ function Editor({
             onSelectionChange?.({ selectionStart: nextPosition, selectionEnd: nextPosition })
           })
           return
+        }
+      }
+
+      const findPreviousWordBoundary = (inputText, cursorIndex) => {
+        let index = cursorIndex
+        while (index > 0 && /\s/.test(inputText[index - 1])) index -= 1
+        while (index > 0 && !/\s/.test(inputText[index - 1])) index -= 1
+        return index
+      }
+
+      const findNextWordBoundary = (inputText, cursorIndex) => {
+        let index = cursorIndex
+        while (index < inputText.length && /\s/.test(inputText[index])) index += 1
+        while (index < inputText.length && !/\s/.test(inputText[index])) index += 1
+        return index
+      }
+
+      // Ensure mod-delete shortcuts always emit input events so undo/redo tracks them.
+      if (!hasRangeSelection && isMod && !event.altKey) {
+        if (isMacPlatform() && event.key === 'Backspace') {
+          if (start > lineStart) {
+            event.preventDefault()
+            applyShortcutDeleteRange({
+              deleteStart: lineStart,
+              deleteEnd: start,
+              inputType: 'deleteContentBackward',
+            })
+            return
+          }
+        } else if (isMacPlatform() && event.key === 'Delete') {
+          if (start < lineEnd) {
+            event.preventDefault()
+            applyShortcutDeleteRange({
+              deleteStart: start,
+              deleteEnd: lineEnd,
+              inputType: 'deleteContentForward',
+            })
+            return
+          }
+        } else if (!isMacPlatform() && event.key === 'Backspace') {
+          const previousWordBoundary = findPreviousWordBoundary(text, start)
+          if (previousWordBoundary < start) {
+            event.preventDefault()
+            applyShortcutDeleteRange({
+              deleteStart: previousWordBoundary,
+              deleteEnd: start,
+              inputType: 'deleteContentBackward',
+            })
+            return
+          }
+        } else if (!isMacPlatform() && event.key === 'Delete') {
+          const nextWordBoundary = findNextWordBoundary(text, start)
+          if (nextWordBoundary > start) {
+            event.preventDefault()
+            applyShortcutDeleteRange({
+              deleteStart: start,
+              deleteEnd: nextWordBoundary,
+              inputType: 'deleteContentForward',
+            })
+            return
+          }
         }
       }
 
