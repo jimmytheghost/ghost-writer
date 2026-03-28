@@ -88,6 +88,7 @@ function FooterBar({
               className={getActionButtonClass('copy')}
               onClick={handleCopyClick}
               aria-label="Copy to clipboard"
+              title={`Copy (${modKeyLabel}+C)`}
             >
               <span className="material-symbols-rounded" aria-hidden="true">
                 content_copy
