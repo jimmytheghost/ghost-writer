@@ -4,30 +4,28 @@ import process from 'node:process'
 
 import { describe, expect, it } from 'vitest'
 
-const cssPath = path.join(process.cwd(), 'src', 'components', 'ModelDropdown.css')
-const css = readFileSync(cssPath, 'utf8')
+const modelDropdownCssPath = path.join(process.cwd(), 'src', 'components', 'ModelDropdown.css')
+const modelDropdownCss = readFileSync(modelDropdownCssPath, 'utf8')
 
-describe('ModelDropdown styles', () => {
-  it('lays out selected rows with a fixed checkmark column so the glyph aligns with text', () => {
-    expect(css).toContain('.model-dropdown__option {')
-    expect(css).toContain('grid-template-columns: 1rem minmax(0, 1fr);')
-    expect(css).toContain('align-items: center;')
-    expect(css).toContain('.model-dropdown__check {')
-    expect(css).toContain('justify-content: center;')
-    expect(css).toContain('line-height: 1;')
+describe('ModelDropdown hover-only contrast border', () => {
+  it('shows contrasting border only on hover/focus/open with 1s fade and theme-aware color', () => {
+    expect(modelDropdownCss).toContain('.model-dropdown__button::after {')
+    expect(modelDropdownCss).toContain('opacity: 0;')
+    expect(modelDropdownCss).toContain('transition: opacity 1s ease;')
+    expect(modelDropdownCss).toContain('.model-dropdown__button:hover::after,')
+    expect(modelDropdownCss).toContain('.model-dropdown__button:focus-visible::after,')
+    expect(modelDropdownCss).toContain('.model-dropdown--open .model-dropdown__button::after {')
+    expect(modelDropdownCss).toContain('opacity: 1;')
+    expect(modelDropdownCss).toContain('.app--dark .model-dropdown__button::after {')
   })
 
-  it('renders the trigger chevron as an inline svg instead of a font glyph', () => {
-    expect(css).toContain('.model-dropdown__chevron {')
-    expect(css).toContain('width: 1rem;')
-    expect(css).toContain('stroke: currentColor;')
-    expect(css).not.toContain('material-symbols-rounded')
+  it('uses footer-matching resting border in dark mode', () => {
+    expect(modelDropdownCss).toContain('.app--dark .model-dropdown__button {')
+    expect(modelDropdownCss).toContain('border-color: var(--color-gray-800);')
   })
 
-  it('positions the popup above the footer trigger and below the settings trigger', () => {
-    expect(css).toContain('.model-dropdown--placement-top .model-dropdown__menu {')
-    expect(css).toContain('bottom: calc(100% + var(--space-2));')
-    expect(css).toContain('.model-dropdown--placement-bottom .model-dropdown__menu {')
-    expect(css).toContain('top: calc(100% + var(--space-2));')
+  it('uses footer-matching resting border in light mode', () => {
+    expect(modelDropdownCss).toContain('.model-dropdown__button {')
+    expect(modelDropdownCss).toContain('border: 1px solid var(--color-gray-100);')
   })
 })

@@ -50,5 +50,28 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('@media (max-width: 525px) {')
     expect(appCss).toContain('.footer-model .model-dropdown__chevron {')
     expect(appCss).toContain('display: none;')
+    expect(appCss).toContain('.footer-model .model-dropdown__button {')
+    expect(appCss).toContain('background-position: center;')
+    expect(appCss).toContain('background-size: 13px 13px;')
+  })
+
+  it('keeps the compact model icon visible and centered on hover/focus/open without label text artifacts', () => {
+    expect(appCss).toContain('@media (max-width: 525px) {')
+    expect(appCss).toContain('.footer-model .model-dropdown__button:hover,')
+    expect(appCss).toContain('.footer-model .model-dropdown__button:focus-visible,')
+    expect(appCss).toContain('.footer-model .model-dropdown.model-dropdown--open .model-dropdown__button {')
+    expect(appCss).toContain('background-position: center center;')
+    expect(appCss).toContain('background-size: 13px 13px;')
+    expect(appCss).toContain('.footer-model .model-dropdown__value {')
+    expect(appCss).toContain('display: none;')
+  })
+
+  it('uses a smaller compact icon size in dark mode across idle and active states', () => {
+    expect(appCss).toContain('.app--dark .footer-model .model-dropdown__button {')
+    expect(appCss).toContain('background-repeat: no-repeat;')
+    expect(appCss).toContain('background-position: center center;')
+    expect(appCss).toContain('background-size: 12px 12px;')
+    expect(appCss).toContain('.app--dark .footer-model .model-dropdown__button:hover,')
+    expect(appCss).toContain('.app--dark .footer-model .model-dropdown.model-dropdown--open .model-dropdown__button {')
   })
 })
