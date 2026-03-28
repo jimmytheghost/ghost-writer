@@ -51,4 +51,11 @@ describe('App preview table styles', () => {
     expect(appCss).toContain('.footer-model .model-dropdown__chevron {')
     expect(appCss).toContain('display: none;')
   })
+
+  it('uses a dark generation spinner in light mode and a light spinner in dark mode', () => {
+    expect(appCss).toContain('.prompt-panel__spinner {')
+    expect(appCss).toContain('border-top-color: var(--color-black);')
+    expect(appCss).toContain('.app--dark .prompt-panel__spinner {')
+    expect(appCss).toContain('border-top-color: var(--color-white);')
+  })
 })
