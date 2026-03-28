@@ -2228,6 +2228,10 @@
     color: transparent;
   }
 
+  .footer-model .model-dropdown__chevron {
+    display: none;
+  }
+
   .footer-model::after {
     content: "";
     position: absolute;
@@ -2324,6 +2328,10 @@
   .footer-model .model-dropdown__button {
     font-size: 0;
     color: transparent;
+  }
+
+  .footer-model .model-dropdown__chevron {
+    display: none;
   }
 
   .footer-model::after {
