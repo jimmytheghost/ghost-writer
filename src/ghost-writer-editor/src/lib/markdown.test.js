@@ -261,6 +261,25 @@ describe('renderMarkdownToSafeHtml', () => {
     expect(output).toContain('<td>Paragraph</td>')
   })
 
+  it('preserves ordered list numbering for nested bullet list items', () => {
+    const markdown = `1. **What is the product name?**
+  - Retailer. This is a working title and can be changed.
+
+2. **What exact problem does it solve?**
+  - Retailer eliminates the tedious, half-hour+ manual workflow.
+
+3. **Who exactly is the primary user (role, industry, skill level)?**
+  - Small business owners and online retailers.
+
+4. **Who is explicitly not a target user?**
+  - Businesses or retailers with similar enterprise software.`
+    const output = renderMarkdownToSafeHtml(markdown)
+    expect(output).toContain('<ol>')
+    expect(output).toContain('<ol start="2">')
+    expect(output).toContain('<ol start="3">')
+    expect(output).toContain('<ol start="4">')
+  })
+
   it('renders emoji shortcode and sub/sup syntax', () => {
     const markdown = ':joy: H~2~O X^2^'
     const output = renderMarkdownToSafeHtml(markdown)
