@@ -68,6 +68,7 @@ const ELEMENT_ALLOWED_ATTRIBUTES = {
   img: new Set(['src', 'alt']),
   input: new Set(['type', 'checked', 'disabled', 'data-source-line', 'data-preview-checkbox']),
   li: new Set(['data-preview-task-item', 'data-source-line', 'data-checked']),
+  ol: new Set(['start']),
   span: new Set(['data-preview-checkbox-anchor', 'data-source-line', 'data-checked']),
 }
 
