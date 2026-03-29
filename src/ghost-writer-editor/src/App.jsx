@@ -21,6 +21,7 @@ import {
 } from './lib/contentTransforms'
 import {
   closeCurrentWindow,
+  consumePendingOpenFiles,
   ensureOllamaRunning,
   exitApp,
   exportDiagnosticsBundle,
@@ -322,6 +323,7 @@ function App() {
   const previewScrollTopRef = useRef(0)
   const isPreviewScrollTickingRef = useRef(false)
   const scrollPositionsByTabRef = useRef(scrollPositionsByTab)
+  const pendingStartupOpenPathsRef = useRef([])
   const dirtyCloseConfirmResolverRef = useRef(null)
   const activeTabIdRef = useRef(activeTabId)
   const hasCheckedForUpdatesOnLaunchRef = useRef(false)
@@ -1983,6 +1985,87 @@ function App() {
     [setPromptError],
   )
 
+  const handleDesktopOpenFiles = useCallback(
+    async (payload = {}) => {
+      const incomingPaths = Array.isArray(payload?.paths)
+        ? payload.paths
+          .map((path) => (typeof path === 'string' ? path.trim() : ''))
+          .filter(Boolean)
+        : []
+
+      if (!incomingPaths.length) {
+        setPromptError('Unable to open the selected file.')
+        return
+      }
+
+      const requestedPaths = [...new Set(incomingPaths)]
+      const existingTab = requestedPaths.map((path) => findTabByFilePath(path)).find(Boolean) ?? null
+      const loadedFiles = await loadMarkdownFilesByPaths(requestedPaths)
+      const filesToOpen = loadedFiles.filter((file) => {
+        const path = typeof file?.path === 'string' ? file.path.trim() : ''
+        if (!path) return false
+        if (findTabByFilePath(path)) return false
+        if (exceedsLoadFileSizeLimit(file?.content ?? '')) return false
+        return true
+      })
+
+      if (!filesToOpen.length) {
+        if (existingTab?.id) {
+          activateTab(existingTab.id)
+        }
+        return
+      }
+
+      const nextTabs = filesToOpen.map((file) => {
+        const path = file.path.trim()
+        const content = typeof file.content === 'string' ? file.content : ''
+        return {
+          ...createNewTab(1),
+          content,
+          title: ensureMarkdownFileName(fileNameFromPath(path)),
+          filePath: path,
+          lastSavedContent: content,
+          isDirty: false,
+        }
+      })
+      const nextActiveTab = nextTabs[nextTabs.length - 1]
+
+      setTabs((currentTabs) => [...currentTabs, ...nextTabs])
+      setSelectionRangesByTab((currentRanges) => {
+        const nextRanges = { ...currentRanges }
+        nextTabs.forEach((tab) => {
+          nextRanges[tab.id] = { start: 0, end: 0 }
+        })
+        return nextRanges
+      })
+      setScrollPositionsByTab((currentPositions) => {
+        const nextPositions = { ...currentPositions }
+        nextTabs.forEach((tab) => {
+          nextPositions[tab.id] = createInitialScrollPosition()
+        })
+        return nextPositions
+      })
+      setPreviewOpenByTab((currentStates) => {
+        const nextStates = { ...currentStates }
+        nextTabs.forEach((tab) => {
+          nextStates[tab.id] = false
+        })
+        return nextStates
+      })
+      activateTab(nextActiveTab.id)
+      resetGenerationState({ tabId: nextActiveTab.id })
+      setPromptError('')
+    },
+    [activateTab, findTabByFilePath, resetGenerationState, setPromptError],
+  )
+
+  const normalizeDesktopOpenPaths = useCallback((paths = []) => {
+    if (!Array.isArray(paths)) return []
+    return paths
+      .map((path) => (typeof path === 'string' ? path.trim() : ''))
+      .filter(Boolean)
+  }, [])
+
   const handleCopyClick = useCallback(async () => {
     const rawSelection = document.getSelection()?.toString() ?? ''
     const hasRangeSelection = selectionRange.start !== selectionRange.end
@@ -2941,6 +3024,7 @@ ${escapeLatex(exportMarkdownSource)}
     let disposed = false
     let unlistenQuit = () => {}
     let unlistenClose = () => {}
+    let unlistenOpenFiles = () => {}
 
     const registerListeners = async () => {
       unlistenQuit = await listenDesktopEvent('ghost-writer://menu-request-quit', async () => {
@@ -2951,6 +3035,28 @@ ${escapeLatex(exportMarkdownSource)}
         if (disposed) return
         await handleRequestWindowClose()
       })
+      unlistenOpenFiles = await listenDesktopEvent('ghost-writer://app-open-files', async (event) => {
+        if (disposed) return
+        await handleDesktopOpenFiles(event?.payload ?? {})
+      })
+
+      const pendingPaths = normalizeDesktopOpenPaths(await consumePendingOpenFiles())
+      if (disposed) {
+        if (pendingPaths.length > 0) {
+          pendingStartupOpenPathsRef.current = [
+            ...new Set([...pendingStartupOpenPathsRef.current, ...pendingPaths]),
+          ]
+        }
+        return
+      }
+
+      const startupPathsToOpen = [
+        ...new Set([...pendingStartupOpenPathsRef.current, ...pendingPaths]),
+      ]
+      pendingStartupOpenPathsRef.current = []
+      if (startupPathsToOpen.length > 0) {
+        await handleDesktopOpenFiles({ paths: startupPathsToOpen })
+      }
     }
 
     void registerListeners()
@@ -2959,8 +3065,9 @@ ${escapeLatex(exportMarkdownSource)}
       disposed = true
       unlistenQuit()
       unlistenClose()
+      unlistenOpenFiles()
     }
-  }, [handleRequestAppQuit, handleRequestWindowClose])
+  }, [handleDesktopOpenFiles, handleRequestAppQuit, handleRequestWindowClose, normalizeDesktopOpenPaths])
 
   return (
     <div ref={appRef} className={`app${isDark ? ' app--dark' : ''}`}>

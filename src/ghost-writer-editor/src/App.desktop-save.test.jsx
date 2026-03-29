@@ -11,12 +11,14 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   saveTextFileWithNativeDialog: vi.fn(async () => null),
   openMarkdownWithNativeDialog: vi.fn(async () => null),
   loadMarkdownFilesByPaths: vi.fn(async () => []),
+  consumePendingOpenFiles: vi.fn(async () => []),
   loadDesktopOllamaModels: vi.fn(async () => ({ ok: true, models: ['devstral-small-2:24b'] })),
   markRendererInteractive: vi.fn(),
   recordEditorDiagnostic: vi.fn(),
   openExternalUrl: vi.fn(async () => true),
   exitApp: vi.fn(async () => true),
   closeCurrentWindow: vi.fn(async () => true),
+  setCurrentWindowTitle: vi.fn(async () => true),
   listenDesktopEvent: vi.fn(async () => () => {}),
 }))
 
@@ -47,19 +49,58 @@ vi.mock('./lib/desktopRuntime', async () => ({
   saveTextFileWithNativeDialog: desktopRuntimeMocks.saveTextFileWithNativeDialog,
   openMarkdownWithNativeDialog: desktopRuntimeMocks.openMarkdownWithNativeDialog,
   loadMarkdownFilesByPaths: desktopRuntimeMocks.loadMarkdownFilesByPaths,
+  consumePendingOpenFiles: desktopRuntimeMocks.consumePendingOpenFiles,
   loadDesktopOllamaModels: desktopRuntimeMocks.loadDesktopOllamaModels,
   markRendererInteractive: desktopRuntimeMocks.markRendererInteractive,
   recordEditorDiagnostic: desktopRuntimeMocks.recordEditorDiagnostic,
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
   exitApp: desktopRuntimeMocks.exitApp,
   closeCurrentWindow: desktopRuntimeMocks.closeCurrentWindow,
+  setCurrentWindowTitle: desktopRuntimeMocks.setCurrentWindowTitle,
   listenDesktopEvent: desktopRuntimeMocks.listenDesktopEvent,
 }))
 
 import App from './App'
 
+function createDeferred() {
+  let resolve
+  let reject
+  const promise = new Promise((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('App desktop save flow', () => {
   beforeEach(() => {
+    Object.values(desktopRuntimeMocks).forEach((mockFn) => {
+      mockFn.mockReset()
+    })
+    tauriMenuEventMocks.latestHandlers = null
+
+    desktopRuntimeMocks.loadSettings.mockResolvedValue(null)
+    desktopRuntimeMocks.saveSettings.mockResolvedValue(null)
+    desktopRuntimeMocks.setAlwaysOnTop.mockResolvedValue(true)
+    desktopRuntimeMocks.saveMarkdownWithNativeDialog.mockResolvedValue(null)
+    desktopRuntimeMocks.saveMarkdownToPath.mockResolvedValue(null)
+    desktopRuntimeMocks.renameMarkdownFileWithNativeDialog.mockResolvedValue(null)
+    desktopRuntimeMocks.saveTextFileWithNativeDialog.mockResolvedValue(null)
+    desktopRuntimeMocks.openMarkdownWithNativeDialog.mockResolvedValue(null)
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockResolvedValue([])
+    desktopRuntimeMocks.consumePendingOpenFiles.mockResolvedValue([])
+    desktopRuntimeMocks.loadDesktopOllamaModels.mockResolvedValue({
+      ok: true,
+      models: ['devstral-small-2:24b'],
+    })
+    desktopRuntimeMocks.markRendererInteractive.mockImplementation(() => {})
+    desktopRuntimeMocks.recordEditorDiagnostic.mockImplementation(() => {})
+    desktopRuntimeMocks.openExternalUrl.mockResolvedValue(true)
+    desktopRuntimeMocks.exitApp.mockResolvedValue(true)
+    desktopRuntimeMocks.closeCurrentWindow.mockResolvedValue(true)
+    desktopRuntimeMocks.setCurrentWindowTitle.mockResolvedValue(true)
+    desktopRuntimeMocks.listenDesktopEvent.mockResolvedValue(() => {})
+
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -73,7 +114,6 @@ describe('App desktop save flow', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-    vi.clearAllMocks()
   })
 
   it('saves directly to existing path after opening a native desktop file', async () => {
@@ -295,6 +335,185 @@ describe('App desktop save flow', () => {
 
     expect(screen.queryByRole('tab', { name: /Switch to Untitled\*?/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: /Switch to Untitled 2\*?/ })).not.toBeInTheDocument()
+  })
+
+  it('opens Finder-opened markdown files in a new tab when app is already running', async () => {
+    const activeEventHandlers = new Map()
+    desktopRuntimeMocks.listenDesktopEvent.mockImplementation(async (eventName, handler) => {
+      activeEventHandlers.set(eventName, handler)
+      return () => {
+        if (activeEventHandlers.get(eventName) === handler) {
+          activeEventHandlers.delete(eventName)
+        }
+      }
+    })
+
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockResolvedValue([
+      {
+        path: '/tmp/from-finder.md',
+        content: 'Loaded from Finder event',
+      },
+    ])
+
+    render(<App />)
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    fireEvent.change(editor, { target: { value: 'Keep this tab open' } })
+
+    await waitFor(() => {
+      expect(activeEventHandlers.get('ghost-writer://app-open-files')).toBeTypeOf('function')
+    })
+
+    await act(async () => {
+      await activeEventHandlers.get('ghost-writer://app-open-files')({
+        payload: { paths: ['/tmp/from-finder.md'] },
+      })
+    })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.loadMarkdownFilesByPaths).toHaveBeenCalledWith(['/tmp/from-finder.md'])
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to from-finder' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: /Switch to Untitled\*?/ }))
+    expect(document.querySelector('textarea.editor__textarea')).toHaveValue('Keep this tab open')
+  })
+
+  it('opens pending startup markdown files in a new tab after desktop listeners register', async () => {
+    desktopRuntimeMocks.consumePendingOpenFiles.mockResolvedValue(['/tmp/startup-open.md'])
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockResolvedValue([
+      {
+        path: '/tmp/startup-open.md',
+        content: 'Loaded from startup open',
+      },
+    ])
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.consumePendingOpenFiles).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.loadMarkdownFilesByPaths).toHaveBeenCalledWith(['/tmp/startup-open.md'])
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to startup-open' })).toHaveAttribute('aria-selected', 'true')
+    })
+  })
+
+  it('keeps startup-opened markdown tabs after desktop session restore completes', async () => {
+    const deferredSettings = createDeferred()
+    desktopRuntimeMocks.loadSettings.mockImplementation(async () => deferredSettings.promise)
+    desktopRuntimeMocks.consumePendingOpenFiles.mockResolvedValue(['/tmp/startup-open.md'])
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockImplementation(async (paths) => {
+      if (paths.includes('/tmp/startup-open.md')) {
+        return [
+          {
+            path: '/tmp/startup-open.md',
+            content: 'Loaded from startup open',
+          },
+        ]
+      }
+      if (paths.includes('/tmp/restored-tab.md')) {
+        return [
+          {
+            path: '/tmp/restored-tab.md',
+            content: 'Restored session content',
+          },
+        ]
+      }
+      return []
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.consumePendingOpenFiles).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to startup-open' })).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      deferredSettings.resolve({
+        settings: {
+          sessionTabs: [
+            {
+              id: 'restored-tab',
+              title: 'restored-tab.md',
+              content: 'Restored session content',
+              filePath: '/tmp/restored-tab.md',
+              lastSavedContent: 'Restored session content',
+              isDirty: false,
+              isPreviewOpen: false,
+            },
+          ],
+          sessionActiveTabId: 'restored-tab',
+          sessionNextUntitledIndex: 2,
+        },
+        hasFile: true,
+      })
+      await deferredSettings.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to startup-open' })).toBeInTheDocument()
+    })
+    expect(screen.getByRole('tab', { name: 'Switch to restored-tab' })).toBeInTheDocument()
+  })
+
+  it('does not drop pending startup file paths when listener effect re-registers mid-consume', async () => {
+    const deferredPending = createDeferred()
+    desktopRuntimeMocks.consumePendingOpenFiles
+      .mockImplementationOnce(async () => deferredPending.promise)
+      .mockResolvedValue([])
+    desktopRuntimeMocks.loadSettings.mockResolvedValue({
+      settings: {
+        sessionTabs: [
+          {
+            id: 'restored-tab',
+            title: 'restored-tab.md',
+            content: 'Restored session content',
+            filePath: '/tmp/restored-tab.md',
+            lastSavedContent: 'Restored session content',
+            isDirty: false,
+            isPreviewOpen: false,
+          },
+        ],
+        sessionActiveTabId: 'restored-tab',
+        sessionNextUntitledIndex: 2,
+      },
+      hasFile: true,
+    })
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockImplementation(async (paths) => {
+      if (paths.includes('/tmp/startup-race.md')) {
+        return [
+          {
+            path: '/tmp/startup-race.md',
+            content: 'Loaded from pending race',
+          },
+        ]
+      }
+      return []
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.consumePendingOpenFiles).toHaveBeenCalledTimes(2)
+    })
+
+    await act(async () => {
+      deferredPending.resolve(['/tmp/startup-race.md'])
+      await deferredPending.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to startup-race' })).toBeInTheDocument()
+    })
   })
 
   it('closes an unmodified saved tab without opening native save dialog', async () => {
