@@ -250,6 +250,21 @@ export async function loadMarkdownFilesByPaths(paths = []) {
   }
 }
 
+export async function consumePendingOpenFiles() {
+  if (!isDesktopRuntime()) return []
+
+  try {
+    return await invoke('consume_pending_open_files')
+  } catch (error) {
+    warnDesktopRuntime(
+      'desktop.file.consume_pending_open_files.failed',
+      'Failed to consume pending startup file-open paths.',
+      error,
+    )
+    return []
+  }
+}
+
 export async function openExternalUrl(url) {
   if (!isDesktopRuntime()) return false
 
