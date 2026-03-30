@@ -460,6 +460,26 @@ export async function loadDesktopOllamaModels() {
   }
 }
 
+export async function downloadOllamaModel(model = '') {
+  if (!isDesktopRuntime()) {
+    return { ok: false, error: 'Desktop runtime unavailable.' }
+  }
+
+  const normalizedModel = String(model ?? '').trim()
+  if (!normalizedModel) {
+    return { ok: false, error: 'Model name is required.' }
+  }
+
+  try {
+    await invoke('pull_ollama_model', { model: normalizedModel })
+    return { ok: true }
+  } catch (error) {
+    const message = error?.message ?? String(error)
+    warnDesktopRuntime('desktop.ollama.pull_model.failed', 'Failed to download Ollama model.', message)
+    return { ok: false, error: message }
+  }
+}
+
 /**
  * Ask the host to cancel a specific Ollama stream request. Desktop/Tauri only.
  */
