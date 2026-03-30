@@ -15,6 +15,8 @@ export function useGlobalShortcuts({
   onToggleTabBar,
   onTogglePromptPanel,
   onShowFindReplace,
+  onIncreaseTextZoom,
+  onDecreaseTextZoom,
 }) {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -96,6 +98,18 @@ export function useGlobalShortcuts({
         return
       }
 
+      if (hasMod && !event.altKey && (key === '+' || key === '=' || event.code === 'NumpadAdd')) {
+        event.preventDefault()
+        onIncreaseTextZoom()
+        return
+      }
+
+      if (hasMod && !event.altKey && (key === '-' || key === '_' || event.code === 'NumpadSubtract')) {
+        event.preventDefault()
+        onDecreaseTextZoom()
+        return
+      }
+
       if (!hasMod || event.altKey || key !== 'm') return
 
       event.preventDefault()
@@ -116,6 +130,8 @@ export function useGlobalShortcuts({
     onTogglePromptPanel,
     onToggleTabBar,
     onTogglePreview,
+    onDecreaseTextZoom,
+    onIncreaseTextZoom,
     onShowFindReplace,
     openActionRef,
     printActionRef,
