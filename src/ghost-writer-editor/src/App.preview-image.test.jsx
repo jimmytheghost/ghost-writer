@@ -16,7 +16,9 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   openExternalUrl: vi.fn(async () => true),
   exitApp: vi.fn(async () => true),
   closeCurrentWindow: vi.fn(async () => true),
+  setCurrentWindowTitle: vi.fn(async () => {}),
   listenDesktopEvent: vi.fn(async () => () => {}),
+  consumePendingOpenFiles: vi.fn(async () => []),
 }))
 
 const markdownMocks = vi.hoisted(() => ({
@@ -50,7 +52,9 @@ vi.mock('./lib/desktopRuntime', async () => ({
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
   exitApp: desktopRuntimeMocks.exitApp,
   closeCurrentWindow: desktopRuntimeMocks.closeCurrentWindow,
+  setCurrentWindowTitle: desktopRuntimeMocks.setCurrentWindowTitle,
   listenDesktopEvent: desktopRuntimeMocks.listenDesktopEvent,
+  consumePendingOpenFiles: desktopRuntimeMocks.consumePendingOpenFiles,
 }))
 
 vi.mock('./lib/markdown', () => ({

@@ -20,6 +20,7 @@
 |------|--------|
 | `ghostwriter-feature-list.md` | **REFERENCE** - Product capability inventory and feature snapshot |
 | `ghost-writer-about.md` | **REFERENCE** - Product background, intent, and case-study style notes |
+| `release-notes/v1.5.1.md` | **REFERENCE** - Release summary for `v1.5.1` |
 | `agent-workflows/` | **ACTIVE** - Focused runbooks for release, models, printing, and QA flows |
 | `agent-workflows/pr-triage-and-merge.md` | **ACTIVE** - Safety workflow and prompt templates for PR triage, merge, and closure |
 

@@ -17,7 +17,9 @@ const desktopRuntimeMocks = vi.hoisted(() => ({
   openExternalUrl: vi.fn(async () => true),
   exitApp: vi.fn(async () => true),
   closeCurrentWindow: vi.fn(async () => true),
+  setCurrentWindowTitle: vi.fn(async () => {}),
   listenDesktopEvent: vi.fn(async () => () => {}),
+  consumePendingOpenFiles: vi.fn(async () => []),
 }))
 
 vi.mock('./hooks/useDesktopAppMetadata', () => ({
@@ -47,7 +49,9 @@ vi.mock('./lib/desktopRuntime', async () => ({
   openExternalUrl: desktopRuntimeMocks.openExternalUrl,
   exitApp: desktopRuntimeMocks.exitApp,
   closeCurrentWindow: desktopRuntimeMocks.closeCurrentWindow,
+  setCurrentWindowTitle: desktopRuntimeMocks.setCurrentWindowTitle,
   listenDesktopEvent: desktopRuntimeMocks.listenDesktopEvent,
+  consumePendingOpenFiles: desktopRuntimeMocks.consumePendingOpenFiles,
 }))
 
 import App from './App'
@@ -79,7 +83,6 @@ describe('App desktop tab reorder persistence', () => {
     fireEvent.click(screen.getByLabelText('New tab'))
     fireEvent.click(screen.getByLabelText('New tab'))
 
-    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })

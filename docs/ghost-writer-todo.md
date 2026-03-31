@@ -1,21 +1,21 @@
 # Ghost Writer TODO
 
-Last reviewed: 2026-03-20
+Last reviewed: 2026-03-31
 
 This is the single source of truth for active Ghost Writer work. Historical task lists, split issue trackers, and superseded pointers are archived in `docs/_old/`.
 
 ## Release Track
 
-- Current shipped baseline: `1.5.0`
-- Next working version: `1.5.0+`
-- Production release target: `1.5.0`
+- Current shipped baseline: `1.5.1`
+- Next working version: `1.5.1+`
+- Production release target: `1.5.1`
 
 ## Active Work
 
 ### Release Blockers
 
 - [x] Fix the Windows cursor/input desync that reproduced in longer documents.
-  - Status: resolved in the `1.5.0` track and verified in current smoke testing.
+  - Status: resolved in the `1.5.1` track and verified in current smoke testing.
   - Shipping behavior:
     - On Windows, Ghost Writer avoids persistent blurred in-editor selection overlays after blur.
     - Selection intent is preserved in app state and shown near the prompt when needed.
@@ -24,7 +24,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - [x] Make native Save/Open dialogs stay above the app window when `Pin to Top` is enabled.
   - Status: resolved and verified in current smoke testing.
 
-- [x] Run manual install smoke tests on both Windows and macOS before calling `1.5.0` production-ready.
+- [x] Run manual install smoke tests on both Windows and macOS before calling `1.5.1` production-ready.
   - Windows checklist: `docs/manual-install-smoke-test-windows.md`
   - macOS checklist: `docs/manual-install-smoke-test-macos.md`
   - Signoff intent: manual verification will be performed on a real PC and a real Mac.
@@ -33,16 +33,16 @@ This is the single source of truth for active Ghost Writer work. Historical task
 ### Release Preparation
 
 - [x] Create custom installer artwork/branding assets.
-  - Status: deferred by release decision for `1.5.0`; current default installer visuals accepted for this portfolio/open-source release.
+  - Status: deferred by release decision for `1.5.1`; current default installer visuals accepted for this portfolio/open-source release.
   - Scope: installer-specific graphics only, not general in-app branding copy.
 
-- [x] Bump the app version along the working track (`1.5.0+`) while remaining fixes are in progress.
-  - `1.5.0` is now the production release baseline.
+- [x] Bump the app version along the working track (`1.5.1+`) while remaining fixes are in progress.
+  - `1.5.1` is now the production release baseline.
 
 ## Current Baseline
 
-- `1.5.0` is the current repo/app version.
-- Completed before shipping `1.5.0`:
+- `1.5.1` is the current repo/app version.
+- Completed before shipping `1.5.1`:
   - Default desktop window size updated to `600 x 900`.
   - Branding copy updated to `Vibe Coded by JimmyTheGhost (www.JimmyWeber.com)`.
   - Markdown preview/editor scroll sync behavior adjusted to remove visible shake/blur looping.
@@ -65,7 +65,7 @@ This is the single source of truth for active Ghost Writer work. Historical task
 - `npm run lint` passed.
 - `npm run build` passed.
 - `cargo check` passed.
-- `npm run build:tauri:mac` is the current packaging target for `1.5.0`.
+- `npm run build:tauri:mac` is the current packaging target for `1.5.1`.
 - `npm run check` passed on `2026-03-20` in the release hardening worktree.
 
 ## Current UX Direction

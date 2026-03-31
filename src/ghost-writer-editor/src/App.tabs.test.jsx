@@ -130,7 +130,6 @@ describe('App tabs', () => {
     fireEvent.click(screen.getByLabelText('New tab'))
     fireEvent.click(screen.getByLabelText('New tab'))
 
-    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })
@@ -147,7 +146,6 @@ describe('App tabs', () => {
     fireEvent.click(screen.getByLabelText('New tab'))
     fireEvent.click(screen.getByLabelText('New tab'))
 
-    const tabOne = screen.getByRole('tab', { name: 'Switch to Untitled' })
     const tabThree = screen.getByRole('tab', { name: 'Switch to Untitled 3' })
 
     fireEvent.mouseDown(tabThree, { button: 0, clientX: 300, clientY: 12 })

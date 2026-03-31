@@ -10,9 +10,9 @@ For current active work, canonical docs, and release status, start with `docs/do
 
 ## Download
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/jimmytheghost/ghost-writer/releases/download/v1.5.0/Ghost.Writer_1.5.0_x64-setup.exe)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/jimmytheghost/ghost-writer/releases/download/v1.5.0/Ghost.Writer_1.5.0_aarch64.dmg)
-[![View Release Notes](https://img.shields.io/badge/Release%20Notes-v1.5.0-6e40c9?style=for-the-badge)](https://github.com/jimmytheghost/ghost-writer/releases/tag/v1.5.0)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/jimmytheghost/ghost-writer/releases/download/v1.5.1/Ghost.Writer_1.5.1_x64-setup.exe)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/jimmytheghost/ghost-writer/releases/download/v1.5.1/Ghost.Writer_1.5.1_aarch64.dmg)
+[![View Release Notes](https://img.shields.io/badge/Release%20Notes-v1.5.1-6e40c9?style=for-the-badge)](https://github.com/jimmytheghost/ghost-writer/releases/tag/v1.5.1)
 
 ## Highlights
 

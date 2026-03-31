@@ -1074,7 +1074,14 @@ function App() {
     if (hasCheckedForUpdatesOnLaunchRef.current) return
 
     hasCheckedForUpdatesOnLaunchRef.current = true
-    void handleCheckForUpdates({ isStartupCheck: true })
+
+    const startupCheckTimer = setTimeout(() => {
+      void handleCheckForUpdates({ isStartupCheck: true })
+    }, 0)
+
+    return () => {
+      clearTimeout(startupCheckTimer)
+    }
   }, [handleCheckForUpdates])
 
   const applySettings = useCallback((nextSettings) => {
