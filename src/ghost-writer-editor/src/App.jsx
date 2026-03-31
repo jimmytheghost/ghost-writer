@@ -2316,6 +2316,26 @@ function App() {
     [activeTabId, setPreviewOpenForTab, setSelectedModel],
   )
 
+  const handleIncreaseTextZoom = useCallback(() => {
+    const currentValue = settings.defaultTextZoom ?? '100%'
+    const currentIndex = TEXT_ZOOM_OPTIONS.indexOf(currentValue)
+    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : TEXT_ZOOM_OPTIONS.indexOf('100%')
+    const nextIndex = Math.min(TEXT_ZOOM_OPTIONS.length - 1, Math.max(0, safeCurrentIndex + 1))
+    const nextValue = TEXT_ZOOM_OPTIONS[nextIndex] ?? '100%'
+    if (nextValue === currentValue) return
+    void updateSetting('defaultTextZoom', nextValue)
+  }, [settings.defaultTextZoom, updateSetting])
+
+  const handleDecreaseTextZoom = useCallback(() => {
+    const currentValue = settings.defaultTextZoom ?? '100%'
+    const currentIndex = TEXT_ZOOM_OPTIONS.indexOf(currentValue)
+    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : TEXT_ZOOM_OPTIONS.indexOf('100%')
+    const nextIndex = Math.max(0, Math.min(TEXT_ZOOM_OPTIONS.length - 1, safeCurrentIndex - 1))
+    const nextValue = TEXT_ZOOM_OPTIONS[nextIndex] ?? '100%'
+    if (nextValue === currentValue) return
+    void updateSetting('defaultTextZoom', nextValue)
+  }, [settings.defaultTextZoom, updateSetting])
+
   const syncPreviewScrollBackToEditor = useCallback(() => {
     if (!activeTabId) return
     const livePreviewScrollTop = Number(previewContentRef.current?.scrollTop)
@@ -2785,6 +2805,8 @@ ${escapeLatex(exportMarkdownSource)}
     onToggleTabBar: handleToggleTabBar,
     onTogglePromptPanel: handleTogglePromptPanel,
     onShowFindReplace: handleShowFindReplace,
+    onIncreaseTextZoom: handleIncreaseTextZoom,
+    onDecreaseTextZoom: handleDecreaseTextZoom,
   })
 
   useTauriMenuEvents({
