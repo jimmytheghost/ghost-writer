@@ -214,6 +214,12 @@ struct OllamaTagModel {
     name: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct OllamaPullResponse {
+    #[serde(default)]
+    error: String,
+}
+
 fn build_app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let is_colored_output_visible = app
         .try_state::<ColoredOutputMenuState>()
@@ -2266,6 +2272,78 @@ async fn load_ollama_models(app: tauri::AppHandle) -> Result<Vec<String>, String
     Ok(models)
 }
 
+#[tauri::command]
+async fn pull_ollama_model(app: tauri::AppHandle, model: String) -> Result<(), String> {
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err("ERR_MISSING_FIELD:model is required".to_string());
+    }
+    ensure_max_bytes("model", &model, MAX_MODEL_NAME_BYTES)?;
+    ensure_ollama_running_result(&app)?;
+
+    let ollama_base_url = read_ollama_base_url(&app);
+    let url = format!("{ollama_base_url}/api/pull");
+    let client = reqwest::Client::builder()
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    append_structured_log(
+        &app,
+        "info",
+        "ollama.pull.start",
+        "Starting Ollama model download",
+        serde_json::json!({ "baseUrl": &ollama_base_url, "model": &model }),
+    );
+
+    let response = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "model": &model,
+            "stream": false
+        }))
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if !response.status().is_success() {
+        let error = format!("Ollama pull request failed: {}", response.status());
+        append_structured_log(
+            &app,
+            "error",
+            "ollama.pull.http_error",
+            "Ollama pull request returned non-success status",
+            serde_json::json!({ "baseUrl": &ollama_base_url, "model": &model, "status": response.status().as_u16() }),
+        );
+        return Err(error);
+    }
+
+    let payload = response
+        .json::<OllamaPullResponse>()
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if !payload.error.trim().is_empty() {
+        append_structured_log(
+            &app,
+            "error",
+            "ollama.pull.failed",
+            "Ollama reported pull failure",
+            serde_json::json!({ "baseUrl": &ollama_base_url, "model": &model, "error": payload.error.trim() }),
+        );
+        return Err(payload.error);
+    }
+
+    append_structured_log(
+        &app,
+        "info",
+        "ollama.pull.done",
+        "Ollama model download completed",
+        serde_json::json!({ "baseUrl": &ollama_base_url, "model": &model }),
+    );
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2530,6 +2608,7 @@ fn main() {
             log_frontend_warning,
             ensure_ollama_running_command,
             load_ollama_models,
+            pull_ollama_model,
             ollama_generate_stream,
             ollama_cancel_stream
         ])

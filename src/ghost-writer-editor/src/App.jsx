@@ -22,6 +22,7 @@ import {
 import {
   closeCurrentWindow,
   consumePendingOpenFiles,
+  downloadOllamaModel,
   ensureOllamaRunning,
   exitApp,
   exportDiagnosticsBundle,
@@ -2767,6 +2768,13 @@ ${escapeLatex(exportMarkdownSource)}
     setPromptError('')
   }, [setPromptError])
 
+  const handleDownloadQuickStartModel = useCallback(async () => {
+    const result = await downloadOllamaModel('llama3.1:8b')
+    if (!result.ok) return result
+    await loadModels({ force: true })
+    return { ok: true }
+  }, [loadModels])
+
   const handleWordListSave = useCallback(
     (nextWordList = [], nextWordListDisabled = []) => {
       const normalizedWordList = Array.isArray(nextWordList) ? nextWordList : DEFAULT_SETTINGS.customWordList
@@ -3340,6 +3348,7 @@ ${escapeLatex(exportMarkdownSource)}
         onCheckForUpdates={() => {
           void handleCheckForUpdates()
         }}
+        onDownloadQuickStartModel={handleDownloadQuickStartModel}
         isCheckingForUpdates={isCheckingForUpdates}
         updateCheckStatus={updateCheckStatus}
       />

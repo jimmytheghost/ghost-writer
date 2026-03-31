@@ -261,6 +261,7 @@ function AppModals({
   onCancelDirtyCloseConfirm = () => {},
   onExportDiagnostics = () => {},
   onCheckForUpdates = () => {},
+  onDownloadQuickStartModel = async () => ({ ok: false, error: 'Model download unavailable.' }),
   isCheckingForUpdates = false,
   updateCheckStatus = '',
 }) {
@@ -270,6 +271,8 @@ function AppModals({
     : []
   const currentTextZoomValue = settings.defaultTextZoom ?? '100%'
   const currentTextZoomIndex = Math.max(0, textZoomOptions.indexOf(currentTextZoomValue))
+  const [isDownloadingQuickStartModel, setIsDownloadingQuickStartModel] = useState(false)
+  const [quickStartDownloadStatus, setQuickStartDownloadStatus] = useState('')
   useEscapeToClose(isSettingsOpen, () => setIsSettingsOpen(false))
   useEscapeToClose(isWordListOpen, () => setIsWordListOpen(false))
   useEscapeToClose(isTextZoomOpen, () => setIsTextZoomOpen(false))
@@ -285,6 +288,26 @@ function AppModals({
     if (isDesktopRuntime()) {
       event.preventDefault()
       void openExternalUrl(anchor.href)
+    }
+  }
+
+  const handleDownloadQuickStartModel = async () => {
+    if (isDownloadingQuickStartModel) return
+
+    setIsDownloadingQuickStartModel(true)
+    setQuickStartDownloadStatus('')
+
+    try {
+      const result = await onDownloadQuickStartModel()
+      if (result?.ok === false) {
+        setQuickStartDownloadStatus(`Model download failed: ${result.error ?? 'Unknown error.'}`)
+        return
+      }
+      setQuickStartDownloadStatus('Downloaded llama3.1:8b. It is now available in the model picker.')
+    } catch (error) {
+      setQuickStartDownloadStatus(`Model download failed: ${error?.message ?? String(error)}`)
+    } finally {
+      setIsDownloadingQuickStartModel(false)
     }
   }
 
@@ -637,8 +660,26 @@ function AppModals({
                 to learn more.
               </p>
               <p>Quick start to download a model:</p>
-              <pre className="about-modal__code">ollama pull llama3.1:8b</pre>
+              {isDesktopRuntime() ? (
+                <button
+                  type="button"
+                  className="modal__button"
+                  onClick={() => {
+                    void handleDownloadQuickStartModel()
+                  }}
+                  disabled={isDownloadingQuickStartModel}
+                >
+                  {isDownloadingQuickStartModel ? 'Downloading llama3.1:8b...' : 'Download llama3.1:8b'}
+                </button>
+              ) : (
+                <pre className="about-modal__code">ollama pull llama3.1:8b</pre>
+              )}
               <p>Then restart Ghost Writer and you’re ready to write.</p>
+              {quickStartDownloadStatus ? (
+                <p className="about-modal__meta" role="status" aria-live="polite">
+                  {quickStartDownloadStatus}
+                </p>
+              ) : null}
               {updateCheckStatus ? (
                 <p className="about-modal__meta" role="status" aria-live="polite">
                   {updateCheckStatus}
