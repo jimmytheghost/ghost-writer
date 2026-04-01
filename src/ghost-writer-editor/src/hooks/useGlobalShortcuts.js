@@ -17,11 +17,35 @@ export function useGlobalShortcuts({
   onShowFindReplace,
   onIncreaseTextZoom,
   onDecreaseTextZoom,
+  isEditorFocused,
+  onSwitchTabByDirection,
 }) {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
       const key = event.key.toLowerCase()
       const hasMod = event.metaKey || event.ctrlKey
+      const isMac = /Mac/i.test(navigator.platform ?? '')
+
+      const isPrevTabShortcut =
+        key === 'arrowleft' &&
+        !event.shiftKey &&
+        ((isMac && event.ctrlKey && !event.metaKey && !event.altKey) ||
+          (!isMac && event.altKey && !event.ctrlKey && !event.metaKey))
+
+      const isNextTabShortcut =
+        key === 'arrowright' &&
+        !event.shiftKey &&
+        ((isMac && event.ctrlKey && !event.metaKey && !event.altKey) ||
+          (!isMac && event.altKey && !event.ctrlKey && !event.metaKey))
+
+      if ((isPrevTabShortcut || isNextTabShortcut) && typeof onSwitchTabByDirection === 'function') {
+        if (!isEditorFocused?.()) return
+        const didSwitch = onSwitchTabByDirection(isPrevTabShortcut ? -1 : 1)
+        if (didSwitch) {
+          event.preventDefault()
+        }
+        return
+      }
 
       if (hasMod && !event.altKey && key === 's') {
         if (event.shiftKey) {
@@ -137,5 +161,7 @@ export function useGlobalShortcuts({
     printActionRef,
     saveActionRef,
     saveAsActionRef,
+    isEditorFocused,
+    onSwitchTabByDirection,
   ])
 }
