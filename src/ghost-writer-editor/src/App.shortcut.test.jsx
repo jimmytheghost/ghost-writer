@@ -2,6 +2,22 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+function mockNavigatorPlatform(platform) {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'platform')
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    get: () => platform,
+  })
+
+  return () => {
+    if (originalDescriptor) {
+      Object.defineProperty(window.navigator, 'platform', originalDescriptor)
+      return
+    }
+    delete window.navigator.platform
+  }
+}
+
 describe('App keyboard shortcuts', () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -146,6 +162,83 @@ describe('App keyboard shortcuts', () => {
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(1)
     expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('switches tabs with Alt+ArrowLeft and Alt+ArrowRight on PC only when editor is focused', async () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+
+    const promptInput = screen.getByLabelText('Prompt input')
+    promptInput.focus()
+    fireEvent.keyDown(promptInput, { key: 'ArrowLeft', altKey: true })
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    editor.focus()
+
+    fireEvent.keyDown(editor, { key: 'ArrowLeft', altKey: true })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    fireEvent.keyDown(editor, { key: 'ArrowRight', altKey: true })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+    })
+  })
+
+  it('does not switch tabs with Alt+Arrow keys when tab bar is hidden or no neighboring tab exists', async () => {
+    render(<App />)
+
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+
+    const editor = document.querySelector('textarea.editor__textarea')
+    expect(editor).not.toBeNull()
+    editor.focus()
+
+    fireEvent.keyDown(editor, { key: 'ArrowRight', altKey: true })
+    expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true, shiftKey: true })
+    expect(screen.queryByRole('tablist', { name: 'Document tabs' })).not.toBeInTheDocument()
+
+    fireEvent.keyDown(editor, { key: 'ArrowLeft', altKey: true })
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true, shiftKey: true })
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+    })
+  })
+
+  it('switches tabs with Ctrl+ArrowLeft and Ctrl+ArrowRight on macOS', async () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+
+    try {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'n', metaKey: true })
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+
+      const editor = document.querySelector('textarea.editor__textarea')
+      expect(editor).not.toBeNull()
+      editor.focus()
+
+      fireEvent.keyDown(editor, { key: 'ArrowLeft', ctrlKey: true })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
+      })
+
+      fireEvent.keyDown(editor, { key: 'ArrowRight', ctrlKey: true })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+      })
+    } finally {
+      restorePlatform()
+    }
   })
 
   it('toggles footer collapsed/open with Ctrl+Shift+B', () => {

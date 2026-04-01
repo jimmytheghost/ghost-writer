@@ -2463,6 +2463,32 @@ function App() {
     [switchActiveTab]
   )
 
+  const isEditorFocused = useCallback(() => {
+    const activeElement = document.activeElement
+    return activeElement instanceof HTMLTextAreaElement && activeElement.classList.contains('editor__textarea')
+  }, [])
+
+  const handleSwitchTabByDirection = useCallback(
+    (direction) => {
+      if (!isTabBarVisible) return false
+      if (!activeTabId) return false
+      if (!Number.isInteger(direction) || direction === 0) return false
+
+      const currentIndex = tabs.findIndex((tab) => tab.id === activeTabId)
+      if (currentIndex < 0) return false
+
+      const targetIndex = currentIndex + direction
+      if (targetIndex < 0 || targetIndex >= tabs.length) return false
+
+      const targetTab = tabs[targetIndex]
+      if (!targetTab?.id) return false
+
+      switchActiveTab(targetTab.id, { clearWindowsSelection: true })
+      return true
+    },
+    [activeTabId, isTabBarVisible, switchActiveTab, tabs],
+  )
+
   const handleTabReorder = useCallback((draggedTabId, targetIndex) => {
     if (!draggedTabId || !Number.isInteger(targetIndex)) return
 
@@ -2822,6 +2848,8 @@ ${escapeLatex(exportMarkdownSource)}
     onShowFindReplace: handleShowFindReplace,
     onIncreaseTextZoom: handleIncreaseTextZoom,
     onDecreaseTextZoom: handleDecreaseTextZoom,
+    isEditorFocused,
+    onSwitchTabByDirection: handleSwitchTabByDirection,
   })
 
   useTauriMenuEvents({
