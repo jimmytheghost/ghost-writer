@@ -29,18 +29,37 @@ export function useGlobalShortcuts({
       const isPrevTabShortcut =
         key === 'arrowleft' &&
         !event.shiftKey &&
-        ((isMac && event.ctrlKey && !event.metaKey && !event.altKey) ||
+        ((isMac && event.metaKey && event.altKey && !event.ctrlKey) ||
           (!isMac && event.altKey && !event.ctrlKey && !event.metaKey))
 
       const isNextTabShortcut =
         key === 'arrowright' &&
         !event.shiftKey &&
-        ((isMac && event.ctrlKey && !event.metaKey && !event.altKey) ||
+        ((isMac && event.metaKey && event.altKey && !event.ctrlKey) ||
           (!isMac && event.altKey && !event.ctrlKey && !event.metaKey))
 
-      if ((isPrevTabShortcut || isNextTabShortcut) && typeof onSwitchTabByDirection === 'function') {
-        if (!isEditorFocused?.()) return
-        const didSwitch = onSwitchTabByDirection(isPrevTabShortcut ? -1 : 1)
+      const isMacFnPrevTabShortcut =
+        isMac &&
+        key === 'home' &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+
+      const isMacFnNextTabShortcut =
+        isMac &&
+        key === 'end' &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+
+      if (
+        (isPrevTabShortcut || isNextTabShortcut || isMacFnPrevTabShortcut || isMacFnNextTabShortcut) &&
+        typeof onSwitchTabByDirection === 'function'
+      ) {
+        if (!isMac && !isEditorFocused?.()) return
+        const didSwitch = onSwitchTabByDirection(isPrevTabShortcut || isMacFnPrevTabShortcut ? -1 : 1)
         if (didSwitch) {
           event.preventDefault()
         }

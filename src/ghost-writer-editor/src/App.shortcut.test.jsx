@@ -214,7 +214,7 @@ describe('App keyboard shortcuts', () => {
     })
   })
 
-  it('switches tabs with Ctrl+ArrowLeft and Ctrl+ArrowRight on macOS', async () => {
+  it('switches tabs with Cmd+Option+ArrowLeft and Cmd+Option+ArrowRight on macOS', async () => {
     const restorePlatform = mockNavigatorPlatform('MacIntel')
 
     try {
@@ -227,14 +227,68 @@ describe('App keyboard shortcuts', () => {
       expect(editor).not.toBeNull()
       editor.focus()
 
-      fireEvent.keyDown(editor, { key: 'ArrowLeft', ctrlKey: true })
+      fireEvent.keyDown(editor, { key: 'ArrowLeft', metaKey: true, altKey: true })
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: 'Switch to Untitled' })).toHaveAttribute('aria-selected', 'true')
       })
 
-      fireEvent.keyDown(editor, { key: 'ArrowRight', ctrlKey: true })
+      fireEvent.keyDown(editor, { key: 'ArrowRight', metaKey: true, altKey: true })
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+      })
+    } finally {
+      restorePlatform()
+    }
+  })
+
+  it('switches tabs with Cmd+Option+ArrowLeft and Cmd+Option+ArrowRight on macOS when prompt input is focused', async () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+
+    try {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'n', metaKey: true })
+      fireEvent.keyDown(window, { key: 'n', metaKey: true })
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+
+      const promptInput = screen.getByLabelText('Prompt input')
+      promptInput.focus()
+
+      fireEvent.keyDown(promptInput, { key: 'ArrowLeft', metaKey: true, altKey: true })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+      })
+
+      fireEvent.keyDown(promptInput, { key: 'ArrowRight', metaKey: true, altKey: true })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+      })
+    } finally {
+      restorePlatform()
+    }
+  })
+
+  it('switches tabs with Home and End on macOS (Fn+Arrow fallback)', async () => {
+    const restorePlatform = mockNavigatorPlatform('MacIntel')
+
+    try {
+      render(<App />)
+
+      fireEvent.keyDown(window, { key: 'n', metaKey: true })
+      fireEvent.keyDown(window, { key: 'n', metaKey: true })
+      expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
+
+      const promptInput = screen.getByLabelText('Prompt input')
+      promptInput.focus()
+
+      fireEvent.keyDown(promptInput, { key: 'Home' })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled 2' })).toHaveAttribute('aria-selected', 'true')
+      })
+
+      fireEvent.keyDown(promptInput, { key: 'End' })
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: 'Switch to Untitled 3' })).toHaveAttribute('aria-selected', 'true')
       })
     } finally {
       restorePlatform()
