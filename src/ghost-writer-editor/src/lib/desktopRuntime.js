@@ -5,6 +5,15 @@ import { report } from './errorReporting'
 
 const FRONTEND_DIAGNOSTIC_TRACE_LIMIT = 120
 const FRONTEND_DIAGNOSTIC_STRING_LIMIT = 240
+const PENDING_OPEN_FILES_COMMAND_NAMES = [
+  'consume_pending_open_files',
+  'consumePendingOpenFiles',
+  'consume_pending_open_paths',
+  'consumePendingOpenPaths',
+]
+const PENDING_OPEN_FILES_RETRY_LIMIT = 25
+const PENDING_OPEN_FILES_RETRY_DELAY_MS = 80
+let hasLoggedPendingOpenFilesFailure = false
 
 function hasWindow() {
   return typeof window !== 'undefined'
@@ -111,6 +120,7 @@ export function getFrontendDiagnosticsSnapshot() {
 
 export function resetFrontendDiagnosticsForTests() {
   frontendDiagnosticsState = createFrontendDiagnosticsState()
+  hasLoggedPendingOpenFilesFailure = false
 }
 
 export function markRendererInteractive(payload = {}) {
@@ -253,16 +263,33 @@ export async function loadMarkdownFilesByPaths(paths = []) {
 export async function consumePendingOpenFiles() {
   if (!isDesktopRuntime()) return []
 
-  try {
-    return await invoke('consume_pending_open_files')
-  } catch (error) {
+  let lastError = null
+
+  for (let attempt = 0; attempt < PENDING_OPEN_FILES_RETRY_LIMIT; attempt += 1) {
+    for (const commandName of PENDING_OPEN_FILES_COMMAND_NAMES) {
+      try {
+        const value = await invoke(commandName)
+        return Array.isArray(value) ? value : []
+      } catch (error) {
+        lastError = error
+      }
+    }
+
+    if (attempt + 1 < PENDING_OPEN_FILES_RETRY_LIMIT) {
+      await new Promise((resolve) => setTimeout(resolve, PENDING_OPEN_FILES_RETRY_DELAY_MS))
+    }
+  }
+
+  if (!hasLoggedPendingOpenFilesFailure) {
+    hasLoggedPendingOpenFilesFailure = true
     warnDesktopRuntime(
       'desktop.file.consume_pending_open_files.failed',
       'Failed to consume pending startup file-open paths.',
-      error,
+      lastError,
     )
-    return []
   }
+
+  return []
 }
 
 export async function openExternalUrl(url) {

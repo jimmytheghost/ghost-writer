@@ -854,6 +854,15 @@ fn consume_pending_open_files(app: tauri::AppHandle) -> Vec<String> {
     };
     let consumed = pending_paths.clone();
     pending_paths.clear();
+    append_structured_log(
+        &app,
+        "info",
+        "app.open_files.pending.consume",
+        "Renderer consumed pending open-file paths",
+        serde_json::json!({
+            "consumedPathCount": consumed.len()
+        }),
+    );
     consumed
 }
 
@@ -1565,11 +1574,23 @@ fn has_markdown_extension(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+fn strip_wrapping_quotes(value: &str) -> &str {
+    let trimmed = value.trim();
+    if trimmed.len() >= 2 {
+        let first = trimmed.as_bytes()[0];
+        let last = trimmed.as_bytes()[trimmed.len() - 1];
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return trimmed[1..trimmed.len() - 1].trim();
+        }
+    }
+    trimmed
+}
+
 fn normalize_pending_open_paths(paths: Vec<String>) -> Vec<String> {
     let mut normalized: Vec<String> = Vec::new();
 
     for raw in paths {
-        let trimmed = raw.trim();
+        let trimmed = strip_wrapping_quotes(raw.trim());
         if trimmed.is_empty() {
             continue;
         }
@@ -1607,7 +1628,7 @@ fn startup_open_paths_from_args(args: Vec<String>) -> Vec<String> {
     let mut raw_paths: Vec<String> = Vec::new();
 
     for arg in args {
-        let trimmed = arg.trim();
+        let trimmed = strip_wrapping_quotes(arg.trim());
         if trimmed.is_empty() || trimmed.starts_with("-psn_") {
             continue;
         }
@@ -1627,10 +1648,67 @@ fn startup_open_paths_from_args(args: Vec<String>) -> Vec<String> {
     normalize_pending_open_paths(raw_paths)
 }
 
+fn startup_open_paths_from_single_instance_args(args: Vec<String>) -> Vec<String> {
+    startup_open_paths_from_args(args.into_iter().skip(1).collect())
+}
+
+fn log_open_paths_ingress(
+    app: &tauri::AppHandle,
+    source: &str,
+    received_items_count: usize,
+    normalized_paths: &[String],
+) {
+    append_structured_log(
+        app,
+        "info",
+        "app.open_files.ingress",
+        "Received open-file payload",
+        serde_json::json!({
+            "source": source,
+            "receivedItemsCount": received_items_count,
+            "normalizedPathCount": normalized_paths.len(),
+            "normalizedPaths": normalized_paths
+        }),
+    );
+}
+
+fn log_open_paths_runtime_context(app: &tauri::AppHandle, source: &str, raw_items: &[String]) {
+    let current_exe = env::current_exe()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| String::new());
+    let current_dir = env::current_dir()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| String::new());
+    append_structured_log(
+        app,
+        "info",
+        "app.open_files.runtime_context",
+        "Open-file runtime context",
+        serde_json::json!({
+            "source": source,
+            "pid": std::process::id(),
+            "currentExe": current_exe,
+            "currentDir": current_dir,
+            "rawItemsCount": raw_items.len(),
+            "rawItems": raw_items
+        }),
+    );
+}
+
 fn publish_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
     if paths.is_empty() {
+        append_structured_log(
+            app,
+            "info",
+            "app.open_files.publish.skipped",
+            "Skipped open-file publish because no markdown paths were available",
+            serde_json::json!({}),
+        );
         return;
     }
+
+    let mut queued_count = 0usize;
+    let mut pending_after_queue = 0usize;
 
     if let Some(state) = app.try_state::<PendingOpenFilesState>() {
         if let Ok(mut pending_paths) = state.0.lock() {
@@ -1639,10 +1717,13 @@ fn publish_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
                     continue;
                 }
                 pending_paths.push(path.clone());
+                queued_count += 1;
             }
+            pending_after_queue = pending_paths.len();
         }
     }
 
+    let mut emitted = false;
     if let Some(window) = app.get_webview_window("main") {
         if let Err(error) = window.emit(
             "ghost-writer://app-open-files",
@@ -1655,8 +1736,24 @@ fn publish_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
                 "Failed to emit app-open-files event",
                 serde_json::json!({ "error": error.to_string() }),
             );
+        } else {
+            emitted = true;
         }
     }
+
+    append_structured_log(
+        app,
+        "info",
+        "app.open_files.publish",
+        "Published open-file paths to renderer and pending queue",
+        serde_json::json!({
+            "receivedPathCount": paths.len(),
+            "queuedPathCount": queued_count,
+            "pendingQueueSize": pending_after_queue,
+            "windowFound": app.get_webview_window("main").is_some(),
+            "eventEmitted": emitted
+        }),
+    );
 }
 
 fn has_pdf_extension(path: &Path) -> bool {
@@ -2700,6 +2797,17 @@ mod tests {
     }
 
     #[test]
+    fn startup_open_paths_accept_wrapped_quoted_markdown_paths() {
+        let markdown_path = std::env::temp_dir().join("ghost-writer-opened-quoted.md");
+        let markdown_text = markdown_path.to_string_lossy().into_owned();
+        let quoted = format!("\"{markdown_text}\"");
+
+        let paths = startup_open_paths_from_args(vec![quoted]);
+
+        assert_eq!(paths, vec![markdown_text]);
+    }
+
+    #[test]
     fn opened_urls_convert_only_file_markdown_urls() {
         let markdown_path = std::env::temp_dir().join("ghost-writer-opened-url.md");
         let markdown_url =
@@ -2710,6 +2818,18 @@ mod tests {
 
         let paths = markdown_paths_from_opened_urls(&[markdown_url, text_url, http_url]);
         assert_eq!(paths, vec![markdown_path.to_string_lossy().into_owned()]);
+    }
+
+    #[test]
+    fn single_instance_open_paths_skip_executable_argument() {
+        let markdown_path = std::env::temp_dir().join("ghost-writer-opened-single-instance.md");
+        let markdown_text = markdown_path.to_string_lossy().into_owned();
+        let executable = "/Applications/Ghost Writer.app/Contents/MacOS/Ghost Writer".to_string();
+
+        let paths =
+            startup_open_paths_from_single_instance_args(vec![executable, markdown_text.clone()]);
+
+        assert_eq!(paths, vec![markdown_text]);
     }
 }
 
@@ -2725,8 +2845,21 @@ fn main() {
     let allow_window_close_state = AllowWindowCloseState(Arc::new(AtomicBool::new(false)));
     let pending_open_files_state = PendingOpenFilesState(Arc::new(Mutex::new(Vec::new())));
 
-    let startup_paths = startup_open_paths_from_args(env::args().skip(1).collect());
+    let startup_args: Vec<String> = env::args().skip(1).collect();
+    let startup_paths = startup_open_paths_from_args(startup_args.clone());
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let received_items_count = argv.len().saturating_sub(1);
+            log_open_paths_runtime_context(app, "single-instance-argv", &argv);
+            let paths = startup_open_paths_from_single_instance_args(argv);
+            log_open_paths_ingress(app, "single-instance-argv", received_items_count, &paths);
+            publish_open_paths(app, paths);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .manage(ollama_cancel)
         .manage(colored_output_menu_state)
         .manage(md_prompts_menu_state)
@@ -2925,6 +3058,8 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
+    log_open_paths_runtime_context(&app.handle(), "startup-args", &startup_args);
+    log_open_paths_ingress(&app.handle(), "startup-args", startup_args.len(), &startup_paths);
     if !startup_paths.is_empty() {
         publish_open_paths(&app.handle(), startup_paths);
     }
@@ -2932,6 +3067,7 @@ fn main() {
     app.run(|app_handle, event| {
         if let tauri::RunEvent::Opened { urls } = event {
             let paths = markdown_paths_from_opened_urls(&urls);
+            log_open_paths_ingress(app_handle, "run-event-opened", urls.len(), &paths);
             publish_open_paths(app_handle, paths);
         }
     });

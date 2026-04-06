@@ -404,6 +404,41 @@ describe('App desktop save flow', () => {
     })
   })
 
+  it('opens delayed pending startup markdown files when native queue is populated after initial consume', async () => {
+    desktopRuntimeMocks.consumePendingOpenFiles
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['/tmp/delayed-startup-open.md'])
+      .mockResolvedValue([])
+    desktopRuntimeMocks.loadMarkdownFilesByPaths.mockResolvedValue([
+      {
+        path: '/tmp/delayed-startup-open.md',
+        content: 'Loaded from delayed startup open',
+      },
+    ])
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.consumePendingOpenFiles.mock.calls.length).toBeGreaterThanOrEqual(1)
+    })
+
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.loadMarkdownFilesByPaths).toHaveBeenCalledWith([
+        '/tmp/delayed-startup-open.md',
+      ])
+    }, { timeout: 3000 })
+    expect(desktopRuntimeMocks.loadMarkdownFilesByPaths).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Switch to delayed-startup-open' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    }, { timeout: 3000 })
+    await waitFor(() => {
+      expect(desktopRuntimeMocks.consumePendingOpenFiles.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
   it('keeps startup-opened markdown tabs after desktop session restore completes', async () => {
     const deferredSettings = createDeferred()
     desktopRuntimeMocks.loadSettings.mockImplementation(async () => deferredSettings.promise)

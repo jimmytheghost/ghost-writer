@@ -5,6 +5,7 @@ const isTauriMock = vi.hoisted(() => vi.fn(() => true))
 const listenMock = vi.hoisted(() => vi.fn())
 const setTitleMock = vi.hoisted(() => vi.fn())
 const getCurrentWindowMock = vi.hoisted(() => vi.fn(() => ({ setTitle: setTitleMock })))
+const reportMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
@@ -20,10 +21,11 @@ vi.mock('@tauri-apps/api/window', () => ({
 }))
 
 vi.mock('./errorReporting', () => ({
-  report: vi.fn(),
+  report: reportMock,
 }))
 
 import {
+  consumePendingOpenFiles,
   exportDiagnosticsBundle,
   getFrontendDiagnosticsSnapshot,
   prepareMacosEditorInput,
@@ -59,6 +61,7 @@ describe('desktopRuntime diagnostics', () => {
     getCurrentWindowMock.mockReset()
     getCurrentWindowMock.mockReturnValue({ setTitle: setTitleMock })
     setTitleMock.mockReset()
+    reportMock.mockReset()
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
@@ -169,5 +172,31 @@ describe('desktopRuntime diagnostics', () => {
 
     expect(getCurrentWindowMock).toHaveBeenCalledTimes(1)
     expect(setTitleMock).toHaveBeenCalledWith('Tab title')
+  })
+
+  it('retries consume pending open files and returns the first successful response', async () => {
+    invokeMock
+      .mockRejectedValueOnce(new Error('Command not found'))
+      .mockResolvedValueOnce(['/tmp/recovered.md'])
+
+    await expect(consumePendingOpenFiles()).resolves.toEqual(['/tmp/recovered.md'])
+    expect(invokeMock).toHaveBeenCalledTimes(2)
+    expect(reportMock).not.toHaveBeenCalled()
+  })
+
+  it('logs consume pending open files failure at most once', async () => {
+    vi.useFakeTimers()
+    invokeMock.mockRejectedValue(new Error('still unavailable'))
+
+    const first = consumePendingOpenFiles()
+    await vi.runAllTimersAsync()
+    await expect(first).resolves.toEqual([])
+
+    const second = consumePendingOpenFiles()
+    await vi.runAllTimersAsync()
+    await expect(second).resolves.toEqual([])
+
+    expect(reportMock).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })
