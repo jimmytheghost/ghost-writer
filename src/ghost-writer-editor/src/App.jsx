@@ -77,6 +77,8 @@ const UNTITLED_TITLE_PATTERN = /^Untitled(?:\s+(\d+))?(?:\.md)?$/i
 const FOOTER_ACTION_FEEDBACK_DURATION_MS = 1500
 const FIND_REPLACE_HISTORY_LIMIT = 20
 const EMPTY_SELECTION_RANGE = { start: 0, end: 0 }
+const STARTUP_PENDING_OPEN_POLL_ATTEMPTS = 8
+const STARTUP_PENDING_OPEN_POLL_DELAY_MS = 300
 
 function createInitialScrollPosition() {
   return {
@@ -3087,6 +3089,7 @@ ${escapeLatex(exportMarkdownSource)}
     if (!isDesktopRuntime()) return undefined
 
     let disposed = false
+    let pollTimer = null
     let unlistenQuit = () => {}
     let unlistenClose = () => {}
     let unlistenOpenFiles = () => {}
@@ -3122,12 +3125,31 @@ ${escapeLatex(exportMarkdownSource)}
       if (startupPathsToOpen.length > 0) {
         await handleDesktopOpenFiles({ paths: startupPathsToOpen })
       }
+
+      for (let attempt = 0; attempt < STARTUP_PENDING_OPEN_POLL_ATTEMPTS; attempt += 1) {
+        if (disposed) return
+        await new Promise((resolve) => {
+          pollTimer = setTimeout(resolve, STARTUP_PENDING_OPEN_POLL_DELAY_MS)
+        })
+        if (disposed) return
+
+        const delayedPaths = normalizeDesktopOpenPaths(await consumePendingOpenFiles())
+        if (delayedPaths.length === 0) {
+          continue
+        }
+
+        await handleDesktopOpenFiles({ paths: delayedPaths })
+      }
     }
 
     void registerListeners()
 
     return () => {
       disposed = true
+      if (pollTimer != null) {
+        clearTimeout(pollTimer)
+        pollTimer = null
+      }
       unlistenQuit()
       unlistenClose()
       unlistenOpenFiles()

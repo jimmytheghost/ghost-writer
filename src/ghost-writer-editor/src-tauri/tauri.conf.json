@@ -36,8 +36,22 @@
       "nsis",
       "dmg"
     ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md"
+        ],
+        "name": "Markdown Document",
+        "description": "Markdown text file",
+        "role": "Editor",
+        "mimeType": "text/markdown"
+      }
+    ],
     "category": "Productivity",
     "createUpdaterArtifacts": false,
+    "macOS": {
+      "signingIdentity": "-"
+    },
     "windows": {
       "nsis": {}
     },
