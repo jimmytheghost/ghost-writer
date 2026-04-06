@@ -49,6 +49,9 @@
     ],
     "category": "Productivity",
     "createUpdaterArtifacts": false,
+    "macOS": {
+      "signingIdentity": "-"
+    },
     "windows": {
       "nsis": {}
     },
