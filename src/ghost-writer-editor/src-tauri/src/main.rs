@@ -9,7 +9,7 @@ use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -57,6 +57,7 @@ pub struct MdPromptsMenuState(pub Arc<AtomicBool>);
 pub struct TabBarMenuState(pub Arc<AtomicBool>);
 pub struct PromptPanelMenuState(pub Arc<AtomicBool>);
 pub struct AllowWindowCloseState(pub Arc<AtomicBool>);
+pub struct PendingOpenFilesState(pub Arc<Mutex<Vec<String>>>);
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -844,6 +845,19 @@ fn load_markdown_files_by_paths(
 }
 
 #[tauri::command]
+fn consume_pending_open_files(app: tauri::AppHandle) -> Vec<String> {
+    let Some(state) = app.try_state::<PendingOpenFilesState>() else {
+        return Vec::new();
+    };
+    let Ok(mut pending_paths) = state.0.lock() else {
+        return Vec::new();
+    };
+    let consumed = pending_paths.clone();
+    pending_paths.clear();
+    consumed
+}
+
+#[tauri::command]
 fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
     ensure_max_bytes("url", url.trim(), MAX_PATH_BYTES)?;
     if !is_allowed_external_url(&url) {
@@ -1549,6 +1563,100 @@ fn has_markdown_extension(path: &Path) -> bool {
         .and_then(|value| value.to_str())
         .map(|value| value.eq_ignore_ascii_case("md"))
         .unwrap_or(false)
+}
+
+fn normalize_pending_open_paths(paths: Vec<String>) -> Vec<String> {
+    let mut normalized: Vec<String> = Vec::new();
+
+    for raw in paths {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if validate_path_string("path", trimmed).is_err() {
+            continue;
+        }
+
+        let path = PathBuf::from(trimmed);
+        if !has_markdown_extension(&path) {
+            continue;
+        }
+
+        let value = path.to_string_lossy().into_owned();
+        if normalized.iter().any(|existing| existing == &value) {
+            continue;
+        }
+        normalized.push(value);
+    }
+
+    normalized
+}
+
+fn markdown_paths_from_opened_urls(urls: &[url::Url]) -> Vec<String> {
+    let raw_paths: Vec<String> = urls
+        .iter()
+        .filter(|url| url.scheme() == "file")
+        .filter_map(|url| url.to_file_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+    normalize_pending_open_paths(raw_paths)
+}
+
+fn startup_open_paths_from_args(args: Vec<String>) -> Vec<String> {
+    let mut raw_paths: Vec<String> = Vec::new();
+
+    for arg in args {
+        let trimmed = arg.trim();
+        if trimmed.is_empty() || trimmed.starts_with("-psn_") {
+            continue;
+        }
+
+        if let Ok(parsed) = url::Url::parse(trimmed) {
+            if parsed.scheme() == "file" {
+                if let Ok(path) = parsed.to_file_path() {
+                    raw_paths.push(path.to_string_lossy().into_owned());
+                }
+            }
+            continue;
+        }
+
+        raw_paths.push(trimmed.to_string());
+    }
+
+    normalize_pending_open_paths(raw_paths)
+}
+
+fn publish_open_paths(app: &tauri::AppHandle, paths: Vec<String>) {
+    if paths.is_empty() {
+        return;
+    }
+
+    if let Some(state) = app.try_state::<PendingOpenFilesState>() {
+        if let Ok(mut pending_paths) = state.0.lock() {
+            for path in &paths {
+                if pending_paths.iter().any(|existing| existing == path) {
+                    continue;
+                }
+                pending_paths.push(path.clone());
+            }
+        }
+    }
+
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) = window.emit(
+            "ghost-writer://app-open-files",
+            serde_json::json!({ "paths": paths }),
+        ) {
+            append_structured_log(
+                app,
+                "error",
+                "app.open_files.emit.failed",
+                "Failed to emit app-open-files event",
+                serde_json::json!({ "error": error.to_string() }),
+            );
+        }
+    }
 }
 
 fn has_pdf_extension(path: &Path) -> bool {
@@ -2347,6 +2455,7 @@ async fn pull_ollama_model(app: tauri::AppHandle, model: String) -> Result<(), S
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "windows")]
     use std::sync::Mutex;
 
     #[test]
@@ -2568,6 +2677,40 @@ mod tests {
         assert!(dialog_ran.load(Ordering::SeqCst));
         assert_eq!(*calls.lock().expect("calls should lock"), vec![false, true]);
     }
+
+    #[test]
+    fn startup_open_paths_keep_only_absolute_markdown_and_deduplicate() {
+        let markdown_path = std::env::temp_dir().join("ghost-writer-opened.md");
+        let txt_path = std::env::temp_dir().join("ghost-writer-opened.txt");
+        let markdown_text = markdown_path.to_string_lossy().into_owned();
+        let txt_text = txt_path.to_string_lossy().into_owned();
+        let markdown_url = url::Url::from_file_path(&markdown_path)
+            .expect("file URL should build")
+            .to_string();
+
+        let paths = startup_open_paths_from_args(vec![
+            "-psn_0_12345".to_string(),
+            markdown_text.clone(),
+            markdown_url,
+            txt_text,
+            "relative.md".to_string(),
+        ]);
+
+        assert_eq!(paths, vec![markdown_text]);
+    }
+
+    #[test]
+    fn opened_urls_convert_only_file_markdown_urls() {
+        let markdown_path = std::env::temp_dir().join("ghost-writer-opened-url.md");
+        let markdown_url =
+            url::Url::from_file_path(&markdown_path).expect("file URL should build");
+        let text_path = std::env::temp_dir().join("ghost-writer-opened-url.txt");
+        let text_url = url::Url::from_file_path(&text_path).expect("file URL should build");
+        let http_url = url::Url::parse("https://example.com/note.md").expect("URL should parse");
+
+        let paths = markdown_paths_from_opened_urls(&[markdown_url, text_url, http_url]);
+        assert_eq!(paths, vec![markdown_path.to_string_lossy().into_owned()]);
+    }
 }
 
 fn main() {
@@ -2580,14 +2723,17 @@ fn main() {
     let tab_bar_menu_state = TabBarMenuState(Arc::new(AtomicBool::new(true)));
     let prompt_panel_menu_state = PromptPanelMenuState(Arc::new(AtomicBool::new(true)));
     let allow_window_close_state = AllowWindowCloseState(Arc::new(AtomicBool::new(false)));
+    let pending_open_files_state = PendingOpenFilesState(Arc::new(Mutex::new(Vec::new())));
 
-    tauri::Builder::default()
+    let startup_paths = startup_open_paths_from_args(env::args().skip(1).collect());
+    let app = tauri::Builder::default()
         .manage(ollama_cancel)
         .manage(colored_output_menu_state)
         .manage(md_prompts_menu_state)
         .manage(tab_bar_menu_state)
         .manage(prompt_panel_menu_state)
         .manage(allow_window_close_state)
+        .manage(pending_open_files_state)
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             exit_app,
@@ -2598,6 +2744,7 @@ fn main() {
             rename_markdown_file_with_dialog,
             open_markdown_file,
             load_markdown_files_by_paths,
+            consume_pending_open_files,
             open_external_url,
             print_current_webview,
             export_pdf_current_webview,
@@ -2775,8 +2922,19 @@ fn main() {
                 _ => {}
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    if !startup_paths.is_empty() {
+        publish_open_paths(&app.handle(), startup_paths);
+    }
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Opened { urls } = event {
+            let paths = markdown_paths_from_opened_urls(&urls);
+            publish_open_paths(app_handle, paths);
+        }
+    });
 }
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSPrintInfo, NSTextView, NSWindow};
